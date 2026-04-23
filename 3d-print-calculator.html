@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Print Cost Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f1a;
+      --surface:   #13162b;
+      --surface2:  #1a1f38;
+      --border:    #252a46;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --accent:    #6366f1;
+      --accent2:   #818cf8;
+      --budget:    #10b981;
+      --standard:  #3b82f6;
+      --premium:   #a855f7;
+      --pro:       #f59e0b;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-top: 8px;
+    }
+
+    .header-icon {
+      font-size: 2.8rem;
+      line-height: 1;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 0 18px rgba(99,102,241,.5));
+    }
+
+    .header h1 {
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #818cf8 0%, #6366f1 40%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: var(--muted);
+      margin-top: 8px;
+      font-size: 0.95rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 28px 32px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin-bottom: 22px;
+    }
+
+    /* ── Inputs ── */
+    .inputs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color .18s, box-shadow .18s;
+    }
+
+    .input-row:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+    }
+
+    .adorn {
+      padding: 0 11px;
+      color: var(--accent2);
+      font-size: 0.88rem;
+      font-weight: 600;
+      white-space: nowrap;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .adorn-left  { border-right: 1px solid var(--border); }
+    .adorn-right { border-left:  1px solid var(--border); }
+
+    input[type="number"] {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 11px 12px;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { opacity: 0; }
+
+    /* ── Breakdown ── */
+    .breakdown-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .bk-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .bk-item.highlight {
+      border-color: rgba(99,102,241,.4);
+      background: rgba(99,102,241,.08);
+    }
+
+    .bk-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+
+    .bk-item.highlight .bk-value {
+      background: linear-gradient(135deg, var(--accent2), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .bk-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Tier Cards ── */
+    .tiers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 18px;
+    }
+
+    .tier-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 26px 22px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+      cursor: default;
+    }
+
+    .tier-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .tier-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      border-radius: 18px 18px 0 0;
+    }
+
+    .tier-card.budget  { --tc: var(--budget);   }
+    .tier-card.standard{ --tc: var(--standard); }
+    .tier-card.premium { --tc: var(--premium);  }
+    .tier-card.pro     { --tc: var(--pro);      }
+
+    .tier-card:hover { border-color: var(--tc); box-shadow: 0 8px 30px -8px color-mix(in srgb, var(--tc) 35%, transparent); }
+
+    .tier-card.budget  .tier-bar { background: var(--budget); }
+    .tier-card.standard .tier-bar { background: var(--standard); }
+    .tier-card.premium  .tier-bar { background: var(--premium); }
+    .tier-card.pro      .tier-bar { background: linear-gradient(90deg, var(--pro), #ef4444); }
+
+    .tier-name {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--tc);
+      margin-bottom: 14px;
+    }
+
+    .tier-price {
+      font-size: 2.6rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .tier-price sup {
+      font-size: 1.1rem;
+      font-weight: 600;
+      vertical-align: super;
+      margin-right: 2px;
+      color: #94a3b8;
+    }
+
+    .tier-effective-margin {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .tier-features {
+      list-style: none;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .tier-features li {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      padding: 3px 0 3px 18px;
+      position: relative;
+    }
+
+    .tier-features li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--tc);
+      font-weight: 700;
+      font-size: 0.7rem;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      margin-top: 36px;
+      color: #334155;
+      font-size: 0.78rem;
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 480px) {
+      .card { padding: 20px 18px 24px; }
+      .tier-price { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-icon">⬡</div>
+    <h1>3D Print Cost Calculator</h1>
+    <p>Accurate pricing across four service tiers</p>
+  </header>
+
+  <!-- Inputs -->
+  <section class="card">
+    <div class="card-title">Print Parameters</div>
+    <div class="inputs-grid">
+
+      <div class="field">
+        <label>Material Cost per Gram</label>
+        <div class="input-row">
+          <span class="adorn adorn-left">$</span>
+          <input type="number" id="materialCost" value="0.05" min="0" step="0.01" />
+          <span class="adorn adorn-right">/ g</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Print Weight</label>
+        <div class="input-row">
+          <input type="number" id="printWeight" value="100" min="0" step="1" />
+          <span class="adorn adorn-right">g</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Machine Running Cost per Hour</label>
+        <div class="input-row">
+          <span class="adorn adorn-left">$</span>
+          <input type="number" id="machineCost" value="2.50" min="0" step="0.10" />
+          <span class="adorn adorn-right">/ hr</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Print Time</label>
+        <div class="input-row">
+          <input type="number" id="printTime" value="4" min="0" step="0.5" />
+          <span class="adorn adorn-right">hrs</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Failure Rate Buffer</label>
+        <div class="input-row">
+          <input type="number" id="failureRate" value="10" min="0" max="100" step="1" />
+          <span class="adorn adorn-right">%</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Base Profit Margin</label>
+        <div class="input-row">
+          <input type="number" id="profitMargin" value="30" min="0" max="500" step="1" />
+          <span class="adorn adorn-right">%</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Cost Breakdown -->
+  <section class="card">
+    <div class="card-title">Cost Breakdown</div>
+    <div class="breakdown-grid">
+      <div class="bk-item">
+        <div class="bk-value" id="bkMaterial">—</div>
+        <div class="bk-label">Material</div>
+      </div>
+      <div class="bk-item">
+        <div class="bk-value" id="bkMachine">—</div>
+        <div class="bk-label">Machine</div>
+      </div>
+      <div class="bk-item">
+        <div class="bk-value" id="bkBase">—</div>
+        <div class="bk-label">Base Cost</div>
+      </div>
+      <div class="bk-item">
+        <div class="bk-value" id="bkFailure">—</div>
+        <div class="bk-label">Failure Buffer</div>
+      </div>
+      <div class="bk-item highlight">
+        <div class="bk-value" id="bkTotal">—</div>
+        <div class="bk-label">Total Cost</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Tiers -->
+  <section>
+    <div class="card-title" style="padding-left:4px; margin-bottom:16px;">Pricing Tiers</div>
+    <div class="tiers-grid">
+
+      <div class="tier-card budget">
+        <div class="tier-bar"></div>
+        <div class="tier-name">Budget</div>
+        <div class="tier-price"><sup>$</sup><span id="priceBudget">—</span></div>
+        <div class="tier-effective-margin" id="marginBudget"></div>
+        <ul class="tier-features">
+          <li>Standard filament</li>
+          <li>Basic support removal</li>
+          <li>No post-processing</li>
+        </ul>
+      </div>
+
+      <div class="tier-card standard">
+        <div class="tier-bar"></div>
+        <div class="tier-name">Standard</div>
+        <div class="tier-price"><sup>$</sup><span id="priceStandard">—</span></div>
+        <div class="tier-effective-margin" id="marginStandard"></div>
+        <ul class="tier-features">
+          <li>Quality filament</li>
+          <li>Support removal</li>
+          <li>Light sanding</li>
+        </ul>
+      </div>
+
+      <div class="tier-card premium">
+        <div class="tier-bar"></div>
+        <div class="tier-name">Premium</div>
+        <div class="tier-price"><sup>$</sup><span id="pricePremium">—</span></div>
+        <div class="tier-effective-margin" id="marginPremium"></div>
+        <ul class="tier-features">
+          <li>Premium filament</li>
+          <li>Full post-processing</li>
+          <li>Quality inspection</li>
+        </ul>
+      </div>
+
+      <div class="tier-card pro">
+        <div class="tier-bar"></div>
+        <div class="tier-name">Professional</div>
+        <div class="tier-price"><sup>$</sup><span id="pricePro">—</span></div>
+        <div class="tier-effective-margin" id="marginPro"></div>
+        <ul class="tier-features">
+          <li>Specialty materials</li>
+          <li>Full finishing &amp; painting</li>
+          <li>Certified quality check</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>3D Print Cost Calculator &mdash; all values in USD</footer>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  const fmt = n => n.toFixed(2);
+
+  function calculate() {
+    const materialCost = parseFloat($('materialCost').value)  || 0;
+    const printWeight  = parseFloat($('printWeight').value)   || 0;
+    const machineCost  = parseFloat($('machineCost').value)   || 0;
+    const printTime    = parseFloat($('printTime').value)     || 0;
+    const failureRate  = parseFloat($('failureRate').value)   || 0;
+    const profitMargin = parseFloat($('profitMargin').value)  || 0;
+
+    const material  = materialCost * printWeight;
+    const machine   = machineCost  * printTime;
+    const base      = material + machine;
+    const failure   = base * (failureRate / 100);
+    const total     = base + failure;
+
+    // Breakdown display
+    $('bkMaterial').textContent = '$' + fmt(material);
+    $('bkMachine').textContent  = '$' + fmt(machine);
+    $('bkBase').textContent     = '$' + fmt(base);
+    $('bkFailure').textContent  = '$' + fmt(failure);
+    $('bkTotal').textContent    = '$' + fmt(total);
+
+    // Tier multipliers applied to the base profit margin
+    const tiers = [
+      { priceEl: 'priceBudget',   marginEl: 'marginBudget',   mult: 0.5  },
+      { priceEl: 'priceStandard', marginEl: 'marginStandard', mult: 1.0  },
+      { priceEl: 'pricePremium',  marginEl: 'marginPremium',  mult: 1.5  },
+      { priceEl: 'pricePro',      marginEl: 'marginPro',      mult: 2.0  },
+    ];
+
+    tiers.forEach(({ priceEl, marginEl, mult }) => {
+      const effectivePct = profitMargin * mult;
+      const price        = total * (1 + effectivePct / 100);
+      $(priceEl).textContent  = fmt(price);
+      $(marginEl).textContent = Math.round(effectivePct) + '% markup over cost';
+    });
+  }
+
+  document.querySelectorAll('input[type="number"]').forEach(el => {
+    el.addEventListener('input', calculate);
+  });
+
+  calculate();
+</script>
+</body>
+</html>
