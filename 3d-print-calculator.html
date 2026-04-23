@@ -315,7 +315,7 @@
       <div class="field">
         <label>Material Cost per Gram</label>
         <div class="input-row">
-          <span class="adorn adorn-left">$</span>
+          <span class="adorn adorn-left">R</span>
           <input type="number" id="materialCost" value="0.05" min="0" step="0.01" />
           <span class="adorn adorn-right">/ g</span>
         </div>
@@ -332,7 +332,7 @@
       <div class="field">
         <label>Machine Running Cost per Hour</label>
         <div class="input-row">
-          <span class="adorn adorn-left">$</span>
+          <span class="adorn adorn-left">R</span>
           <input type="number" id="machineCost" value="2.50" min="0" step="0.10" />
           <span class="adorn adorn-right">/ hr</span>
         </div>
@@ -400,7 +400,7 @@
       <div class="tier-card budget">
         <div class="tier-bar"></div>
         <div class="tier-name">Budget</div>
-        <div class="tier-price"><sup>$</sup><span id="priceBudget">—</span></div>
+        <div class="tier-price"><sup>R</sup><span id="priceBudget">—</span></div>
         <div class="tier-effective-margin" id="marginBudget"></div>
         <ul class="tier-features">
           <li>Standard filament</li>
@@ -412,7 +412,7 @@
       <div class="tier-card standard">
         <div class="tier-bar"></div>
         <div class="tier-name">Standard</div>
-        <div class="tier-price"><sup>$</sup><span id="priceStandard">—</span></div>
+        <div class="tier-price"><sup>R</sup><span id="priceStandard">—</span></div>
         <div class="tier-effective-margin" id="marginStandard"></div>
         <ul class="tier-features">
           <li>Quality filament</li>
@@ -424,7 +424,7 @@
       <div class="tier-card premium">
         <div class="tier-bar"></div>
         <div class="tier-name">Premium</div>
-        <div class="tier-price"><sup>$</sup><span id="pricePremium">—</span></div>
+        <div class="tier-price"><sup>R</sup><span id="pricePremium">—</span></div>
         <div class="tier-effective-margin" id="marginPremium"></div>
         <ul class="tier-features">
           <li>Premium filament</li>
@@ -436,7 +436,7 @@
       <div class="tier-card pro">
         <div class="tier-bar"></div>
         <div class="tier-name">Professional</div>
-        <div class="tier-price"><sup>$</sup><span id="pricePro">—</span></div>
+        <div class="tier-price"><sup>R</sup><span id="pricePro">—</span></div>
         <div class="tier-effective-margin" id="marginPro"></div>
         <ul class="tier-features">
           <li>Specialty materials</li>
@@ -448,7 +448,7 @@
     </div>
   </section>
 
-  <footer>3D Print Cost Calculator &mdash; all values in USD</footer>
+  <footer>3D Print Cost Calculator &mdash; all values in ZAR</footer>
 </div>
 
 <script>
@@ -471,11 +471,11 @@
     const total     = base + failure;
 
     // Breakdown display
-    $('bkMaterial').textContent = '$' + fmt(material);
-    $('bkMachine').textContent  = '$' + fmt(machine);
-    $('bkBase').textContent     = '$' + fmt(base);
-    $('bkFailure').textContent  = '$' + fmt(failure);
-    $('bkTotal').textContent    = '$' + fmt(total);
+    $('bkMaterial').textContent = 'R' + fmt(material);
+    $('bkMachine').textContent  = 'R' + fmt(machine);
+    $('bkBase').textContent     = 'R' + fmt(base);
+    $('bkFailure').textContent  = 'R' + fmt(failure);
+    $('bkTotal').textContent    = 'R' + fmt(total);
 
     // Tier multipliers applied to the base profit margin
     const tiers = [
