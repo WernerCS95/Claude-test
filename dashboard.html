@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      margin-top: 0.25rem;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem 1.75rem;
+      flex: 1;
+      min-width: 150px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+
+    .stat-card .label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+
+    .stat-card.reorder .value { color: #ef4444; }
+    .stat-card.ok .value      { color: #22c55e; }
+    .stat-card.total .value   { color: #6366f1; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .search-input {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 220px;
+    }
+
+    .search-input:focus { border-color: #6366f1; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      background: #f9fafb;
+      text-align: left;
+      padding: 0.85rem 1.5rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f9fafb;
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafafa; }
+
+    tbody td {
+      padding: 1rem 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    td.item-name { font-weight: 500; }
+
+    td.qty { font-variant-numeric: tabular-nums; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .badge.ok {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    .badge.ok::before { background: #22c55e; }
+
+    .badge.reorder {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .badge.reorder::before { background: #ef4444; }
+
+    .progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #f3f4f6;
+      border-radius: 999px;
+      overflow: hidden;
+      min-width: 80px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    .progress-fill.ok     { background: #22c55e; }
+    .progress-fill.warn   { background: #f59e0b; }
+    .progress-fill.reorder { background: #ef4444; }
+
+    .progress-label {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      min-width: 2.5rem;
+      text-align: right;
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Inventory Dashboard</h1>
+    <p>Real-time stock levels and reorder alerts</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat-card total">
+      <div class="label">Total Items</div>
+      <div class="value" id="stat-total">—</div>
+    </div>
+    <div class="stat-card ok">
+      <div class="label">In Stock</div>
+      <div class="value" id="stat-ok">—</div>
+    </div>
+    <div class="stat-card reorder">
+      <div class="label">Needs Reorder</div>
+      <div class="value" id="stat-reorder">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Stock Levels</h2>
+      <input class="search-input" type="search" id="search" placeholder="Search items…" />
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item Name</th>
+          <th>Current Qty</th>
+          <th>Min Qty</th>
+          <th>Stock Level</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <footer>Last updated: <span id="last-updated"></span></footer>
+
+  <script>
+    const inventory = [
+      { name: "Blue Widget",          current: 142, min: 50  },
+      { name: "Red Sprocket",         current: 18,  min: 25  },
+      { name: "Steel Bolt M8",        current: 870, min: 200 },
+      { name: "Rubber Gasket 3\"",    current: 9,   min: 30  },
+      { name: "Copper Pipe Elbow",    current: 55,  min: 40  },
+      { name: "Hex Nut M6",           current: 1200,min: 500 },
+      { name: "Nylon Washer 10mm",    current: 7,   min: 50  },
+      { name: "Aluminium Bracket",    current: 34,  min: 20  },
+      { name: "PVC End Cap",          current: 3,   min: 15  },
+      { name: "Stainless Screw M4",   current: 540, min: 100 },
+      { name: "O-Ring 25mm",          current: 22,  min: 60  },
+      { name: "Toggle Switch",        current: 88,  min: 30  },
+    ];
+
+    function fillPercent(current, min) {
+      const threshold = min * 3;
+      return Math.min(100, Math.round((current / threshold) * 100));
+    }
+
+    function progressClass(current, min) {
+      const ratio = current / min;
+      if (ratio < 1)    return "reorder";
+      if (ratio < 1.5)  return "warn";
+      return "ok";
+    }
+
+    function renderRow(item) {
+      const isOk = item.current >= item.min;
+      const pct  = fillPercent(item.current, item.min);
+      const pCls = progressClass(item.current, item.min);
+      return `
+        <tr>
+          <td class="item-name">${item.name}</td>
+          <td class="qty">${item.current.toLocaleString()}</td>
+          <td class="qty">${item.min.toLocaleString()}</td>
+          <td>
+            <div class="progress-wrap">
+              <div class="progress-bar">
+                <div class="progress-fill ${pCls}" style="width:${pct}%"></div>
+              </div>
+              <span class="progress-label">${pct}%</span>
+            </div>
+          </td>
+          <td><span class="badge ${isOk ? "ok" : "reorder"}">${isOk ? "OK" : "REORDER"}</span></td>
+        </tr>`;
+    }
+
+    function render(data) {
+      document.getElementById("table-body").innerHTML = data.map(renderRow).join("");
+      document.getElementById("stat-total").textContent   = inventory.length;
+      document.getElementById("stat-ok").textContent      = inventory.filter(i => i.current >= i.min).length;
+      document.getElementById("stat-reorder").textContent = inventory.filter(i => i.current <  i.min).length;
+    }
+
+    document.getElementById("search").addEventListener("input", e => {
+      const q = e.target.value.toLowerCase();
+      render(inventory.filter(i => i.name.toLowerCase().includes(q)));
+    });
+
+    document.getElementById("last-updated").textContent =
+      new Date().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+    render(inventory);
+  </script>
+</body>
+</html>
