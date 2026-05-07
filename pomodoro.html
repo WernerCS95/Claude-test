@@ -98,6 +98,7 @@
   #main-btn:hover { border-color: var(--text); }
   #main-btn.active { background: var(--focus-clr); border-color: var(--focus-clr); color: #fff; }
   #main-btn.break-active { background: var(--break-clr); border-color: var(--break-clr); color: #fff; }
+  #main-btn.paused { border-style: dashed; color: var(--muted); }
 
   /* ── notes modal ── */
   #notes-overlay {
@@ -250,7 +251,8 @@ const BREAK_SEC = 5 * 60;
 const STORAGE_KEY = 'pomodoro_log';
 
 // ── state ────────────────────────────────────────────────────────────────────
-let phase      = 'idle';   // idle | focus | break | notes
+let phase      = 'idle';   // idle | focus | break | notes | post-focus
+let paused     = false;
 let remaining  = FOCUS_SEC;
 let totalSec   = FOCUS_SEC;
 let tickId     = null;
@@ -365,11 +367,13 @@ function tick() {
     progressBar.style.width = '100%';
 
     if (phase === 'focus') {
+      paused = false;
       phaseLabel.textContent = 'FOCUS COMPLETE';
       alertSound(3);
       document.title = '✓ Done! — Pomodoro';
       openNotes();
     } else if (phase === 'break') {
+      paused = false;
       phaseLabel.textContent = 'BREAK OVER';
       alertSound(2);
       document.title = '⏰ Break over! — Pomodoro';
@@ -389,30 +393,65 @@ function tick() {
 }
 
 function startFocus() {
-  phase     = 'focus';
-  remaining = FOCUS_SEC;
-  totalSec  = FOCUS_SEC;
+  phase        = 'focus';
+  paused       = false;
+  remaining    = FOCUS_SEC;
+  totalSec     = FOCUS_SEC;
   sessionStart = new Date();
   setPhaseColor('var(--focus-clr)');
   phaseLabel.textContent = 'FOCUS';
   clock.textContent = fmt(remaining);
   progressBar.style.width = '0%';
-  mainBtn.textContent = 'Focusing…';
+  mainBtn.textContent = 'Stop';
   mainBtn.className = 'active';
   tickId = setInterval(tick, 1000);
 }
 
 function startBreak() {
   phase     = 'break';
+  paused    = false;
   remaining = BREAK_SEC;
   totalSec  = BREAK_SEC;
   setPhaseColor('var(--break-clr)');
   phaseLabel.textContent = 'BREAK';
   clock.textContent = fmt(remaining);
   progressBar.style.width = '0%';
-  mainBtn.textContent = 'On break…';
+  mainBtn.textContent = 'Stop';
   mainBtn.className = 'break-active';
   tickId = setInterval(tick, 1000);
+}
+
+function pauseTimer() {
+  paused = true;
+  clearInterval(tickId);
+  tickId = null;
+  phaseLabel.textContent = phase === 'focus' ? 'FOCUS — PAUSED' : 'BREAK — PAUSED';
+  mainBtn.textContent = 'Resume';
+  mainBtn.className = 'paused';
+  document.title = `⏸ ${fmt(remaining)} — Pomodoro`;
+}
+
+function resumeTimer() {
+  paused = false;
+  phaseLabel.textContent = phase === 'focus' ? 'FOCUS' : 'BREAK';
+  mainBtn.textContent = 'Stop';
+  mainBtn.className = phase === 'focus' ? 'active' : 'break-active';
+  tickId = setInterval(tick, 1000);
+}
+
+function stopTimer() {
+  clearInterval(tickId);
+  tickId    = null;
+  paused    = false;
+  remaining = phase === 'focus' ? FOCUS_SEC : BREAK_SEC;
+  phase     = 'idle';
+  setPhaseColor('var(--idle-clr)');
+  phaseLabel.textContent = 'READY';
+  clock.textContent = fmt(FOCUS_SEC);
+  progressBar.style.width = '0%';
+  mainBtn.textContent = 'Start Focus Session';
+  mainBtn.className = '';
+  document.title = 'Pomodoro';
 }
 
 // ── notes modal ───────────────────────────────────────────────────────────────
@@ -446,9 +485,10 @@ function submitNotes() {
 
 // ── button handler ───────────────────────────────────────────────────────────
 mainBtn.addEventListener('click', () => {
-  if (phase === 'idle' || phase === 'post-focus') {
-    if (phase === 'post-focus') { startBreak(); return; }
-    startFocus();
+  if (phase === 'idle')       { startFocus(); return; }
+  if (phase === 'post-focus') { startBreak(); return; }
+  if (phase === 'focus' || phase === 'break') {
+    if (paused) resumeTimer(); else pauseTimer();
   }
 });
 
