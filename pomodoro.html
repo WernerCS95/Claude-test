@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pomodoro Timer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0d0d;
+    --panel:     #151515;
+    --border:    #2a2a2a;
+    --focus-clr: #e05252;
+    --break-clr: #52a0e0;
+    --idle-clr:  #888;
+    --text:      #e8e8e8;
+    --muted:     #666;
+    --green:     #52c47a;
+    --radius:    8px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Consolas', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+  }
+
+  h1 { font-size: 1.1rem; letter-spacing: 0.25em; color: var(--muted); margin-bottom: 4px; }
+  #date-line { font-size: 0.85rem; color: var(--muted); margin-bottom: 32px; }
+
+  /* ── timer card ── */
+  #timer-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px 28px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  #phase-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--idle-clr);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+
+  #clock {
+    font-size: 5rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    color: var(--idle-clr);
+    transition: color 0.3s;
+    margin-bottom: 20px;
+  }
+
+  #progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  #progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--idle-clr);
+    border-radius: 3px;
+    transition: width 0.9s linear, background 0.3s;
+  }
+
+  #main-btn {
+    width: 100%;
+    padding: 14px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  #main-btn:hover { border-color: var(--text); }
+  #main-btn.active { background: var(--focus-clr); border-color: var(--focus-clr); color: #fff; }
+  #main-btn.break-active { background: var(--break-clr); border-color: var(--break-clr); color: #fff; }
+
+  /* ── notes modal ── */
+  #notes-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  #notes-overlay.visible { display: flex; }
+  #notes-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 28px 24px;
+    width: 100%;
+    max-width: 440px;
+  }
+  #notes-box h2 { font-size: 0.85rem; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 16px; }
+  #notes-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+    padding: 10px 12px;
+    outline: none;
+    margin-bottom: 14px;
+  }
+  #notes-input:focus { border-color: var(--focus-clr); }
+  #notes-submit {
+    width: 100%;
+    padding: 11px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--focus-clr);
+    border: none;
+    border-radius: var(--radius);
+    color: #fff;
+    cursor: pointer;
+  }
+  #notes-submit:hover { opacity: 0.85; }
+
+  /* ── log table ── */
+  #log-section {
+    width: 100%;
+    max-width: 480px;
+  }
+  #log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  #log-header span { font-size: 0.75rem; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+  #export-btn {
+    font-family: inherit;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    padding: 3px 10px;
+    cursor: pointer;
+  }
+  #export-btn:hover { border-color: var(--text); color: var(--text); }
+
+  #log-empty { font-size: 0.85rem; color: var(--muted); padding: 12px 0; }
+
+  #log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  #log-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: normal;
+    padding: 0 8px 8px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  #log-table td {
+    padding: 8px 8px 0 0;
+    color: var(--text);
+    vertical-align: top;
+  }
+  #log-table td:last-child { color: var(--muted); word-break: break-word; }
+  .dot-focus { color: var(--focus-clr); }
+  .dot-break { color: var(--break-clr); }
+
+  #summary-line {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>&#127813; POMODORO</h1>
+<div id="date-line"></div>
+
+<div id="timer-card">
+  <div id="phase-label">READY</div>
+  <div id="clock">25:00</div>
+  <div id="progress-track"><div id="progress-bar"></div></div>
+  <button id="main-btn">Start Focus Session</button>
+</div>
+
+<div id="log-section">
+  <div id="log-header">
+    <span>Today&#39;s Sessions</span>
+    <button id="export-btn">Export CSV</button>
+  </div>
+  <div id="log-empty">No sessions logged today yet.</div>
+  <table id="log-table" style="display:none">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Time</th>
+        <th>Min</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody"></tbody>
+  </table>
+  <div id="summary-line"></div>
+</div>
+
+<!-- notes prompt -->
+<div id="notes-overlay">
+  <div id="notes-box">
+    <h2>SESSION COMPLETE &#10003; &mdash; WHAT DID YOU WORK ON?</h2>
+    <input id="notes-input" type="text" placeholder="e.g. fixed the login bug" maxlength="200" autocomplete="off">
+    <button id="notes-submit">Save &amp; Continue</button>
+  </div>
+</div>
+
+<script>
+// ── constants ────────────────────────────────────────────────────────────────
+const FOCUS_SEC = 25 * 60;
+const BREAK_SEC = 5 * 60;
+const STORAGE_KEY = 'pomodoro_log';
+
+// ── state ────────────────────────────────────────────────────────────────────
+let phase      = 'idle';   // idle | focus | break | notes
+let remaining  = FOCUS_SEC;
+let totalSec   = FOCUS_SEC;
+let tickId     = null;
+let sessionStart = null;
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const clock        = document.getElementById('clock');
+const phaseLabel   = document.getElementById('phase-label');
+const progressBar  = document.getElementById('progress-bar');
+const mainBtn      = document.getElementById('main-btn');
+const notesOverlay = document.getElementById('notes-overlay');
+const notesInput   = document.getElementById('notes-input');
+const notesSubmit  = document.getElementById('notes-submit');
+const logEmpty     = document.getElementById('log-empty');
+const logTable     = document.getElementById('log-table');
+const logTbody     = document.getElementById('log-tbody');
+const summaryLine  = document.getElementById('summary-line');
+const exportBtn    = document.getElementById('export-btn');
+const dateLine     = document.getElementById('date-line');
+
+// ── audio (Web Audio API) ────────────────────────────────────────────────────
+function beep(freq = 880, duration = 0.25, vol = 0.4) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch (_) {}
+}
+
+function alertSound(times = 3) {
+  for (let i = 0; i < times; i++) {
+    setTimeout(() => beep(880, 0.3), i * 500);
+  }
+}
+
+// ── storage ──────────────────────────────────────────────────────────────────
+function loadLog() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch (_) { return []; }
+}
+function saveLog(log) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(log));
+}
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+function todaySessions() {
+  return loadLog().filter(s => s.date === todayStr());
+}
+function appendSession(entry) {
+  const log = loadLog();
+  log.push(entry);
+  saveLog(log);
+}
+
+// ── display ──────────────────────────────────────────────────────────────────
+function fmt(sec) {
+  const m = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function setPhaseColor(color) {
+  clock.style.color        = color;
+  phaseLabel.style.color   = color;
+  progressBar.style.background = color;
+}
+
+function renderLog() {
+  const sessions = todaySessions();
+  if (sessions.length === 0) {
+    logEmpty.style.display = 'block';
+    logTable.style.display = 'none';
+    summaryLine.textContent = '';
+    return;
+  }
+  logEmpty.style.display = 'none';
+  logTable.style.display = 'table';
+
+  logTbody.innerHTML = '';
+  sessions.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="dot-focus">#${i + 1}</td>
+      <td>${s.start_time}</td>
+      <td>${s.duration_min}</td>
+      <td>${escHtml(s.notes)}</td>`;
+    logTbody.appendChild(tr);
+  });
+
+  const total = sessions.reduce((n, s) => n + s.duration_min, 0);
+  summaryLine.textContent = `${sessions.length} session${sessions.length > 1 ? 's' : ''} · ${total} min today`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── timer core ───────────────────────────────────────────────────────────────
+function tick() {
+  if (remaining <= 0) {
+    clearInterval(tickId);
+    tickId = null;
+    clock.textContent = fmt(0);
+    progressBar.style.width = '100%';
+
+    if (phase === 'focus') {
+      phaseLabel.textContent = 'FOCUS COMPLETE';
+      alertSound(3);
+      document.title = '✓ Done! — Pomodoro';
+      openNotes();
+    } else if (phase === 'break') {
+      phaseLabel.textContent = 'BREAK OVER';
+      alertSound(2);
+      document.title = '⏰ Break over! — Pomodoro';
+      phase = 'idle';
+      setPhaseColor('var(--idle-clr)');
+      mainBtn.textContent = 'Start Focus Session';
+      mainBtn.className = '';
+    }
+    return;
+  }
+
+  remaining--;
+  clock.textContent = fmt(remaining);
+  const elapsed = totalSec - remaining;
+  progressBar.style.width = `${(elapsed / totalSec) * 100}%`;
+  document.title = `${fmt(remaining)} ${phase === 'focus' ? '🍅' : '☕'} — Pomodoro`;
+}
+
+function startFocus() {
+  phase     = 'focus';
+  remaining = FOCUS_SEC;
+  totalSec  = FOCUS_SEC;
+  sessionStart = new Date();
+  setPhaseColor('var(--focus-clr)');
+  phaseLabel.textContent = 'FOCUS';
+  clock.textContent = fmt(remaining);
+  progressBar.style.width = '0%';
+  mainBtn.textContent = 'Focusing…';
+  mainBtn.className = 'active';
+  tickId = setInterval(tick, 1000);
+}
+
+function startBreak() {
+  phase     = 'break';
+  remaining = BREAK_SEC;
+  totalSec  = BREAK_SEC;
+  setPhaseColor('var(--break-clr)');
+  phaseLabel.textContent = 'BREAK';
+  clock.textContent = fmt(remaining);
+  progressBar.style.width = '0%';
+  mainBtn.textContent = 'On break…';
+  mainBtn.className = 'break-active';
+  tickId = setInterval(tick, 1000);
+}
+
+// ── notes modal ───────────────────────────────────────────────────────────────
+function openNotes() {
+  phase = 'notes';
+  notesInput.value = '';
+  notesOverlay.classList.add('visible');
+  setTimeout(() => notesInput.focus(), 50);
+}
+
+function submitNotes() {
+  const notes = notesInput.value.trim() || '(no notes)';
+  const start = sessionStart;
+  appendSession({
+    date:         start.toISOString().slice(0, 10),
+    start_time:   start.toTimeString().slice(0, 8),
+    duration_min: 25,
+    notes,
+  });
+  renderLog();
+  notesOverlay.classList.remove('visible');
+  setPhaseColor('var(--break-clr)');
+  phaseLabel.textContent = 'READY FOR BREAK';
+  clock.textContent = fmt(BREAK_SEC);
+  progressBar.style.width = '0%';
+  mainBtn.textContent = 'Start 5-min Break';
+  mainBtn.className = '';
+  phase = 'post-focus';
+  document.title = 'Pomodoro';
+}
+
+// ── button handler ───────────────────────────────────────────────────────────
+mainBtn.addEventListener('click', () => {
+  if (phase === 'idle' || phase === 'post-focus') {
+    if (phase === 'post-focus') { startBreak(); return; }
+    startFocus();
+  }
+});
+
+notesSubmit.addEventListener('click', submitNotes);
+notesInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitNotes(); });
+
+// ── export ───────────────────────────────────────────────────────────────────
+exportBtn.addEventListener('click', () => {
+  const all = loadLog();
+  if (!all.length) { alert('No sessions logged yet.'); return; }
+  const header = 'date,start_time,duration_min,notes';
+  const rows = all.map(s =>
+    `${s.date},${s.start_time},${s.duration_min},"${s.notes.replace(/"/g,'""')}"`
+  );
+  const csv = [header, ...rows].join('\r\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'pomodoro_log.csv';
+  a.click();
+});
+
+// ── init ─────────────────────────────────────────────────────────────────────
+(function init() {
+  const d = new Date();
+  dateLine.textContent = d.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  renderLog();
+})();
+</script>
+</body>
+</html>
