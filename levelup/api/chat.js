@@ -53,7 +53,10 @@ export default async function handler(req) {
     const data = await upstream.json()
 
     if (!upstream.ok) {
-      return new Response(JSON.stringify(data), {
+      // Anthropic error shape: { type: "error", error: { type: "...", message: "..." } }
+      // Normalize to a plain string so the client can always do json.error
+      const errMsg = data?.error?.message ?? data?.error ?? `Anthropic API error ${upstream.status}`
+      return new Response(JSON.stringify({ error: typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg) }), {
         status: upstream.status,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       })

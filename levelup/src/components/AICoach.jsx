@@ -123,7 +123,8 @@ export default function AICoach({ data }) {
       const json = await res.json()
 
       if (!res.ok) {
-        throw new Error(json.error ?? `API error ${res.status}`)
+        const errMsg = typeof json.error === 'string' ? json.error : json.error?.message ?? `API error ${res.status}`
+        throw new Error(errMsg)
       }
 
       const reply = json.content?.[0]?.text ?? 'No response.'
@@ -132,7 +133,7 @@ export default function AICoach({ data }) {
       setMessages(finalMessages)
       saveChatHistory(finalMessages)
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
