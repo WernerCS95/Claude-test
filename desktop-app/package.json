@@ -1,0 +1,33 @@
+{
+  "name": "leader-master-list",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leader Trailer Bodies - Master List (Windows desktop app)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "co.leadertrailers.masterlist",
+    "productName": "Leader Master List",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "master-list.html"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  }
+}

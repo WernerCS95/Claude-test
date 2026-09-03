@@ -1,0 +1,17 @@
+{
+  "name": "leader-stores-terminal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leader Trailer Bodies - Stores Terminal (Android app)",
+  "scripts": {
+    "sync": "npx cap sync android",
+    "open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/core": "^6.2.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.2"
+  }
+}

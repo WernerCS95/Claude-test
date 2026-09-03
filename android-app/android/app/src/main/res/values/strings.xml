@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Leader Stores Terminal</string>
+    <string name="title_activity_main">Leader Stores Terminal</string>
+    <string name="package_name">co.leadertrailers.storesterminal</string>
+    <string name="custom_url_scheme">co.leadertrailers.storesterminal</string>
+</resources>
