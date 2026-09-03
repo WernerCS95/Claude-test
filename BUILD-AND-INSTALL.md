@@ -1,9 +1,12 @@
 # Leader Stores System — Standalone Apps
 
-Plain-language guide. Two things were built:
+Plain-language guide. Three things were built:
 
 1. **`desktop-app/`** → wraps `master-list.html` into `Leader Master List.exe` for your laptop.
-2. **`android-app/`** → wraps `stores-terminal.html` into an installable Android app (`.apk`) for the tablet(s).
+2. **`desktop-terminal-app/`** → wraps `stores-terminal.html` into `Leader Stores Terminal.exe`, so you can also run the terminal on your PC (e.g. for testing, or a second stores workstation).
+3. **`android-app/`** → wraps `stores-terminal.html` into an installable Android app (`.apk`) for the tablet(s).
+
+`desktop-terminal-app` is built exactly the same way as `desktop-app` — see section 2 below, just run those same commands inside `desktop-terminal-app` instead. It gets its own separate app identity (`co.leadertrailers.storesterminal.desktop`) from both the tablet app and Master List, so it keeps its own local data — see the sync note at the bottom of this file for why that matters right now.
 
 Both are still 100% offline, still 100% localStorage — nothing about your data or your business logic was touched. This is packaging only, plus one real fix (below).
 

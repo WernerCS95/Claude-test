@@ -1,0 +1,19 @@
+{
+  "name": "leader-stores-terminal-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leader Trailer Bodies - Stores Terminal (Windows desktop app)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "co.leadertrailers.storesterminal.desktop",
+    "productName": "Leader Stores Terminal",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "stores-terminal.html"],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  }
+}
