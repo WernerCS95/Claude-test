@@ -107,7 +107,11 @@ Both `stores-terminal.html` and `master-list.html` now watch a shared table (`st
 
 **How it stays correct under concurrent use (your delivery + issue example):** nothing is ever synced as a raw number. Deliveries and issues sync as +/- changes; spot checks sync as an absolute reset (same as your physical count already overrules everything before it locally). Two devices can both be mid-transaction offline and reconnect in any order — the math always lands the same, because it's always addition/subtraction of the same numbers, never one device's total overwriting another's.
 
-**This only keeps quantities in sync** — not the full delivery/issue history, which still moves between devices via the existing manual Export/Import Full State feature, unchanged.
+**This only keeps quantities in sync** — not the full delivery/issue history (Master List's "Parts Issued" log stays tablet-only for now; the shared ledger is quantities only, by design).
+
+**The old day-to-day "Paste Code from Tablet" / "Import File" buttons have been removed from Master List.** They applied the exact same quantity changes the live ledger now applies — running both was double-counting stock. The server (Supabase) is now the single source of truth for quantities; the tablet is no longer "the brain." **"Import Full State from Tablet" and "Restore Backup" are untouched** — those are a separate disaster-recovery tool, not part of the day-to-day flow, and still work exactly as before.
+
+One thing not yet cleaned up: the Terminal app's own "Upload to Master List" / "Copy Code" button still exists on that side, but Master List can no longer accept what it produces (nowhere left to paste it). It's harmless to leave alone for now — pressing it just does nothing useful — but worth removing from the Terminal UI too at some point so it doesn't invite confusion.
 
 **How to actually test it:**
 1. Build and open both `desktop-terminal-app`'s app and `desktop-app`'s (Master List) app on the laptop at the same time.

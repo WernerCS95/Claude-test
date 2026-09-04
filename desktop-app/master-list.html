@@ -97,8 +97,6 @@
       </div>
     </div>
     <div class="toolbar">
-      <button class="btn primary" id="importBtn">⬇ Import File</button>
-      <input type="file" id="fileInput" accept="application/json">
       <input type="file" id="importFullStateFileInput" accept="application/json" style="display:none;">
       <input type="file" id="restoreMasterBackupFileInput" accept="application/json" style="display:none;">
       <button class="btn" id="addNewItemBtn" style="border-color:var(--success); color:var(--success);">+ Add Item to Stock List</button>
@@ -272,12 +270,6 @@
         <button class="btn primary" id="addItemSaveBtn">+ Add to Stock List</button>
       </div>
     </div>
-  </div>
-
-  <div class="stat-card" style="margin-bottom:22px;">
-    <div class="l">Paste Code From Tablet</div>
-    <textarea id="pasteArea" placeholder="Tap Copy Code on the tablet's Upload screen, then paste here…" style="width:100%; min-height:70px; margin-top:8px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px; font-size:11px; font-family:monospace; resize:vertical;"></textarea>
-    <button class="btn primary" id="pasteImportBtn" style="margin-top:10px;">Import Pasted Code</button>
   </div>
 
   <div class="summary-row">
@@ -3109,163 +3101,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 });
 
-function processImportPayload(payload){
-  // The tablet auto-downloads a full BACKUP file every single time Upload
-  // opens (a safety net, not meant for importing) alongside the real
-  // export file — same folder, similar name, easy to grab the wrong one.
-  // Catch that specific mistake by name rather than showing a generic
-  // "nothing found" that's easy to dismiss without understanding why.
-  if(payload && payload._backupType === 'leader-stores-full-backup'){
-    alert(
-      "That's a BACKUP file, not an export — it can't be imported this way.\n\n" +
-      "On the tablet, every time you open Upload to Master List it automatically saves a safety-net backup file (starts with \"leader-stores-backup-\"). That's not what you want here.\n\n" +
-      "Go back to the tablet's Upload screen and use 📋 Copy Code (then paste it below) or tap ⬇ Download File to get the real export — its filename starts with \"leader-stores-export-\", not \"leader-stores-backup-\"."
-    );
-    return;
-  }
-  const rows = payload.rows || [];
-  const checks = payload.spotChecks || [];
-  const deliveries = payload.goodsReceived || [];
-  // The tablet may still send newWorkers in the payload — harmless to
-  // ignore here, Master List doesn't keep its own worker roster.
-  if(rows.length===0 && checks.length===0 && deliveries.length===0){
-    alert("No rows, spot checks, or deliveries found in that code/file.");
-    return;
-  }
-  if(payload.batchId && loadImportedBatches().includes(payload.batchId)){
-    alert(
-      "This exact batch has already been imported — blocked to stop double-counting stock.\n\n" +
-      "If something from this batch is genuinely missing, don't re-import it — find the specific rows in the ledgers below and fix them by hand instead."
-    );
-    return;
-  }
-  const importedLineIds = loadImportedLineIds();
-  let matched = 0, unmatched = [], rowsSkippedDup = 0;
-  const importedAt = new Date().toLocaleString('en-ZA');
-  rows.forEach(r=>{
-    if(r._id && importedLineIds.has(r._id)){ rowsSkippedDup++; return; } // already imported in an earlier (unconfirmed) export
-    const item = stock.find(s=>s.sku===r.sku);
-    if(item){
-      item.qty -= r.qty;
-      matched++;
-    } else {
-      unmatched.push(r.sku);
-    }
-    ledger.push(Object.assign({}, r, {_importedAt: importedAt, _id: 'l'+Date.now()+Math.random().toString(36).slice(2,7)}));
-    if(r._id) importedLineIds.add(r._id);
-  });
-
-  let scMatched = 0, scCreated = 0, scUnmatched = [], scSkippedDup = 0;
-  checks.forEach(c=>{
-    if(c._id && importedLineIds.has(c._id)){ scSkippedDup++; return; }
-    let item = stock.find(s=>s.sku===c.sku);
-    if(!item && c.isNewItem){
-      // Genuinely new variant created on the tablet (not a typo) — add it
-      // as a real stock line rather than dropping the count. Price/min
-      // stay at 0 until the office gives it a proper number.
-      item = { sku: c.sku, name: c.name, cat: c.cat || 'Misc', qty: 0, min: 0, price: 0 };
-      stock.push(item);
-      scCreated++;
-    }
-    if(item){
-      const before = item.qty;
-      let afterQty;
-      if(c.gasBreakdown){
-        // Gas bottle count — sets the three real states, not just a flat
-        // number, and recomputes qty from whichever states this item's
-        // toggles say should count toward stock value (mirrors the same
-        // includeFull/includeEmpty/includeInUse logic the manual editor
-        // in the inventory table uses).
-        item.gasTracking = true;
-        item.fullQty = c.gasBreakdown.full || 0;
-        item.emptyQty = c.gasBreakdown.empty || 0;
-        item.inUseQty = c.gasBreakdown.inUse || 0;
-        if(item.includeFull === undefined) item.includeFull = true;
-        if(item.includeEmpty === undefined) item.includeEmpty = false;
-        if(item.includeInUse === undefined) item.includeInUse = true;
-        afterQty = 0;
-        if(item.includeFull) afterQty += item.fullQty;
-        if(item.includeEmpty) afterQty += item.emptyQty;
-        if(item.includeInUse) afterQty += item.inUseQty;
-      } else {
-        afterQty = c.countedQty; // spot checks SET the count, not decrement it
-      }
-      item.qty = afterQty;
-      spotLedger.push(Object.assign({}, c, { before, after: afterQty, diff: afterQty - before, _importedAt: importedAt, _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7) }));
-      scMatched++;
-      if(c._id) importedLineIds.add(c._id);
-    } else {
-      scUnmatched.push(c.sku);
-    }
-  });
-
-  let grMatched = 0, grCreated = 0, grSkippedDup = 0;
-  deliveries.forEach(g=>{
-    if(g._id && importedLineIds.has(g._id)){ grSkippedDup++; return; }
-    let item = stock.find(s=>s.sku===g.sku);
-    if(!item){
-      // New item arriving that isn't in stock yet at all — create it so
-      // the delivery isn't lost, same safety net as spot checks use.
-      // If a price came through with this delivery, seed it straight away
-      // instead of sitting at 0 until someone edits it by hand.
-      item = { sku: g.sku, name: g.name, cat: g.cat || 'Misc', qty: 0, min: 0, price: (g.price && g.price > 0) ? g.price : 0 };
-      stock.push(item);
-      grCreated++;
-    }
-    item.qty += g.qty; // goods received ADDS to stock — the one operation that's not a set or a subtract
-    if(g.price && g.price > 0) item.price = g.price; // latest delivery price becomes the item's price on record
-    goodsReceivedLedger.push(Object.assign({}, g, { _importedAt: importedAt, _id: 'gr'+Date.now()+Math.random().toString(36).slice(2,7) }));
-    grMatched++;
-    if(g._id) importedLineIds.add(g._id);
-  });
-
-  saveState();
-  if(payload.batchId) saveImportedBatch(payload.batchId);
-  saveImportedLineIds(importedLineIds);
-  downloadMasterFullSnapshot();
-  render();
-  const totalSkippedDup = rowsSkippedDup + scSkippedDup + grSkippedDup;
-  let msg = `Imported ${matched} of ${rows.length} issue line(s).`;
-  if(checks.length) msg += `\n${scMatched} of ${checks.length} spot check(s) applied — stock levels set to the counted quantity.`;
-  if(scCreated) msg += `\n${scCreated} of those were brand new items — added to the stock list at 0 price/min until you give them a proper SKU.`;
-  if(deliveries.length) msg += `\n${grMatched} of ${deliveries.length} delivery line(s) added to stock.`;
-  if(grCreated) msg += `\n${grCreated} of those were brand new items — added to the stock list at 0 price/min until you give them a proper SKU.`;
-  if(unmatched.length) msg += `\n\n${unmatched.length} issue line(s) had no matching SKU: ${[...new Set(unmatched)].join(', ')}`;
-  if(scUnmatched.length) msg += `\n\n${scUnmatched.length} spot check(s) had no matching SKU: ${[...new Set(scUnmatched)].join(', ')}`;
-  if(totalSkippedDup > 0) msg += `\n\n${totalSkippedDup} line(s) were already imported previously (probably from an unconfirmed upload on the tablet) — skipped, not double-counted.`;
-  alert(msg);
-}
-
-document.getElementById('importBtn').onclick = ()=> document.getElementById('fileInput').click();
-
-document.getElementById('fileInput').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = evt=>{
-    try{
-      processImportPayload(JSON.parse(evt.target.result));
-    }catch(err){
-      alert("Couldn't read that file — make sure it's the export from the tablet.");
-      console.error(err);
-    }
-    e.target.value = "";
-  };
-  reader.readAsText(file);
-});
-
-document.getElementById('pasteImportBtn').onclick = ()=>{
-  const area = document.getElementById('pasteArea');
-  const text = area.value.trim();
-  if(!text){ alert("Paste the code from the tablet's Copy Code button first."); return; }
-  try{
-    processImportPayload(JSON.parse(text));
-    area.value = "";
-  }catch(err){
-    alert("That doesn't look like a valid export code — check the whole code was copied.");
-    console.error(err);
-  }
-};
 
 document.getElementById('newDayBtn').onclick = ()=>{
   if(!confirm("Start a new day? This clears the Parts Issued, Spot Check, and Goods Received logs for a fresh view — current stock quantities are NOT touched.")) return;
