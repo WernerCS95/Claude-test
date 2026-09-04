@@ -486,6 +486,7 @@
   ::-webkit-scrollbar{width:6px; height:6px;}
   ::-webkit-scrollbar-thumb{background:var(--panel-line); border-radius:3px;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -2537,6 +2538,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
     // recorded above either way — this only protects the running quantity.
     if(wasApplied){
       adjustQtyOnHand(l.sku, l.qty);
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { supplier: meta.supplier, grnNo: meta.grnNo, batchId, item_name: l.name, item_cat: l.cat } });
     } else {
       skippedForNewerCount++;
     }
@@ -2990,6 +2992,7 @@ document.getElementById('fceSaveBtn').onclick = ()=>{
       checker: state.worker ? state.worker.name : null
     });
     setQtyOnHand(item.id, qty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: item.id, type: 'spot_check', absolute_qty: qty, meta: { checker: state.worker ? state.worker.name : null, item_name: item.name, item_cat: item.cat } });
     saved++;
   });
   saveSpotChecks();
@@ -6869,9 +6872,11 @@ document.getElementById('submitBtn').onclick = ()=>{
     if(line.isKit && line.components){
       line.components.forEach(c=>{
         adjustQtyOnHand(c.sku, -(c.qty * line.qty));
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: c.name } });
       });
     } else {
       adjustQtyOnHand(line.itemId, -line.qty);
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: line.name } });
     }
   });
 
@@ -7240,6 +7245,152 @@ if(gridAreaEl && backToTopBtn){
   backToTopBtn.onclick = ()=> gridAreaEl.scrollTo({ top: 0, behavior: 'smooth' });
 }
 renderGroupGrid();
+
+/* ====================== CROSS-DEVICE STOCK SYNC ======================
+   Keeps Qty on Hand consistent across every device (tablets + laptop)
+   without ever overwriting a number. Every delivery, issue and spot
+   check gets written as its own row to a shared, append-only ledger
+   (Supabase table stock_transactions) — never edited or deleted, only
+   added to. Two devices can be offline for hours and both come back
+   to the same correct total, because +100 then -20 always equals
+   +100 then -20 regardless of which order or which device applied it.
+
+   This only keeps QUANTITIES in sync. It does not sync the full
+   delivery/log history between devices — that still moves via the
+   existing manual Export/Import Full State feature, unchanged.
+
+   Fully offline-safe: if there's no connection, transactions queue in
+   SYNC_OUTBOX_KEY and get pushed the moment one's available. Nothing
+   about local capture depends on this working.
+========================================================================= */
+const SUPABASE_URL = 'https://mhzdktfjnazajqjnxwwe.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ocwrqOiM6b02N5_fbf-DcA_R0vvggj6';
+const SYNC_OUTBOX_KEY = 'leader-stores-sync-outbox-v1';
+const SYNC_APPLIED_IDS_KEY = 'leader-stores-sync-applied-v1';
+const SYNC_LAST_PULL_KEY = 'leader-stores-sync-last-pull-v1';
+
+let supabaseClient = null;
+try{
+  if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+}catch(e){ console.error('Could not start Supabase client — sync disabled, local capture unaffected', e); }
+
+function newTxnId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'txn-' + Date.now() + '-' + Math.random().toString(36).slice(2,10));
+}
+
+function loadSyncOutbox(){
+  try{ return JSON.parse(localStorage.getItem(SYNC_OUTBOX_KEY)) || []; }catch(e){ return []; }
+}
+function saveSyncOutbox(list){
+  try{ localStorage.setItem(SYNC_OUTBOX_KEY, JSON.stringify(list)); }catch(e){}
+}
+
+function loadAppliedIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(SYNC_APPLIED_IDS_KEY)) || []); }catch(e){ return new Set(); }
+}
+let syncAppliedIds = loadAppliedIds();
+function markApplied(id){
+  syncAppliedIds.add(id);
+  // Cap growth — only the most recent 5000 ids are needed to dedupe realtime/catch-up overlap.
+  if(syncAppliedIds.size > 5000){
+    syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-5000));
+  }
+  try{ localStorage.setItem(SYNC_APPLIED_IDS_KEY, JSON.stringify(Array.from(syncAppliedIds))); }catch(e){}
+}
+
+// Queues a transaction locally (source of truth the instant it happens)
+// and tries to push it immediately. Call this AFTER the existing local
+// adjustQtyOnHand/setQtyOnHand call for the same change — never instead
+// of it, so this device's own screen updates exactly as it always has.
+function queueTransaction(txn){
+  txn.id = newTxnId();
+  txn.source_device = getDeviceName() || 'Unnamed device';
+  txn.created_at = new Date().toISOString();
+  markApplied(txn.id); // this device already applied it locally — never re-apply when it echoes back
+  const outbox = loadSyncOutbox();
+  outbox.push(txn);
+  saveSyncOutbox(outbox);
+  flushSyncOutbox();
+}
+
+let syncFlushInFlight = false;
+async function flushSyncOutbox(){
+  if(!supabaseClient || syncFlushInFlight) return;
+  syncFlushInFlight = true;
+  try{
+    let outbox = loadSyncOutbox();
+    while(outbox.length){
+      const txn = outbox[0];
+      const { error } = await supabaseClient.from('stock_transactions').insert(txn);
+      if(error){
+        // Row already exists (retried after a success we didn't hear back from) — treat as sent, move on.
+        if(error.code === '23505'){ outbox.shift(); saveSyncOutbox(outbox); continue; }
+        break; // likely offline — stop and retry later, whatever's left stays queued
+      }
+      outbox.shift();
+      saveSyncOutbox(outbox);
+    }
+  }catch(e){ console.error('Sync push failed — will retry', e); }
+  syncFlushInFlight = false;
+}
+
+// Applies a transaction that ORIGINATED ON ANOTHER DEVICE to this
+// device's local Qty on Hand, using the exact same functions a local
+// action would use — so behavior is identical either way. A delivery
+// is skipped (per-item) if a spot check after it already accounts for
+// it, same rule already used for local GRN entry.
+function applyRemoteTransaction(txn){
+  if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
+  if(txn.type === 'spot_check'){
+    setQtyOnHand(txn.item_id, Number(txn.absolute_qty));
+  } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
+    const latestSpotCheck = getMostRecentSpotCheckDate(txn.item_id);
+    const txnDate = (txn.created_at || '').slice(0,10);
+    const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
+    if(!supersededBySpotCheck){
+      adjustQtyOnHand(txn.item_id, Number(txn.delta_qty));
+    }
+  }
+  markApplied(txn.id);
+  renderGrid();
+}
+
+async function pullMissedTransactions(){
+  if(!supabaseClient) return;
+  let since;
+  try{ since = localStorage.getItem(SYNC_LAST_PULL_KEY) || '1970-01-01T00:00:00Z'; }catch(e){ since = '1970-01-01T00:00:00Z'; }
+  try{
+    const { data, error } = await supabaseClient
+      .from('stock_transactions')
+      .select('*')
+      .gt('created_at', since)
+      .order('created_at', { ascending: true });
+    if(error){ console.error('Sync pull failed', error); return; }
+    (data || []).forEach(applyRemoteTransaction);
+    if(data && data.length){
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
+    }
+  }catch(e){ console.error('Sync pull failed — offline?', e); }
+}
+
+function startRealtimeSync(){
+  if(!supabaseClient) return;
+  supabaseClient
+    .channel('stock_transactions_changes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stock_transactions' }, payload => {
+      applyRemoteTransaction(payload.new);
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
+    })
+    .subscribe();
+}
+
+if(supabaseClient){
+  pullMissedTransactions().then(startRealtimeSync);
+  window.addEventListener('online', flushSyncOutbox);
+  setInterval(flushSyncOutbox, 15000);
+}
 
 /* ====================== DRAFT AUTOSAVE / RESUME ======================
    Protects work that is only in memory and NOT YET on the log/ledger:

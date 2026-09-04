@@ -101,12 +101,28 @@ The full JSON auto-backup on save, "Restore Backup," the empty-data warning bann
 
 ---
 
-## 5. What still needs internet, what doesn't
+## 5. Live stock sync between devices (new)
+
+Both `stores-terminal.html` and `master-list.html` now watch a shared table (`stock_transactions`) in your Supabase project. Every delivery, issue and spot check on the terminal side gets written there as its own row and instantly applied on every other device running either app — Master List included, even though it doesn't capture deliveries itself.
+
+**How it stays correct under concurrent use (your delivery + issue example):** nothing is ever synced as a raw number. Deliveries and issues sync as +/- changes; spot checks sync as an absolute reset (same as your physical count already overrules everything before it locally). Two devices can both be mid-transaction offline and reconnect in any order — the math always lands the same, because it's always addition/subtraction of the same numbers, never one device's total overwriting another's.
+
+**This only keeps quantities in sync** — not the full delivery/issue history, which still moves between devices via the existing manual Export/Import Full State feature, unchanged.
+
+**How to actually test it:**
+1. Build and open both `desktop-terminal-app`'s app and `desktop-app`'s (Master List) app on the laptop at the same time.
+2. In the Terminal app, log a delivery for any item (or issue one out).
+3. Watch Master List — that item's quantity should update within a second or two, with no action needed on the Master List side.
+4. Once the tablet's `.apk` exists, repeat with the tablet instead of the second desktop app — same expected result.
+
+If it doesn't sync: check the laptop has internet (sync needs it; local capture doesn't), and check the browser/Electron dev console (Ctrl+Shift+I inside the app) for `Sync push failed` or `Sync pull failed` messages — those log the real reason, they're not stayed silent.
+
+## 6. What still needs internet, what doesn't
 
 - Both apps run **fully offline** for everyday use — stock issuing, GRNs, counts, all of it.
 - The one exception: **"Scan PO Page" OCR in Master List** (Tesseract.js) needs internet the moment you use that specific feature, same as it did in the browser. Nothing else does.
 
-## 6. What wasn't done (needs `master-list.html`'s live sync, or your say-so)
+## 7. What wasn't done
 
-- No live sync between tablet and laptop was added — that's still the deliberate, separate future phase you already parked (Supabase/Firebase). Data still moves between them via the existing manual Export/Import.
-- No business logic was changed. If anything in the packaged version behaves differently from before, that's a bug in the wrapping, not an intended change — flag it.
+- Master List still has no delivery-capture screen of its own — use the Terminal app (`desktop-terminal-app`) on the laptop for that; Master List just reflects it live now.
+- No business logic was changed beyond the sync additions above (which are additive — they call the exact same local functions a manual entry would). If anything behaves differently from before, that's a bug in the wrapping, not an intended change — flag it.

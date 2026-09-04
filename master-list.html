@@ -83,6 +83,7 @@
   .import-log .ok{color:var(--success);}
   .import-log .warn{color:var(--amber);}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -3882,6 +3883,114 @@ window.addEventListener('scroll', ()=>{
   backToTopBtn.style.display = window.scrollY > 300 ? 'flex' : 'none';
 });
 backToTopBtn.onclick = ()=> window.scrollTo({ top: 0, behavior: 'smooth' });
+
+/* ====================== CROSS-DEVICE STOCK SYNC (READ SIDE) ======================
+   Watches the same shared ledger the tablet/terminal writes to
+   (stock_transactions in Supabase) and applies every delivery, issue
+   and spot check to this file's own `stock` array the instant it
+   happens elsewhere — same append-only, never-overwrite model as the
+   terminal side. Master List doesn't capture deliveries itself yet
+   (no such screen exists here), so this only reads and applies —
+   it never writes to the ledger.
+
+   Fully additive: if this can't reach Supabase, nothing else in this
+   file is affected — Master List works exactly as it always has,
+   just without the live updates.
+======================================================================= */
+const SUPABASE_URL = 'https://mhzdktfjnazajqjnxwwe.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ocwrqOiM6b02N5_fbf-DcA_R0vvggj6';
+const SYNC_LAST_PULL_KEY = 'leader-master-sync-last-pull-v1';
+const SYNC_APPLIED_IDS_KEY = 'leader-master-sync-applied-v1';
+
+let supabaseClient = null;
+try{
+  if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+}catch(e){ console.error('Could not start Supabase client — sync disabled, rest of Master List unaffected', e); }
+
+let syncAppliedIds = (function(){
+  try{ return new Set(JSON.parse(localStorage.getItem(SYNC_APPLIED_IDS_KEY)) || []); }catch(e){ return new Set(); }
+})();
+function markSyncApplied(id){
+  syncAppliedIds.add(id);
+  if(syncAppliedIds.size > 5000) syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-5000));
+  try{ localStorage.setItem(SYNC_APPLIED_IDS_KEY, JSON.stringify(Array.from(syncAppliedIds))); }catch(e){}
+}
+
+// Same latest-spot-check-wins rule as the terminal: a delivery/issue
+// dated before the most recent spot check for that item is superseded
+// by it and should not be applied on top.
+function mostRecentSpotCheckDateFor(sku){
+  let latest = null;
+  spotLedger.forEach(e=>{
+    const d = e.date || (e.timestamp || '').slice(0,10);
+    if(e.sku === sku && d && (!latest || d > latest)) latest = d;
+  });
+  return latest;
+}
+
+function applyRemoteStockTransaction(txn){
+  if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
+  let item = stock.find(s=>s.sku===txn.item_id);
+  if(!item){
+    item = {
+      sku: txn.item_id,
+      name: (txn.meta && txn.meta.item_name) || txn.item_id,
+      cat: (txn.meta && txn.meta.item_cat) || 'Misc',
+      qty: 0, min: 0, price: 0
+    };
+    stock.push(item);
+  }
+  if(txn.type === 'spot_check'){
+    item.qty = Number(txn.absolute_qty);
+  } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
+    const latestSpotCheck = mostRecentSpotCheckDateFor(txn.item_id);
+    const txnDate = (txn.created_at || '').slice(0,10);
+    const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
+    if(!supersededBySpotCheck){
+      item.qty = Math.max(0, (item.qty || 0) + Number(txn.delta_qty));
+    }
+  }
+  markSyncApplied(txn.id);
+}
+
+async function pullMissedStockTransactions(){
+  if(!supabaseClient) return;
+  let since;
+  try{ since = localStorage.getItem(SYNC_LAST_PULL_KEY) || '1970-01-01T00:00:00Z'; }catch(e){ since = '1970-01-01T00:00:00Z'; }
+  try{
+    const { data, error } = await supabaseClient
+      .from('stock_transactions')
+      .select('*')
+      .gt('created_at', since)
+      .order('created_at', { ascending: true });
+    if(error){ console.error('Sync pull failed', error); return; }
+    if(data && data.length){
+      data.forEach(applyRemoteStockTransaction);
+      saveState();
+      render();
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
+    }
+  }catch(e){ console.error('Sync pull failed — offline?', e); }
+}
+
+function startRealtimeStockSync(){
+  if(!supabaseClient) return;
+  supabaseClient
+    .channel('stock_transactions_changes')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stock_transactions' }, payload => {
+      applyRemoteStockTransaction(payload.new);
+      saveState();
+      render();
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
+    })
+    .subscribe();
+}
+
+if(supabaseClient){
+  pullMissedStockTransactions().then(startRealtimeStockSync);
+}
 </script>
 </body>
 </html>
