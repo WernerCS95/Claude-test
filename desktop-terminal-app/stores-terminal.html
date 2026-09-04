@@ -1656,6 +1656,7 @@ function setGasCount(item, next){
     checker: state.worker ? state.worker.name : null
   });
   setQtyOnHand(item.id, next.full + next.empty + next.inUse);
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: item.id, type: 'spot_check', absolute_qty: next.full + next.empty + next.inUse, meta: { checker: state.worker ? state.worker.name : null, item_name: item.name, item_cat: item.cat } });
   saveSpotChecks();
   return before;
 }
@@ -2516,7 +2517,10 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
     batchId = grnEditingBatch.batchId;
     const oldLines = goodsReceived.filter(g => (g.batchId || g._id) === batchId);
     oldLines.forEach(l=>{
-      if(l.appliedToQtyOnHand) adjustQtyOnHand(l.sku, -l.qty);
+      if(l.appliedToQtyOnHand){
+        adjustQtyOnHand(l.sku, -l.qty);
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'adjustment', delta_qty: -l.qty, meta: { reason: 'GRN edited — reversing old line', batchId, item_name: l.name, item_cat: l.cat } });
+      }
     });
     goodsReceived = goodsReceived.filter(g => (g.batchId || g._id) !== batchId);
   } else {
@@ -3026,6 +3030,7 @@ document.getElementById('fceQuickAddBtn').onclick = ()=>{
       checker: state.worker ? state.worker.name : null
     });
     setQtyOnHand(created.id, qty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: created.id, type: 'spot_check', absolute_qty: qty, meta: { checker: state.worker ? state.worker.name : null, item_name: created.name, item_cat: created.cat } });
     saveSpotChecks();
     alert(`"${created.name}" logged at ${qty}.`);
   });
@@ -3099,6 +3104,7 @@ document.getElementById('scBulkAddBtn').onclick = ()=>{
       checker: state.worker ? state.worker.name : null
     });
     setQtyOnHand(parsed.item.id, parsed.qty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: parsed.item.id, type: 'spot_check', absolute_qty: parsed.qty, meta: { checker: state.worker ? state.worker.name : null, item_name: parsed.item.name, item_cat: parsed.item.cat } });
     added++;
     if(parsed.wasCreated) newlyCreated++;
   });
@@ -3247,6 +3253,7 @@ document.getElementById('scAddBtn').onclick = ()=>{
     checker: state.worker ? state.worker.name : null
   });
   setQtyOnHand(scSelected.id, Number(qty));
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: scSelected.id, type: 'spot_check', absolute_qty: Number(qty), meta: { checker: state.worker ? state.worker.name : null, item_name: scSelected.name, item_cat: scSelected.cat } });
   saveSpotChecks();
   renderGrid();
   scSelected = null;
@@ -4201,6 +4208,7 @@ function renderStaleCountModal(){
         saveSpotChecks();
       }
       setQtyOnHand(s.sku, Number(qty));
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: s.sku, type: 'spot_check', absolute_qty: Number(qty), meta: { checker: state.worker ? state.worker.name : null, item_name: s.name, item_cat: s.cat } });
       areaMaps.qtyMap[s.sku] = { qty: Number(qty), date: today };
       areaMaps.save();
       // Remove just this saved row — rebuilding the whole list here used
@@ -4477,6 +4485,7 @@ document.getElementById('steelConfirmBtn').onclick = ()=>{
         changedCount++;
       }
       setQtyOnHand(i.id, newVal);
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: i.id, type: 'spot_check', absolute_qty: newVal, meta: { checker: state.worker ? state.worker.name : null, item_name: i.name, item_cat: i.cat } });
       steelQty[i.id] = { qty: newVal, date: todayStr };
     });
   });
@@ -4578,6 +4587,7 @@ document.getElementById('tyresConfirmBtn').onclick = ()=>{
       changedCount++;
     }
     setQtyOnHand(i.id, newVal);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: i.id, type: 'spot_check', absolute_qty: newVal, meta: { checker: state.worker ? state.worker.name : null, item_name: i.name, item_cat: i.cat } });
     tyresQty[i.id] = { qty: newVal, date: todayStr };
   });
   saveTyresQty();
@@ -4664,6 +4674,7 @@ document.getElementById('mrConfirmBtn').onclick = ()=>{
       changedCount++;
     }
     setQtyOnHand(i.id, newVal);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: i.id, type: 'spot_check', absolute_qty: newVal, meta: { checker: state.worker ? state.worker.name : null, item_name: i.name, item_cat: i.cat } });
     mixingRoomQty[i.id] = { qty: newVal, date: todayStr };
   });
   saveMixingRoomQty();
@@ -5503,6 +5514,7 @@ function editGrnLine(lineId){
   // have been nothing at all, if a later spot check already covered it.
   if(line.appliedToQtyOnHand){
     adjustQtyOnHand(line.sku, -line.qty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'adjustment', delta_qty: -line.qty, meta: { reason: 'GRN line edited — reversing old qty', item_name: line.name, item_cat: line.cat } });
   }
   // Reapply using the CURRENT spot-check state, not whatever it was back
   // when this was first logged — a count could have happened since.
@@ -5510,6 +5522,7 @@ function editGrnLine(lineId){
   const nowApplies = !(latestCount && latestCount > line.date);
   if(nowApplies){
     adjustQtyOnHand(line.sku, newQty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'delivery', delta_qty: newQty, meta: { reason: 'GRN line edited — reapplying new qty', item_name: line.name, item_cat: line.cat } });
   }
 
   line.qty = newQty;
@@ -6046,6 +6059,7 @@ document.getElementById('dieselSubmitBtn').onclick = ()=>{
   renderLog();
 
   adjustQtyOnHand(entry.lines[0].itemId, -litres);
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: entry.lines[0].itemId, type: 'issue', delta_qty: -litres, meta: { jobNo: '', customer: entry.customer, worker: entry.worker, item_name: entry.lines[0].name } });
 
   // Customer trucks are one-offs — Scania-Safetec today, something else
   // entirely next time. Remembering them here would clutter the dropdown
