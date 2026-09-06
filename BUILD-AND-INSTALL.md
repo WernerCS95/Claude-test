@@ -58,7 +58,9 @@ This one needs **Android Studio** — Google's official tool for building Androi
 3. Open a terminal in the `android-app` folder and run:
    ```
    npm install
+   npx cap sync android
    ```
+   The second command regenerates a few native config folders that Capacitor deliberately doesn't store in git (they're rebuilt from `node_modules` every time) — skipping it causes a "could not read script ... cordova.variables.gradle ... does not exist" error in Android Studio.
 
 **Build the `.apk`:**
 ```
