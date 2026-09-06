@@ -113,6 +113,16 @@ Both `stores-terminal.html` and `master-list.html` now watch a shared table (`st
 
 One thing not yet cleaned up: the Terminal app's own "Upload to Master List" / "Copy Code" button still exists on that side, but Master List can no longer accept what it produces (nowhere left to paste it). It's harmless to leave alone for now — pressing it just does nothing useful — but worth removing from the Terminal UI too at some point so it doesn't invite confusion.
 
+**Sync is now bidirectional.** Originally Master List only received. It now also pushes its own local quantity corrections into the same shared ledger:
+- "Correct Tank Reading" (Diesel and Generator)
+- "View & Fix Spot Check List On Screen"
+- "+ Add Item to Stock List" (a brand-new item entered by hand)
+- Deleting/undoing a spot check or delivery ledger entry
+
+The Terminal picks these up exactly like any other device would. One boundary that's expected, not a bug: each device still needs to know an item's SKU exists at all before it can show/track it — that's still handled by the existing "Import/Export Stock Reference" tool, unchanged. Sync keeps *quantities* agreeing for items both devices already have catalogued; it doesn't invent a brand-new SKU's tile on a device that's never heard of it.
+
+**The "Parts Issued" and "Goods Received" history views in Master List are alive again**, now sourced from the shared ledger instead of the removed import path — new issues/deliveries from the terminal will appear there automatically, same as before, just via a different (better) mechanism underneath.
+
 **How to actually test it:**
 1. Build and open both `desktop-terminal-app`'s app and `desktop-app`'s (Master List) app on the laptop at the same time.
 2. In the Terminal app, log a delivery for any item (or issue one out).

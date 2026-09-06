@@ -1622,6 +1622,7 @@ function saveOneSpotCheckRow(sku, tr){
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
     checker: 'Master List (on screen)', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
   });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: after, meta: { checker: 'Master List (on screen)', item_name: item.name, item_cat: item.cat } });
   return true;
 }
 
@@ -2104,6 +2105,7 @@ document.getElementById('correctTankBtn').onclick = ()=>{
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
     checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
   });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, meta: { checker: 'Tank reading', item_name: item.name, item_cat: item.cat } });
   saveState();
   render();
   if(Math.abs(diff) > 0){
@@ -2135,6 +2137,7 @@ document.getElementById('correctGeneratorTankBtn').onclick = ()=>{
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
     checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
   });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, meta: { checker: 'Tank reading', item_name: item.name, item_cat: item.cat } });
   saveState();
   render();
   if(Math.abs(diff) > 0){
@@ -2715,7 +2718,10 @@ function renderSpotCheckLedger(){
       if(!entry) return;
       if(!confirm(`Delete this spot check entry?\n\n${entry.name} — ${entry.before} → ${entry.after} (${entry.date} ${entry.time})\n\nThis will also revert the stock quantity back to ${entry.before} (undoing this count), if that item still exists.`)) return;
       const item = stock.find(s=>s.sku===entry.sku);
-      if(item) item.qty = entry.before;
+      if(item){
+        item.qty = entry.before;
+        if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: entry.before, meta: { checker: 'Master List (undo)', item_name: item.name, item_cat: item.cat } });
+      }
       spotLedger = spotLedger.filter(x=>x._id!==btn.dataset.delSc);
       saveState();
       render();
@@ -2810,7 +2816,10 @@ function renderGoodsReceivedLedger(){
       if(!entry) return;
       if(!confirm(`Delete this delivery entry?\n\n${entry.name} +${entry.qty} — ${entry.supplier} (${entry.date})\n\nThis will also subtract ${entry.qty} back out of stock (undoing this delivery), if that item still exists.`)) return;
       const item = stock.find(s=>s.sku===entry.sku);
-      if(item) item.qty = Math.max(0, item.qty - entry.qty);
+      if(item){
+        item.qty = Math.max(0, item.qty - entry.qty);
+        if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'adjustment', delta_qty: -entry.qty, meta: { reason: 'Delivery entry deleted in Master List', item_name: item.name, item_cat: item.cat } });
+      }
       goodsReceivedLedger = goodsReceivedLedger.filter(x=>x._id!==btn.dataset.delGr);
       saveState();
       render();
@@ -3456,6 +3465,7 @@ document.getElementById('addItemSaveBtn').onclick = ()=>{
     checker: 'Manual Add (Werner)',
     _id: 'ma'+Date.now()+Math.random().toString(36).slice(2,7)
   });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: sku, type: 'spot_check', absolute_qty: qty, meta: { checker: 'Manual Add (Werner)', item_name: name, item_cat: cat } });
 
   saveState();
   render();
@@ -3719,14 +3729,16 @@ window.addEventListener('scroll', ()=>{
 });
 backToTopBtn.onclick = ()=> window.scrollTo({ top: 0, behavior: 'smooth' });
 
-/* ====================== CROSS-DEVICE STOCK SYNC (READ SIDE) ======================
+/* ====================== CROSS-DEVICE STOCK SYNC (BIDIRECTIONAL) ======================
    Watches the same shared ledger the tablet/terminal writes to
    (stock_transactions in Supabase) and applies every delivery, issue
    and spot check to this file's own `stock` array the instant it
    happens elsewhere — same append-only, never-overwrite model as the
-   terminal side. Master List doesn't capture deliveries itself yet
-   (no such screen exists here), so this only reads and applies —
-   it never writes to the ledger.
+   terminal side. As of this version, Master List also PUSHES its own
+   local quantity corrections (tank gauge readings, on-screen spot
+   check fixes, a hand-added new item, undoing a ledger entry) into
+   the same shared ledger, so the terminal/tablet finds out about
+   office-side corrections too — this used to be one-way.
 
    Fully additive: if this can't reach Supabase, nothing else in this
    file is affected — Master List works exactly as it always has,
@@ -3736,6 +3748,7 @@ const SUPABASE_URL = 'https://mhzdktfjnazajqjnxwwe.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ocwrqOiM6b02N5_fbf-DcA_R0vvggj6';
 const SYNC_LAST_PULL_KEY = 'leader-master-sync-last-pull-v1';
 const SYNC_APPLIED_IDS_KEY = 'leader-master-sync-applied-v1';
+const MASTER_SYNC_OUTBOX_KEY = 'leader-master-sync-outbox-v1';
 
 let supabaseClient = null;
 try{
@@ -3753,6 +3766,52 @@ function markSyncApplied(id){
   try{ localStorage.setItem(SYNC_APPLIED_IDS_KEY, JSON.stringify(Array.from(syncAppliedIds))); }catch(e){}
 }
 
+// ---- PUSH: Master List's own local corrections, out to the shared ledger ----
+function newMasterTxnId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'txn-' + Date.now() + '-' + Math.random().toString(36).slice(2,10));
+}
+function loadMasterOutbox(){
+  try{ return JSON.parse(localStorage.getItem(MASTER_SYNC_OUTBOX_KEY)) || []; }catch(e){ return []; }
+}
+function saveMasterOutbox(list){
+  try{ localStorage.setItem(MASTER_SYNC_OUTBOX_KEY, JSON.stringify(list)); }catch(e){}
+}
+function queueMasterTransaction(txn){
+  txn.id = newMasterTxnId();
+  txn.source_device = 'Master List';
+  txn.created_at = new Date().toISOString();
+  markSyncApplied(txn.id); // this device already applied it locally — never re-apply when it echoes back
+  const outbox = loadMasterOutbox();
+  outbox.push(txn);
+  saveMasterOutbox(outbox);
+  flushMasterOutbox();
+}
+let masterFlushInFlight = false;
+async function flushMasterOutbox(){
+  if(!supabaseClient || masterFlushInFlight) return;
+  masterFlushInFlight = true;
+  try{
+    let outbox = loadMasterOutbox();
+    while(outbox.length){
+      const txn = outbox[0];
+      const { error } = await supabaseClient.from('stock_transactions').insert(txn);
+      if(error){
+        if(error.code === '23505'){ outbox.shift(); saveMasterOutbox(outbox); continue; }
+        break; // likely offline — stop, retry later
+      }
+      outbox.shift();
+      saveMasterOutbox(outbox);
+    }
+  }catch(e){ console.error('Master sync push failed — will retry', e); }
+  masterFlushInFlight = false;
+}
+if(supabaseClient){
+  window.addEventListener('online', flushMasterOutbox);
+  setInterval(flushMasterOutbox, 15000);
+}
+
+// ---- PULL: transactions from other devices, applied here ----
+
 // Same latest-spot-check-wins rule as the terminal: a delivery/issue
 // dated before the most recent spot check for that item is superseded
 // by it and should not be applied on top.
@@ -3763,6 +3822,32 @@ function mostRecentSpotCheckDateFor(sku){
     if(e.sku === sku && d && (!latest || d > latest)) latest = d;
   });
   return latest;
+}
+
+// Rebuilds the "Parts Issued" / "Goods Received" history views from
+// synced transactions — those lists used to only fill from the manual
+// import that's since been removed; this keeps them alive using the
+// same shared ledger that now drives the quantities.
+function addHistoryFromRemoteTransaction(txn, itemName){
+  if(txn.source_device === 'Master List') return; // this device's own action — already in the ledger view when it was made
+  const dateStr = (txn.created_at || '').slice(0,10);
+  const timeStr = txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}) : '';
+  const meta = txn.meta || {};
+  if(txn.type === 'issue'){
+    ledger.push({
+      _id: txn.id, sku: txn.item_id, name: itemName,
+      qty: Math.abs(Number(txn.delta_qty)),
+      date: dateStr, time: timeStr,
+      worker: meta.worker || '', clock: meta.clock || '',
+      customer: meta.customer || '', jobNo: meta.jobNo || ''
+    });
+  } else if(txn.type === 'delivery'){
+    goodsReceivedLedger.push({
+      _id: txn.id, sku: txn.item_id, name: itemName,
+      qty: Number(txn.delta_qty), date: dateStr,
+      supplier: meta.supplier || '', grnNo: meta.grnNo || '', orderNo: meta.orderNo || ''
+    });
+  }
 }
 
 function applyRemoteStockTransaction(txn){
@@ -3787,6 +3872,7 @@ function applyRemoteStockTransaction(txn){
       item.qty = Math.max(0, (item.qty || 0) + Number(txn.delta_qty));
     }
   }
+  addHistoryFromRemoteTransaction(txn, item.name);
   markSyncApplied(txn.id);
 }
 
@@ -3805,6 +3891,8 @@ async function pullMissedStockTransactions(){
       data.forEach(applyRemoteStockTransaction);
       saveState();
       render();
+      renderLedger();
+      renderGoodsReceivedLedger();
       try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
     }
   }catch(e){ console.error('Sync pull failed — offline?', e); }
@@ -3818,6 +3906,8 @@ function startRealtimeStockSync(){
       applyRemoteStockTransaction(payload.new);
       saveState();
       render();
+      renderLedger();
+      renderGoodsReceivedLedger();
       try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
     })
     .subscribe();
