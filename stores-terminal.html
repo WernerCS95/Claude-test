@@ -6982,20 +6982,13 @@ function renderLog(){
         const entry = state.log.find(e=>e._id===btn.dataset.deleteId);
         if(!entry) return;
         const label = `${entry.worker} — ${entry.customer}${entry.jobNo ? ' · Job '+entry.jobNo : ''} (${entry.time})`;
-        // The tablet and Master List are separate offline files — deleting
-        // here can never reach across and undo a deduction that already
-        // happened there. Be honest about which case this actually is.
-        let msg;
-        if(entry.synced){
-          msg = `Delete this log entry?\n\n${label}\n\nThis one was already uploaded — Master List already deducted this stock. Deleting it here only removes it from this local view; it CANNOT restore that stock, since the tablet and Master List don't talk to each other live.\n\nTo actually get the stock back, delete this same entry from the Parts Issued Ledger on Master List instead — that one does restore it. Continue deleting just the local copy here?`;
-        } else {
-          msg = `Delete this log entry?\n\n${label}\n\nThis one was never uploaded, so nothing was ever deducted anywhere — safe to delete.`;
-        }
-        if(!confirm(msg)) return;
+        if(!confirm(`Delete this log entry?\n\n${label}\n\nThis restores the ${entry.lines.length} line(s) back onto Qty on Hand — synced to every other device.`)) return;
+        reverseLogEntryStock(entry, 'Log entry deleted on terminal');
         state.log = state.log.filter(e=>e._id!==btn.dataset.deleteId);
         saveLogNoSync();
         renderLog();
         renderSyncStatus();
+        renderGrid();
       };
     });
     w.querySelectorAll('[data-kit-toggle]').forEach(toggle=>{
@@ -7026,32 +7019,39 @@ function clearLog(){
     renderLog();
   }
 }
+// Reverses the qty effect of a logged slip's lines — used when deleting or
+// editing an entry. Restores locally AND pushes the reversal through sync,
+// so every other device gets the stock back too, not just this one.
+function reverseLogEntryStock(entry, reason){
+  entry.lines.forEach(line=>{
+    if(line.isKit && line.components){
+      line.components.forEach(c=>{
+        const qtyBack = c.qty * line.qty;
+        adjustQtyOnHand(c.sku, qtyBack);
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'adjustment', delta_qty: qtyBack, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: c.name } });
+      });
+    } else {
+      adjustQtyOnHand(line.itemId, line.qty);
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'adjustment', delta_qty: line.qty, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: line.name } });
+    }
+  });
+}
+
 function editLogEntry(id){
   const idx = state.log.findIndex(e=>e._id===id);
   if(idx === -1) return;
   const entry = state.log[idx];
 
-  if(entry.synced){
-    const proceed = confirm(
-      "This slip was already uploaded to the Master List — editing here won't undo that upload.\n\n" +
-      "The original entry will stay in the log for the record. Continue and build a correction slip with these same items to submit separately?"
-    );
-    if(!proceed) return;
-    state.worker = { clock: entry.clock, name: entry.worker };
-    state.customer = entry.customer;
-    state.jobNo = entry.jobNo;
-    state.slip = JSON.parse(JSON.stringify(entry.lines));
-    // Original entry is left untouched — this becomes a fresh, separate slip.
-  } else {
-    // Not yet uploaded — safe to edit in place. Remove the original; submitting
-    // the adjusted version below re-adds it as a corrected entry.
-    state.log.splice(idx,1);
-    saveLog();
-    state.worker = { clock: entry.clock, name: entry.worker };
-    state.customer = entry.customer;
-    state.jobNo = entry.jobNo;
-    state.slip = JSON.parse(JSON.stringify(entry.lines));
-  }
+  if(!confirm(`Edit this slip?\n\n${entry.worker} — ${entry.customer}${entry.jobNo ? ' · Job '+entry.jobNo : ''} (${entry.time})\n\nThis restores its ${entry.lines.length} line(s) back onto Qty on Hand (synced to every other device), removes the original entry, and reloads it here so you can adjust and resubmit.`)) return;
+
+  reverseLogEntryStock(entry, 'Log entry edited on terminal');
+  state.log.splice(idx,1);
+  saveLog();
+  renderGrid();
+  state.worker = { clock: entry.clock, name: entry.worker };
+  state.customer = entry.customer;
+  state.jobNo = entry.jobNo;
+  state.slip = JSON.parse(JSON.stringify(entry.lines));
 
   document.getElementById('jobNoInput').value = state.jobNo;
   renderJobSpec();
