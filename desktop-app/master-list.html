@@ -391,6 +391,60 @@
 <button id="backToTopBtn" title="Back to top" style="position:fixed; bottom:24px; right:24px; width:48px; height:48px; border-radius:50%; background:var(--gold); color:var(--void); border:none; font-size:18px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.4); cursor:pointer; z-index:100; display:none; align-items:center; justify-content:center;">↑</button>
 
 <script>
+/* ====================== IN-APP PROMPT MODAL ======================
+   Replaces window.prompt() everywhere in this file. Electron's packaged
+   desktop build does not implement prompt() at all — calling it throws
+   "prompt() is and will not be supported", which silently kills whatever
+   button triggered it (the error happens inside the onclick handler, so
+   nothing visible ever shows the user). Works identically in a browser
+   tab and in the packaged .exe. confirm()/alert() are unaffected — both
+   still work fine in Electron, only prompt() needed replacing.
+========================================================================= */
+function showPromptModal(message, defaultValue, opts){
+  opts = opts || {};
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:99999;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--panel); border-radius:var(--radius,10px); padding:20px; max-width:420px; width:90%; box-shadow:0 8px 30px rgba(0,0,0,0.3);';
+    const msgEl = document.createElement('div');
+    msgEl.style.cssText = 'white-space:pre-wrap; margin-bottom:14px; font-size:13.5px; line-height:1.5; color:var(--text);';
+    msgEl.textContent = message || '';
+    const input = document.createElement('input');
+    input.type = opts.type || 'text';
+    if(opts.type === 'number') input.step = 'any';
+    input.value = (defaultValue === undefined || defaultValue === null) ? '' : defaultValue;
+    input.style.cssText = 'width:100%; padding:10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); font-size:14px; margin-bottom:14px; box-sizing:border-box;';
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:10px;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn';
+    cancelBtn.style.cssText = 'flex:1;';
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.className = 'btn primary';
+    okBtn.style.cssText = 'flex:1;';
+    function cleanup(result){ document.body.removeChild(overlay); resolve(result); }
+    cancelBtn.onclick = ()=> cleanup(null);
+    okBtn.onclick = ()=> cleanup(input.value);
+    input.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){ e.preventDefault(); cleanup(input.value); }
+      if(e.key === 'Escape') cleanup(null);
+    });
+    overlay.addEventListener('click', e=>{ if(e.target === overlay) cleanup(null); });
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    box.appendChild(msgEl);
+    box.appendChild(input);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    input.focus();
+    input.select();
+  });
+}
+
 /* ====================== MASTER ITEM LIST ======================
    All 539 real items from Inventory Control, same SKU scheme as the
    tablet's item list (stores-terminal.html) — Part Number where migrated
@@ -2079,7 +2133,7 @@ function renderGeneratorTankGauge(){
   `;
 }
 
-document.getElementById('correctTankBtn').onclick = ()=>{
+document.getElementById('correctTankBtn').onclick = async ()=>{
   let item = stock.find(i=>i.sku===DIESEL_MAIN_SKU);
   if(!item){
     // Item missing from this browser's saved stock — happens if the row
@@ -2089,7 +2143,7 @@ document.getElementById('correctTankBtn').onclick = ()=>{
     item = { sku: DIESEL_MAIN_SKU, name: 'Diesel Litres', cat: 'Diesel', qty: 0, min: DIESEL_REORDER_POINT, price: 20 };
     stock.push(item);
   }
-  const input = prompt(`Current tracked level: ${item.qty.toLocaleString()}L\n\nWhat does the tank actually show right now (gauge reading)?`);
+  const input = await showPromptModal(`Current tracked level: ${item.qty.toLocaleString()}L\n\nWhat does the tank actually show right now (gauge reading)?`);
   if(input === null) return;
   const newLevel = parseFloat(input);
   if(isNaN(newLevel) || newLevel < 0 || newLevel > DIESEL_TANK_CAPACITY){
@@ -2113,7 +2167,7 @@ document.getElementById('correctTankBtn').onclick = ()=>{
   }
 };
 
-document.getElementById('correctGeneratorTankBtn').onclick = ()=>{
+document.getElementById('correctGeneratorTankBtn').onclick = async ()=>{
   let item = stock.find(i=>i.sku===DIESEL_GENERATOR_SKU);
   if(!item){
     // Same fix as the main tank button — create the row if this browser's
@@ -2121,7 +2175,7 @@ document.getElementById('correctGeneratorTankBtn').onclick = ()=>{
     item = { sku: DIESEL_GENERATOR_SKU, name: 'Generator Diesel Litres', cat: 'Diesel', qty: 0, min: GENERATOR_REORDER_POINT, price: 20 };
     stock.push(item);
   }
-  const input = prompt(`Current tracked level: ${item.qty.toLocaleString()}L\n\nWhat does the generator tank actually show right now (gauge reading)?`);
+  const input = await showPromptModal(`Current tracked level: ${item.qty.toLocaleString()}L\n\nWhat does the generator tank actually show right now (gauge reading)?`);
   if(input === null) return;
   const newLevel = parseFloat(input);
   if(isNaN(newLevel) || newLevel < 0 || newLevel > GENERATOR_TANK_CAPACITY){
@@ -2630,9 +2684,9 @@ function renderPoConfirm(){
     };
   });
   wrap.querySelectorAll('[data-edit-po]').forEach(btn=>{
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       const oldPo = btn.dataset.editPo;
-      const newPo = prompt(`Fix PO number\n\nRelabels every delivery line filed under "${oldPo}" — use this to correct a typo, not to reassign items to a different real PO.`, oldPo);
+      const newPo = await showPromptModal(`Fix PO number\n\nRelabels every delivery line filed under "${oldPo}" — use this to correct a typo, not to reassign items to a different real PO.`, oldPo);
       if(newPo === null) return; // cancelled
       const trimmed = newPo.trim();
       if(!trimmed){ alert("PO number can't be blank."); return; }
@@ -3191,12 +3245,12 @@ document.getElementById('saveDailyBtn').onclick = ()=> downloadDailyCSV();
 // back to the hardcoded original stock with no way back. Now it forces a
 // CSV backup first (so there's always something to manually recover from)
 // and requires typing RESET rather than just clicking OK.
-document.getElementById('resetBtn').onclick = ()=>{
+document.getElementById('resetBtn').onclick = async ()=>{
   const currentValue = totalValue(stock);
   const warning = `This wipes ALL current stock back to the original opening numbers from the source spreadsheet — including anything real that's come in since (Mixing Room counts, spot checks, everything).\n\n` +
     `Current total value: R${currentValue.toFixed(2)}\n\n` +
     `A backup CSV will download first. Type RESET (all caps) to continue, or Cancel to back out.`;
-  const typed = prompt(warning);
+  const typed = await showPromptModal(warning);
   if(typed !== "RESET"){
     if(typed !== null) alert("Didn't match \"RESET\" exactly — nothing was changed.");
     return;

@@ -1519,6 +1519,60 @@
 </div>
 
 <script>
+/* ====================== IN-APP PROMPT MODAL ======================
+   Replaces window.prompt() everywhere in this file. Electron's packaged
+   desktop build does not implement prompt() at all — calling it throws
+   "prompt() is and will not be supported", which silently kills whatever
+   button triggered it (the error happens inside the onclick handler, so
+   nothing visible ever shows the user). Works identically in a browser
+   tab, the Android app, and the packaged desktop .exe. confirm()/alert()
+   are unaffected — both still work fine in Electron, only prompt() did.
+========================================================================= */
+function showPromptModal(message, defaultValue, opts){
+  opts = opts || {};
+  return new Promise(resolve=>{
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index:99999;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--panel); border-radius:var(--radius,10px); padding:20px; max-width:420px; width:90%; box-shadow:0 8px 30px rgba(0,0,0,0.3);';
+    const msgEl = document.createElement('div');
+    msgEl.style.cssText = 'white-space:pre-wrap; margin-bottom:14px; font-size:13.5px; line-height:1.5; color:var(--text);';
+    msgEl.textContent = message || '';
+    const input = document.createElement('input');
+    input.type = opts.type || 'text';
+    if(opts.type === 'number') input.step = 'any';
+    input.value = (defaultValue === undefined || defaultValue === null) ? '' : defaultValue;
+    input.style.cssText = 'width:100%; padding:10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); font-size:14px; margin-bottom:14px; box-sizing:border-box;';
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; gap:10px;';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'clock-btn';
+    cancelBtn.style.cssText = 'flex:1;';
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.className = 'clock-btn';
+    okBtn.style.cssText = 'flex:1; background:var(--gold); color:#fff; border-color:var(--gold);';
+    function cleanup(result){ document.body.removeChild(overlay); resolve(result); }
+    cancelBtn.onclick = ()=> cleanup(null);
+    okBtn.onclick = ()=> cleanup(input.value);
+    input.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){ e.preventDefault(); cleanup(input.value); }
+      if(e.key === 'Escape') cleanup(null);
+    });
+    overlay.addEventListener('click', e=>{ if(e.target === overlay) cleanup(null); });
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    box.appendChild(msgEl);
+    box.appendChild(input);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    input.focus();
+    input.select();
+  });
+}
+
 /* ====================== DATA ====================== */
 
 // Real staff clock directory, pulled from Lookup Info (Oct 2025 workbook).
@@ -3012,12 +3066,12 @@ document.getElementById('fceSaveBtn').onclick = ()=>{
 // logs its count the same way as everything else, without needing to be
 // part of the printed page grid at all.
 document.getElementById('fceQuickAddBtn').onclick = ()=>{
-  openNewItemModal('', 'Misc', (created)=>{
-    const qtyStr = prompt(`"${created.name}" created. Enter the counted quantity:`, '');
+  openNewItemModal('', 'Misc', async (created)=>{
+    const qtyStr = await showPromptModal(`"${created.name}" created. Enter the counted quantity:`, '');
     if(qtyStr === null) return;
     const qty = Number(qtyStr);
     if(isNaN(qty) || qty < 0){ alert("Enter a valid quantity — the item was created but not counted yet, add it via Spot Check when ready."); return; }
-    const dateStr = prompt(`Date counted (YYYY-MM-DD), leave blank for today (${fceGetDefaultDate()}):`, fceGetDefaultDate());
+    const dateStr = await showPromptModal(`Date counted (YYYY-MM-DD), leave blank for today (${fceGetDefaultDate()}):`, fceGetDefaultDate());
     if(dateStr === null) return;
     const useDate = dateStr.trim() || fceGetDefaultDate();
     const now = new Date();
@@ -3932,9 +3986,9 @@ function renderCustomerChips(){
     const btn = document.createElement('button');
     btn.className = 'chip' + (state.customer===c ? ' active':'');
     btn.textContent = c;
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       if(c==="Other"){
-        const val = prompt("Enter customer / job reference:");
+        const val = await showPromptModal("Enter customer / job reference:");
         if(val){ state.customer = val; }
       } else {
         state.customer = c;
@@ -5036,9 +5090,9 @@ function setDeviceName(name){
   const label = document.getElementById('deviceNameLabel');
   if(label) label.textContent = name || 'Not set';
 }
-document.getElementById('setDeviceNameBtn').onclick = ()=>{
+document.getElementById('setDeviceNameBtn').onclick = async ()=>{
   const current = getDeviceName();
-  const name = prompt('What should this tablet be called? (e.g. "Tablet A", "John\'s Tablet", "Stores Front")', current);
+  const name = await showPromptModal('What should this tablet be called? (e.g. "Tablet A", "John\'s Tablet", "Stores Front")', current);
   if(name === null) return;
   setDeviceName(name.trim());
 };
@@ -5258,9 +5312,9 @@ function renderDieselTankGaugeMini(){
 }
 document.getElementById('refreshDieselTankBtn').onclick = renderDieselTankGaugeMini;
 
-document.getElementById('correctDieselTankLink').onclick = ()=>{
+document.getElementById('correctDieselTankLink').onclick = async ()=>{
   const level = loadDieselTankLevel();
-  const input = prompt(`Current estimated level: ${level.toLocaleString()}L\n\nWhat does the tank actually show right now (gauge reading)?`);
+  const input = await showPromptModal(`Current estimated level: ${level.toLocaleString()}L\n\nWhat does the tank actually show right now (gauge reading)?`);
   if(input === null) return;
   const newLevel = parseFloat(input);
   if(isNaN(newLevel) || newLevel < 0 || newLevel > DIESEL_TANK_CAPACITY){
@@ -5303,9 +5357,9 @@ function renderGeneratorTankGaugeMini(){
 }
 document.getElementById('refreshGeneratorTankBtn').onclick = renderGeneratorTankGaugeMini;
 
-document.getElementById('correctGeneratorTankLink').onclick = ()=>{
+document.getElementById('correctGeneratorTankLink').onclick = async ()=>{
   const level = loadGeneratorTankLevel();
-  const input = prompt(`Current estimated generator tank level: ${level.toLocaleString()}L\n\nWhat does the generator tank actually show right now (gauge reading)?`);
+  const input = await showPromptModal(`Current estimated generator tank level: ${level.toLocaleString()}L\n\nWhat does the generator tank actually show right now (gauge reading)?`);
   if(input === null) return;
   const newLevel = parseFloat(input);
   if(isNaN(newLevel) || newLevel < 0 || newLevel > GENERATOR_TANK_CAPACITY){
@@ -5328,10 +5382,10 @@ document.getElementById('dieselHistoryCloseBtn').onclick = ()=> document.getElem
 
 // Registers a vehicle into the dropdown lists without needing a fill-up —
 // useful for a car that just joined the fleet, before it's ever been filled.
-document.getElementById('registerNewVehicleLink').onclick = ()=>{
-  const reg = prompt("Registration number for the new vehicle:");
+document.getElementById('registerNewVehicleLink').onclick = async ()=>{
+  const reg = await showPromptModal("Registration number for the new vehicle:");
   if(reg === null || !reg.trim()) return;
-  const type = prompt("Vehicle type (e.g. Ford Ranger, BMW X3):");
+  const type = await showPromptModal("Vehicle type (e.g. Ford Ranger, BMW X3):");
   if(type === null || !type.trim()) return;
 
   const cleanReg = reg.trim().toUpperCase();
@@ -5494,16 +5548,16 @@ function editGrnBatch(batchId){
 // rule the original logging used — reverses whatever effect the old qty
 // actually had (which may have been none, if it was skipped back then),
 // then reapplies using today's current spot-check state, not the old one.
-function editGrnLine(lineId){
+async function editGrnLine(lineId){
   const line = goodsReceived.find(g=>g._id===lineId);
   if(!line) return;
 
-  const qtyStr = prompt(`Edit quantity for "${line.name}" (was ${line.qty}):`, line.qty);
+  const qtyStr = await showPromptModal(`Edit quantity for "${line.name}" (was ${line.qty}):`, line.qty);
   if(qtyStr === null) return;
   const newQty = Number(qtyStr);
   if(isNaN(newQty) || newQty < 0){ alert("Enter a valid quantity."); return; }
 
-  const priceStr = prompt(`Edit price for "${line.name}" (was ${line.price ?? 'not set'}):`, line.price ?? '');
+  const priceStr = await showPromptModal(`Edit price for "${line.name}" (was ${line.price ?? 'not set'}):`, line.price ?? '');
   if(priceStr === null) return;
   const newPrice = priceStr.trim() === '' ? null : Number(priceStr);
   if(priceStr.trim() !== '' && (isNaN(newPrice) || newPrice < 0)){ alert("Enter a valid price, or leave it blank."); return; }
@@ -5817,11 +5871,11 @@ function renderVehicleServiceList(){
   }).join('');
 
   wrap.querySelectorAll('[data-set-target]').forEach(btn=>{
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       const v = vehicleRegistry.find(x=>x.reg===btn.dataset.setTarget);
       if(!v) return;
       const unitLabel = v.unit === 'hrs' ? 'hrs' : 'km';
-      const entered = prompt(`Enter the real next-service target for ${v.reg} (off the sticker or service book):`, '');
+      const entered = await showPromptModal(`Enter the real next-service target for ${v.reg} (off the sticker or service book):`, '');
       if(entered === null) return;
       const val = parseFloat(entered);
       if(isNaN(val) || val < 0){ alert(`Enter a valid ${unitLabel} target.`); return; }
@@ -5833,7 +5887,7 @@ function renderVehicleServiceList(){
   });
 
   wrap.querySelectorAll('[data-mark-serviced]').forEach(btn=>{
-    btn.onclick = ()=>{
+    btn.onclick = async ()=>{
       const v = vehicleRegistry.find(x=>x.reg===btn.dataset.markServiced);
       if(!v) return;
       const unitLabel = v.unit === 'hrs' ? 'hrs' : 'km';
@@ -5851,7 +5905,7 @@ function renderVehicleServiceList(){
         nextTarget = atReading + v.intervalReading;
         if(!confirm(`Mark ${v.reg} as serviced today at ${atReading.toLocaleString()}${unitLabel}?\n\nNext service will be set to ${nextTarget.toLocaleString()}${unitLabel} (current + ${v.intervalReading.toLocaleString()}${unitLabel} typical interval).`)) return;
       } else {
-        const entered = prompt(`Mark ${v.reg} as serviced today at ${atReading.toLocaleString()}${unitLabel}.\n\nEnter the new next-service target (off the sticker):`, '');
+        const entered = await showPromptModal(`Mark ${v.reg} as serviced today at ${atReading.toLocaleString()}${unitLabel}.\n\nEnter the new next-service target (off the sticker):`, '');
         if(entered === null) return;
         nextTarget = parseFloat(entered);
         if(isNaN(nextTarget) || nextTarget <= atReading){
