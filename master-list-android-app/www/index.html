@@ -122,8 +122,27 @@
       <button class="btn" id="exportStockRefBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📤 Export Stock Reference for Terminal</button>
       <button class="btn" id="exportOpenPosBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Open POs for Terminal</button>
       <button class="btn" id="importFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📥 Import Full State from Tablet</button>
+      <button class="btn" id="pasteManualSyncBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📋 Paste Manual Sync Code</button>
       <button class="btn" id="restoreMasterBackupBtn" style="width:100%; margin-bottom:14px; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
       <button class="btn" id="syncMenuCloseBtn" style="width:100%;">Close</button>
+    </div>
+  </div>
+
+  <!-- Paste Manual Sync Code — a fallback alongside live sync, not a
+       replacement. Every transaction here carries the same real id live
+       sync uses (assigned on the tablet the moment it happened), so
+       applying it goes through the exact same already-applied? check —
+       whichever side (live sync or this paste) sees a given id first
+       "wins", the other becomes a no-op. Can never double-count. -->
+  <div class="modal-bg" id="pasteManualSyncModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:310;">
+    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:560px; width:92%; max-height:85vh; overflow-y:auto;">
+      <h3 style="margin-top:0;">📋 Paste Manual Sync Code</h3>
+      <div class="sub" style="margin-bottom:10px;">From the tablet: More → Copy Manual Sync Code. Safe to paste any time, even if some of this already arrived live — nothing gets counted twice.</div>
+      <textarea id="pasteManualSyncArea" placeholder="Paste the code here…" style="width:100%; min-height:160px; padding:10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); font-family:monospace; font-size:12px; margin-bottom:10px;"></textarea>
+      <div style="display:flex; gap:8px;">
+        <button class="btn primary" id="applyManualSyncBtn" style="flex:1;">Apply</button>
+        <button class="btn" id="pasteManualSyncCloseBtn" style="flex:1;">Close</button>
+      </div>
     </div>
   </div>
 
@@ -3963,6 +3982,36 @@ function applyRemoteStockTransaction(txn){
   addHistoryFromRemoteTransaction(txn, item.name);
   markSyncApplied(txn.id);
 }
+
+document.getElementById('pasteManualSyncBtn').onclick = ()=>{
+  document.getElementById('pasteManualSyncArea').value = '';
+  document.getElementById('pasteManualSyncModal').style.display = 'flex';
+  document.getElementById('syncMenuModal').style.display = 'none';
+};
+document.getElementById('pasteManualSyncCloseBtn').onclick = ()=>{
+  document.getElementById('pasteManualSyncModal').style.display = 'none';
+};
+document.getElementById('applyManualSyncBtn').onclick = ()=>{
+  let payload;
+  try{ payload = JSON.parse(document.getElementById('pasteManualSyncArea').value); }
+  catch(e){ alert("That doesn't look like a valid sync code."); return; }
+  if(!payload || payload._syncCodeType !== 'leader-stores-txn-code' || !Array.isArray(payload.txns)){
+    alert("That doesn't look like a Manual Sync Code from the tablet.");
+    return;
+  }
+  let applied = 0, skipped = 0;
+  payload.txns.forEach(txn=>{
+    if(syncAppliedIds.has(txn.id)){ skipped++; return; }
+    applyRemoteStockTransaction(txn);
+    applied++;
+  });
+  saveState();
+  render();
+  renderLedger();
+  renderGoodsReceivedLedger();
+  document.getElementById('pasteManualSyncModal').style.display = 'none';
+  alert(`Applied ${applied} transaction(s) from "${payload._deviceName || 'the tablet'}".${skipped > 0 ? ` ${skipped} already synced live — skipped, not double-counted.` : ''}`);
+};
 
 async function pullMissedStockTransactions(){
   if(!supabaseClient) return;

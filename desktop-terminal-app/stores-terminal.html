@@ -1003,6 +1003,11 @@
       <div id="npStockList" style="max-height:160px; overflow-y:auto; font-size:12px; color:var(--text-muted);"></div>
     </div>
 
+    <div class="addjob-field" style="margin-top:6px;">
+      <label>Recent Activity — tap ✕ to undo a mistake</label>
+      <div id="npLogList" style="max-height:160px; overflow-y:auto; font-size:12px; color:var(--text-muted);"></div>
+    </div>
+
     <div class="addjob-actions">
       <button class="addjob-cancel" id="npCancelBtn">Close</button>
       <button class="addjob-save" id="npFitConfirmBtn">Fit — Issue to Job</button>
@@ -1042,6 +1047,7 @@
     <button class="clock-btn" id="activityLogBtn" style="width:100%; margin-bottom:8px; border-color:var(--success); color:var(--success); text-align:left; padding:12px 14px;">👤 Who Did What</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
+    <button class="clock-btn" id="copyManualSyncCodeBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📋 Copy Manual Sync Code (backup for live sync)</button>
     <button class="clock-btn" id="importPoListBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📥 Import PO List</button>
     <input type="file" id="importPoListFileInput" accept="application/json" style="display:none;">
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
@@ -1580,6 +1586,25 @@
   </div>
 </div>
 
+<!-- Manual Sync Code — a fallback alongside live sync, not a replacement for
+     it. Exports this device's own transaction history (every delivery,
+     issue, spot check, Nameplates activity, etc, each carrying the same
+     real id live sync uses), so pasting it into Master List can never
+     double-apply something live sync already delivered — same id, applied
+     once, whichever side gets there first. -->
+<div class="modal-bg" id="manualSyncCodeModal">
+  <div class="export-card">
+    <h3>Manual Sync Code</h3>
+    <div class="sub">A backup path alongside live sync — safe to paste into Master List any time, even if some of this already synced live. Nothing gets counted twice.</div>
+    <div class="export-actions">
+      <button class="export-primary" id="manualSyncCopyBtn">📋 Copy Code</button>
+    </div>
+    <div class="export-code-label">Code (auto-filled — copy button above handles this)</div>
+    <textarea class="export-code" id="manualSyncCodeArea" readonly></textarea>
+    <button class="export-close" id="manualSyncCloseBtn">Close</button>
+  </div>
+</div>
+
 <script>
 /* ====================== IN-APP PROMPT MODAL ======================
    Replaces window.prompt() everywhere in this file. Electron's packaged
@@ -1974,6 +1999,44 @@ function renderNameplateStockList(){
   wrap.innerHTML = entries.map(t=>`<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--panel-line);"><span>${t}</span><span class="num" style="font-weight:700;">${nameplateQty[t]}</span></div>`).join('');
 }
 
+function renderNameplateLogList(){
+  const wrap = document.getElementById('npLogList');
+  if(!wrap) return;
+  const entries = nameplateLog.slice().reverse().slice(0, 20); // most recent first, capped
+  if(entries.length === 0){ wrap.innerHTML = '<div style="color:var(--text-faint);">Nothing logged yet.</div>'; return; }
+  wrap.innerHTML = entries.map(e=>{
+    const label = e.type === 'cut'
+      ? `Cut +${e.qty} × "${e.text}"`
+      : `Fit −${e.qty} × "${e.text}"${e.jobNo ? ' — Job ' + e.jobNo : ''}${e.client ? ' — ' + e.client : ''}`;
+    return `<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding:3px 0; border-bottom:1px solid var(--panel-line);">
+      <span>${e.date} ${e.time || ''} — ${label}</span>
+      <button class="row-delete-btn" data-np-undo="${e._id}" title="Undo this entry">✕</button>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-np-undo]').forEach(btn=>{
+    btn.onclick = ()=> undoNameplateLogEntry(btn.dataset.npUndo);
+  });
+}
+
+// Undoes a mistaken Fit/Cut: reverses the quantity change, removes the log
+// line, and pushes the reversal to the shared ledger so Master List and
+// every other device land on the same corrected number — same idea as
+// reversing a Parts Issued entry, just for the separate nameplate ledger.
+function undoNameplateLogEntry(id){
+  const entry = nameplateLog.find(e=>e._id === id);
+  if(!entry) return;
+  if(!confirm(`Undo this entry?\n\n${entry.type === 'cut' ? 'Cut' : 'Fit'} ${entry.qty} × "${entry.text}"`)) return;
+  const reverseDelta = entry.type === 'cut' ? -entry.qty : entry.qty;
+  adjustNameplateQty(entry.text, reverseDelta);
+  nameplateLog = nameplateLog.filter(e=>e._id !== id);
+  saveNameplateLog();
+  if(typeof queueTransaction === 'function'){
+    queueTransaction({ item_id: entry.text, type: 'adjustment', delta_qty: reverseDelta, meta: { item_name: entry.text, item_cat: 'Nameplates', reason: 'Nameplate entry undone on terminal' } });
+  }
+  renderNameplateStockList();
+  renderNameplateLogList();
+}
+
 function npSetTab(tab){
   document.getElementById('npFitSection').style.display = tab === 'fit' ? 'block' : 'none';
   document.getElementById('npCutSection').style.display = tab === 'cut' ? 'block' : 'none';
@@ -1997,6 +2060,7 @@ function openNameplatesModal(){
   document.getElementById('npCutQtyInput').value = '1';
   npSetTab('fit');
   renderNameplateStockList();
+  renderNameplateLogList();
   document.getElementById('nameplatesModal').classList.add('show');
 }
 document.getElementById('npCancelBtn').onclick = ()=> document.getElementById('nameplatesModal').classList.remove('show');
@@ -4177,6 +4241,29 @@ function saveLogNoSync(){
 }
 
 document.getElementById('uploadMasterBtnMain').onclick = uploadToMaster;
+
+document.getElementById('copyManualSyncCodeBtn').onclick = ()=>{
+  const txns = loadRecentTxnLog();
+  if(txns.length === 0){ alert('No transactions logged on this device yet — nothing to export.'); return; }
+  const payload = { _syncCodeType: 'leader-stores-txn-code', _exportedAt: new Date().toISOString(), _deviceName: getDeviceName() || 'Unnamed device', txns };
+  document.getElementById('manualSyncCodeArea').value = JSON.stringify(payload);
+  document.getElementById('manualSyncCodeModal').classList.add('show');
+  document.getElementById('moreMenuModal').classList.remove('show');
+};
+document.getElementById('manualSyncCloseBtn').onclick = ()=> document.getElementById('manualSyncCodeModal').classList.remove('show');
+document.getElementById('manualSyncCopyBtn').onclick = async ()=>{
+  const text = document.getElementById('manualSyncCodeArea').value;
+  const btn = document.getElementById('manualSyncCopyBtn');
+  try{
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "✓ Copied — go paste it into the Master List";
+    setTimeout(()=>{ btn.textContent = "📋 Copy Code"; }, 2500);
+  }catch(e){
+    const area = document.getElementById('manualSyncCodeArea');
+    area.focus(); area.select();
+    btn.textContent = "Select the text below and copy manually";
+  }
+};
 
 document.getElementById('exportCopyBtn').onclick = async ()=>{
   const text = document.getElementById('exportCodeArea').value;
@@ -7724,6 +7811,25 @@ function queueTransaction(txn){
   outbox.push(txn);
   saveSyncOutbox(outbox);
   flushSyncOutbox();
+  recordRecentTxn(txn);
+}
+
+// A rolling record of every transaction this device has ever queued
+// (synced or not), kept purely so "Copy Manual Sync Code" below has
+// something to export on demand — a manual fallback alongside live sync,
+// not a replacement for it. Every entry carries the same real id used on
+// the live ledger, so pasting it into Master List can never double-apply
+// something live sync already delivered (or the reverse) — whichever
+// side sees a given id first "wins", the other is a no-op.
+const RECENT_TXN_LOG_KEY = 'leader-stores-recent-txn-log-v1';
+function loadRecentTxnLog(){
+  try{ return JSON.parse(localStorage.getItem(RECENT_TXN_LOG_KEY)) || []; }catch(e){ return []; }
+}
+function recordRecentTxn(txn){
+  const log = loadRecentTxnLog();
+  log.push(txn);
+  const capped = log.length > 500 ? log.slice(-500) : log;
+  try{ localStorage.setItem(RECENT_TXN_LOG_KEY, JSON.stringify(capped)); }catch(e){}
 }
 
 let syncFlushInFlight = false;
