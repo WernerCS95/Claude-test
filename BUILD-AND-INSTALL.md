@@ -1,10 +1,11 @@
 # Leader Stores System — Standalone Apps
 
-Plain-language guide. Three things were built:
+Plain-language guide. Four things were built:
 
 1. **`desktop-app/`** → wraps `master-list.html` into `Leader Master List.exe` for your laptop.
 2. **`desktop-terminal-app/`** → wraps `stores-terminal.html` into `Leader Stores Terminal.exe`, so you can also run the terminal on your PC (e.g. for testing, or a second stores workstation).
 3. **`android-app/`** → wraps `stores-terminal.html` into an installable Android app (`.apk`) for the tablet(s).
+4. **`master-list-android-app/`** → wraps `master-list.html` into its own installable Android app (`.apk`), so Master List can also run on a tablet/phone, not just the laptop. Built exactly the same way as `android-app` (section 3) — same commands, just run them inside `master-list-android-app` instead. It has its own app identity (`co.leadertrailers.masterlist`, same as the desktop version — that's deliberate, see the note below) and includes the same camera permission as the desktop app, for "Scan PO Page."
 
 `desktop-terminal-app` is built exactly the same way as `desktop-app` — see section 2 below, just run those same commands inside `desktop-terminal-app` instead. It gets its own separate app identity (`co.leadertrailers.storesterminal.desktop`) from both the tablet app and Master List, so it keeps its own local data — see the sync note at the bottom of this file for why that matters right now.
 
@@ -73,6 +74,9 @@ This opens the project in Android Studio. Once it finishes indexing (first time 
 **Install it on the tablet:**
 - Easiest: plug the tablet into the PC via USB, enable "Developer options → USB debugging" on the tablet (Settings → About tablet → tap "Build number" 7 times to unlock Developer options), then in Android Studio click the green ▶ Run button with the tablet selected as the target device — it installs directly.
 - Or: copy the `.apk` file to the tablet (USB, email, whatever) and open it there — Android will ask permission to "install from unknown sources" once; allow it, then install.
+- If USB install is blocked on the device itself (some Xiaomi/MIUI tablets refuse it with "Installation via USB is disabled"), skip USB entirely: upload just the `.apk` file (not the project folder) to Google Drive, download it on the device, and tap it there to install.
+
+**Master List's own `.apk` (`master-list-android-app`) is built with the exact same three commands** — just run them inside `master-list-android-app` instead of `android-app`. Same Android Studio, same "Build APK(s)" menu path, same install method. It's a completely separate app from the Stores Terminal `.apk` (different app identity, different icon/color), so both can be installed on the same tablet or phone at once without conflicting.
 
 ---
 

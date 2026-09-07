@@ -4,5 +4,9 @@ android-app/android/app/build/
 android-app/android/build/
 android-app/android/.gradle/
 android-app/android/local.properties
+master-list-android-app/android/app/build/
+master-list-android-app/android/build/
+master-list-android-app/android/.gradle/
+master-list-android-app/android/local.properties
 *.log
 desktop-app/dist/
