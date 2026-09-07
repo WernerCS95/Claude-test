@@ -1991,6 +1991,31 @@ function seedNameplateHistoryOnce(){
   }catch(e){ console.error('Nameplate history seed failed', e); }
 }
 
+// One-time physical stock count taken 2026-09-07 to correct whatever the
+// running Fit/Cut totals had drifted to. Sets each plate's qty directly
+// (like a spot check) rather than adding to it, and pushes the same
+// spot_check transaction to the shared ledger with a DETERMINISTIC id
+// (not the usual random one) — so if this ever runs on more than one
+// device, the second device's push is rejected by the database as a
+// duplicate id rather than landing as a second, redundant ledger entry.
+const NAMEPLATE_PHYSICAL_COUNT_2026_09_07 = {"(Olifant) BCI (Olifant)": 6, "(Olifant) CMP (Olifant)": 1, "(Olifant) ELD (Olifant)": 2, "(Olifant) FGH (Olifant)": 2, "(Olifant) HJS (Olifant)": 1, "(Olifant) IMS (Olifant)": 4, "(Olifant) JLF (Olifant)": 2, "(Olifant) JPC (Olifant)": 2, "(Olifant) TGA (Olifant)": 1, "(Olifant) WOT (Olifant)": 1, "AMRO": 3, "BAKUBUNG": 2, "BARNARD VERVOER": 9, "BJS CARRIERS": 3, "CAPSTONE 58": 3, "CEFRATEC": 1, "DAO CARRIERS": 2, "DEZMO TRANS": 20, "DIRARO GROUP": 2, "ELD LOGISTICS": 1, "ENTLE LOGISTICS": 1, "ESALEONE": 1, "FALCON FORCE BULK": 5, "FUHRENT": 1, "GCL TRANSPORT": 1, "GLIMLAG BOERDERY": 8, "GLOBALNET LOGISTICS": 1, "HANJORU TRANSPORT": 2, "HBC FARMING": 4, "HLONGIE TRADING": 3, "HUDSON TRANSPORT": 12, "INCEBA CARRIERS": 2, "IZUSA CARRIERS": 2, "JABULA": 9, "JACOBS TRANSPRORT": 5, "JACODANIE": 2, "JAIG": 1, "JAMBOSKO": 1, "JAMES VAN WYK": 3, "JAMIL": 1, "JDJ PLANT HIRE": 3, "KAGGIES": 1, "KAI TRUCX": 3, "KALAHARI ROOTS": 1, "KE-MATETE": 4, "KEGO": 1, "KESHO": 1, "KINGSVALLY FARMS": 1, "KLAVER": 1, "LANGVIC": 1, "LEADER TRAILERS": 17, "LENATA": 2, "LETSO": 1, "LIBALELE SA": 1, "LORCHA": 1, "LOUFRANS": 1, "LUK LOGIC": 3, "LUMINAR FREIGHT": 1, "LUTZYL": 1, "MACDONALDS": 22, "MARBOD": 3, "METAFUEL": 3, "MG": 5, "MH LOGICA": 1, "MISS LUCY TRUCKING": 1, "MKUZE": 1, "MOVING FORWARD": 1, "MSESHI": 1, "NACS LOGISTICS": 2, "NYIKO": 10, "OKUNGVONO": 1, "ONE LIFE LIVE IT IN GOD": 3, "ONYX": 2, "PIKET TRANS": 1, "PINDULO": 1, "PROMAR TRUCKING": 2, "PZN TRUCKING": 3, "RIVER VALLEY": 1, "ROCKOM": 1, "RUDS TRANSPORT": 1, "RUDWES CARRIES": 1, "SEBUSENG": 1, "SHOSHOLOZA": 1, "SIYAKHULA": 4, "SJ DU PLESSIS": 2, "SMT LOGISTICS": 3, "SOKOZA": 1, "SOUTH REEF MINING": 3, "SPACE": 1, "STAR LIZARD": 4, "SYLMOU": 4, "TAIWATEB DISRUBUTORS": 1, "TANVICOR": 2, "TEXMACOM": 3, "TM&S": 1, "TRADEKOR": 2, "TUGELA STEEL , STEEL STRUCTURES": 2, "UMBONO": 2, "UMBUSO": 3, "VALOSTAR": 1, "VFOUR": 3, "VULA VALLA": 2, "XBFS": 2, "ZEN BULK": 1, "ZINGARO": 4, "ZYHO": 2};
+const NAMEPLATE_PHYSICAL_COUNT_SEEDED_KEY = 'leader-stores-nameplate-physical-count-2026-09-07-seeded-v1';
+function seedNameplatePhysicalCountOnce(){
+  try{
+    if(localStorage.getItem(NAMEPLATE_PHYSICAL_COUNT_SEEDED_KEY)) return;
+    Object.keys(NAMEPLATE_PHYSICAL_COUNT_2026_09_07).forEach(text=>{
+      const qty = NAMEPLATE_PHYSICAL_COUNT_2026_09_07[text];
+      nameplateQty[text] = qty;
+      const slug = text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      if(typeof queueTransaction === 'function'){
+        queueTransaction({ id: 'npcount-2026-09-07-' + slug, item_id: text, type: 'spot_check', absolute_qty: qty, meta: { item_name: text, item_cat: 'Nameplates', reason: 'Physical stock count 2026-09-07' } });
+      }
+    });
+    saveNameplateQty();
+    localStorage.setItem(NAMEPLATE_PHYSICAL_COUNT_SEEDED_KEY, new Date().toISOString());
+  }catch(e){ console.error('Nameplate physical count seed failed', e); }
+}
+
 function renderNameplateStockList(){
   const wrap = document.getElementById('npStockList');
   if(!wrap) return;
@@ -7803,7 +7828,7 @@ function markApplied(id){
 // adjustQtyOnHand/setQtyOnHand call for the same change — never instead
 // of it, so this device's own screen updates exactly as it always has.
 function queueTransaction(txn){
-  txn.id = newTxnId();
+  txn.id = txn.id || newTxnId(); // a caller may pass a deterministic id (e.g. a one-time seed) to make it idempotent across devices, not just within one
   txn.source_device = getDeviceName() || 'Unnamed device';
   txn.created_at = new Date().toISOString();
   markApplied(txn.id); // this device already applied it locally — never re-apply when it echoes back
@@ -8038,6 +8063,11 @@ function checkForDraftOnLoad(){
 }
 
 checkForDraftOnLoad();
+
+// Runs after the sync module above is fully set up (queueTransaction needs
+// supabaseClient/getDeviceName to exist) — calling this any earlier throws,
+// since those are declared further up but not yet initialized at that point.
+seedNameplatePhysicalCountOnce();
 </script>
 </body>
 </html>
