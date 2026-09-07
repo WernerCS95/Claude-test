@@ -1,0 +1,7206 @@
+{
+ "rows": [
+  {
+   "date": "2022-09-27",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Luk Logic",
+   "comment": "Wil vandag betaal as ons kan aflewer"
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "Izusa Carriers",
+   "text": "Izusa Carriers",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Izusa 147 -156",
+   "comment": "x4 nodig en die ander x6 vir later"
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "W.O.T",
+   "text": "W.O.T",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "World of Transport",
+   "comment": null
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "Rudwes Carriers",
+   "text": "Rudwes Carriers",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Rudwes 7 - 9",
+   "comment": null
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "Kego",
+   "text": "Kego",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Kego 32 ( 'n tweede ene)",
+   "comment": null
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "text": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "SSS Transport",
+   "comment": null
+  },
+  {
+   "date": "2022-09-27",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Vallas 28  & 29",
+   "comment": null
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "SPEED TRUCK",
+   "text": "SPEED TRUCK",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Speed truck",
+   "comment": null
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "JH VAN ZYL VERVOER",
+   "text": "JH VAN ZYL VERVOER",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "JH van Zyl",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "IZUSA CARRIERS",
+   "text": "IZUSA CARRIERS",
+   "qtyReqd": 8,
+   "jobNo": null,
+   "client": "Izusa",
+   "comment": null
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Diraro",
+   "comment": null
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "DKL",
+   "comment": null
+  },
+  {
+   "date": "2022-10-10",
+   "detail": "PROMAR TRUCKING",
+   "text": "PROMAR TRUCKING",
+   "qtyReqd": 5,
+   "jobNo": null,
+   "client": "Sarel van Biljon",
+   "comment": null
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "VIRTIGO",
+   "text": "VIRTIGO",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Virtige",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "COMET LOGISTICS",
+   "text": "COMET LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Brainwave 1 & 2",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "DESERT RAIN",
+   "text": "DESERT RAIN",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "Desert 1 - 4",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "MACDONALDS TRANSPORT",
+   "text": "MACDONALDS TRANSPORT",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Macdonalds",
+   "comment": null
+  },
+  {
+   "date": "2022-10-22",
+   "detail": "WF DE JAGER",
+   "text": "WF DE JAGER",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "WF Ruben 1",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Samson Mining",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "FRENCH LOGISTIX",
+   "text": "FRENCH LOGISTIX",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "French logistics",
+   "comment": "Ex- Sarel van Biljon wa gekoop"
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 6,
+   "jobNo": "504/505, 732",
+   "client": "Pro Freight 6 & 7 , SAFETEC",
+   "comment": "3 vir voorraad"
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "HEARTSEASE",
+   "text": "HEARTSEASE",
+   "qtyReqd": 2,
+   "jobNo": "507/508",
+   "client": "Heartsease 11 & 12",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "M\u00dcLLER REITZ",
+   "text": "M\u00dcLLER REITZ",
+   "qtyReqd": 1,
+   "jobNo": "310",
+   "client": "Muller Reitz",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 6,
+   "jobNo": "590 - 594/688",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 3,
+   "jobNo": "578 - 580",
+   "client": "Luk logic 2 - 4",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "COMET LOGISTICS",
+   "text": "COMET LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "667/668",
+   "client": "Brainwave 3 & 4",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 6,
+   "jobNo": "89/90/91/92/602/603",
+   "client": "Diraro",
+   "comment": null
+  },
+  {
+   "date": "2022-11-02",
+   "detail": "IZUSA CARRIERS",
+   "text": "IZUSA CARRIERS",
+   "qtyReqd": 8,
+   "jobNo": "522-529",
+   "client": "Izusa 168 - 170",
+   "comment": null
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 2,
+   "jobNo": "352 - 353",
+   "client": "Upward Spiral",
+   "comment": null
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "JCT TRANSPORT",
+   "text": "JCT TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "405 - 406",
+   "client": "JCT",
+   "comment": null
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "IZUSA CARRIERS",
+   "text": "IZUSA CARRIERS",
+   "qtyReqd": 8,
+   "jobNo": "530 - 537",
+   "client": "Izusa (8 nou)",
+   "comment": "30 Izusa trailers in totaal"
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "MACDONALDS TRANSPORT",
+   "text": "MACDONALDS TRANSPORT",
+   "qtyReqd": 6,
+   "jobNo": "294-299",
+   "client": "Macdonals",
+   "comment": null
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "VDM",
+   "text": "(Olifant) VDM (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "670-671",
+   "client": "Gert van der Merwe",
+   "comment": null
+  },
+  {
+   "date": "2022-11-16",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "733-735",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "KEGO",
+   "text": "KEGO",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "598,599,699,700",
+   "comment": null
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "756 (2-3 in 2023)",
+   "client": "NJP",
+   "comment": "Laaste Trailer"
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "IZUSA CARRIERS",
+   "text": "IZUSA CARRIERS",
+   "qtyReqd": 14,
+   "jobNo": null,
+   "client": "189-198",
+   "comment": null
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "MACDONALDS",
+   "text": "MACDONALDS",
+   "qtyReqd": 10,
+   "jobNo": "300-309",
+   "client": "Macdonals",
+   "comment": null
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 9,
+   "jobNo": "604",
+   "client": "Diraro",
+   "comment": null
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "(oliefant) EDL (oliefant)",
+   "text": "(Olifant) EDL (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "ELD logistics",
+   "comment": "Mike klient"
+  },
+  {
+   "date": "2022-12-05",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 7,
+   "jobNo": "4 tot 12 (2023)",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "MACDONALDS",
+   "text": "MACDONALDS",
+   "qtyReqd": 1,
+   "jobNo": "309",
+   "client": "Macdonals",
+   "comment": null
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 9,
+   "jobNo": "611 - 612",
+   "client": "Diraro",
+   "comment": "2 Wat nie reg gesny het nie"
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "Repair",
+   "client": "DKL",
+   "comment": "Repair werk vir Neill"
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 6,
+   "jobNo": "756 (2-3 in 2023)",
+   "client": "NJP",
+   "comment": "6 Links in Januarie 2023"
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "text": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "qtyReqd": 5,
+   "jobNo": "12 - 15 (2023)",
+   "client": "SSS Transport",
+   "comment": null
+  },
+  {
+   "date": "2022-12-17",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 9,
+   "jobNo": "4 tot 12 (2023)",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "VDM",
+   "text": "(Olifant) VDM (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "22-25",
+   "client": "Gert van der Merwe",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "City Voorraad",
+   "client": "Jordaan x1 LTC x4",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "text": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "qtyReqd": 6,
+   "jobNo": "12 - 17 (2023)",
+   "client": "SSS Transport",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "RUDWES CARRIERS",
+   "text": "RUDWES CARRIERS",
+   "qtyReqd": 3,
+   "jobNo": "26-28",
+   "client": "Rudwes",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "HEARTSEASE",
+   "text": "HEARTSEASE",
+   "qtyReqd": 1,
+   "jobNo": "97",
+   "client": "Heartsease",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "NM SMIT",
+   "text": "NM SMIT",
+   "qtyReqd": 1,
+   "jobNo": "67",
+   "client": "Into Asia",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "SMART HAULINGS",
+   "text": "SMART HAULINGS",
+   "qtyReqd": 1,
+   "jobNo": "68",
+   "client": "Smart",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 4,
+   "jobNo": "8,9,10,11",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2023-01-11",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "Neill/ Repairs",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 3,
+   "jobNo": "90-171",
+   "client": "Imvusa",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "JPC",
+   "text": "(Olifant) JPC (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "106.107",
+   "client": "JPC",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "LUTZYL",
+   "text": "LUTZYL",
+   "qtyReqd": 1,
+   "jobNo": "Mike Klient",
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 3,
+   "jobNo": "179-181",
+   "client": "Shosholoza",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 12,
+   "jobNo": "29-38",
+   "client": "Diraro - Ratels",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "KESHO",
+   "text": "KESHO",
+   "qtyReqd": 1,
+   "jobNo": "36",
+   "client": "Kesho",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "UMBOSO",
+   "text": "UMBOSO",
+   "qtyReqd": 2,
+   "jobNo": "Mike Sales",
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "173",
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "SMT LOGISTICS",
+   "text": "SMT LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "158-159",
+   "client": "Sime",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 1,
+   "jobNo": "177",
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 10,
+   "jobNo": "182, 127, 174-175, 234-235,54",
+   "client": "Safetec, Schoeman, BH Comp, Dup, Straw, Ntree",
+   "comment": null
+  },
+  {
+   "date": "2023-01-24",
+   "detail": "STAR LIZARD",
+   "text": "STAR LIZARD",
+   "qtyReqd": 5,
+   "jobNo": "178 + 4 Repairs",
+   "client": "Lizard",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 8,
+   "jobNo": null,
+   "client": "Straw x2 ,Johan x2 ,Ntree x2, Cityx2",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 7,
+   "jobNo": "133-139",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Loufrans",
+   "comment": "Kliente het verander - is by finals"
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": "155-157",
+   "client": "Gys Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "HANJORU TRANSPORT",
+   "text": "HANJORU TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "308",
+   "client": "Hanjoru",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 5,
+   "jobNo": "Neill Klient",
+   "client": "DKL",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 5,
+   "jobNo": "Neill Klient",
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "2023.02.08 Volgende Suklus",
+   "text": "2023.02.08 Volgende Suklus",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 13,
+   "jobNo": "195-207",
+   "client": "Diraro - Ratels",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "SPEED TRUCK",
+   "text": "SPEED TRUCK",
+   "qtyReqd": 2,
+   "jobNo": "439-440",
+   "client": "Speed",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "TBA",
+   "text": "(Olifant) TBA (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "435-438",
+   "client": "Drak",
+   "comment": null
+  },
+  {
+   "date": "2023-02-08",
+   "detail": "TBA",
+   "text": "(Olifant) TBA (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "T van Zyl",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "NM SMIT",
+   "text": "NM SMIT",
+   "qtyReqd": 1,
+   "jobNo": "Henrico",
+   "client": "Into Asia",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 9,
+   "jobNo": "479-481; 487-489",
+   "client": "Dezmo",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "NST",
+   "text": "(Olifant) NST (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "377",
+   "client": "NST",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 5,
+   "jobNo": "477-450",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "HJS",
+   "text": "(Olifant) HJS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "468",
+   "client": "HJ Taljaard",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 9,
+   "jobNo": "443-445 ;475; 435-438",
+   "client": "Silverfalls, Narrow Path,Drak x4,Theus x1, Johan x1, Loadex x1, EMT x2,",
+   "comment": null
+  },
+  {
+   "date": "2023-02-23",
+   "detail": "ONE LIFE                                          LIVE IT IN GOD",
+   "text": "ONE LIFE                                          LIVE IT IN GOD",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 2,
+   "jobNo": "493-494",
+   "client": "Dezmo",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 3,
+   "jobNo": "241,242,499",
+   "client": "Jurgens/Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 3,
+   "jobNo": "472-474",
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 1,
+   "jobNo": "249",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "HAJORU",
+   "text": "HAJORU",
+   "qtyReqd": 1,
+   "jobNo": "Rework",
+   "client": "Hajoru",
+   "comment": "Geen N in die naam nie"
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "City voorraad",
+   "client": "LTC",
+   "comment": "Vir Trailer aan ander Kliente verkoop"
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "SITONA",
+   "text": "SITONA",
+   "qtyReqd": 3,
+   "jobNo": "469-471",
+   "client": "SITONA",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "ANDI WOLMARANS",
+   "text": "ANDI WOLMARANS",
+   "qtyReqd": 1,
+   "jobNo": "328",
+   "client": "ERMELO STONE",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 8,
+   "jobNo": "451-458",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "Nodig Werks Kaarte",
+   "text": "Nodig Werks Kaarte",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-03-23",
+   "detail": "LEADER",
+   "text": "LEADER",
+   "qtyReqd": 2,
+   "jobNo": "326-327",
+   "client": "BULK 360",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "247,248,507, 510, 577, 444, 445, 478, 478B,584, 506, 580-582",
+   "client": "Ntree x3, Betopest, Tsitsifly, Silverfalls x2, Narrow Path x2,  Safetec",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "CEFRATEC",
+   "text": "CEFRATEC",
+   "qtyReqd": 4,
+   "jobNo": "472-473 , 585-586",
+   "client": "Cefratec",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "STAR LIZARD",
+   "text": "STAR LIZARD",
+   "qtyReqd": 3,
+   "jobNo": "474, 506, 580",
+   "client": "Star Lizard",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "MOVING FORWARD",
+   "text": "MOVING FORWARD",
+   "qtyReqd": 1,
+   "jobNo": "505",
+   "client": "MF",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 3,
+   "jobNo": "583, 584, 474, 475",
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 2,
+   "jobNo": "495-496",
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "RIVIERA",
+   "text": "RIVIERA",
+   "qtyReqd": 2,
+   "jobNo": "578-579",
+   "client": "Riviera",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "238",
+   "client": "Falcon Force",
+   "comment": null
+  },
+  {
+   "date": "2023-04-04",
+   "detail": "MBA",
+   "text": "(Olifant) MBA (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "581, 582",
+   "client": "MBA",
+   "comment": null
+  },
+  {
+   "date": "2023-04-11",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": "495.496",
+   "client": "Milltrans",
+   "comment": "Uit geruil met Dezmo"
+  },
+  {
+   "date": "2023-04-19",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 20,
+   "jobNo": "590, 511-515, 504,508",
+   "client": "Seven Oaks, Infinite, Faithrich, Ermelo Stene, City x4",
+   "comment": null
+  },
+  {
+   "date": "2023-04-19",
+   "detail": "M\u00dcLLER REITZ",
+   "text": "M\u00dcLLER REITZ",
+   "qtyReqd": 1,
+   "jobNo": "509",
+   "client": "Muller R",
+   "comment": "Dubble punt bo die U"
+  },
+  {
+   "date": "2023-04-19",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 2,
+   "jobNo": "600.601",
+   "client": "Shosholoza",
+   "comment": null
+  },
+  {
+   "date": "2023-04-19",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 4,
+   "jobNo": "540-543",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "BUFFELSKRAAL BOERDERY",
+   "text": "BUFFELSKRAAL BOERDERY",
+   "qtyReqd": 2,
+   "jobNo": "587.588",
+   "client": "Buffel",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "KEGO",
+   "text": "KEGO",
+   "qtyReqd": 2,
+   "jobNo": "625.626",
+   "client": "Kego",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 4,
+   "jobNo": "70-73",
+   "client": "Upward",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "MAVELA TRANSPORT",
+   "text": "MAVELA TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "Henrico",
+   "client": "Mavela",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "CEFRATEC",
+   "text": "CEFRATEC",
+   "qtyReqd": 1,
+   "jobNo": "Marcus",
+   "client": "Cefratec",
+   "comment": "Replacement"
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "Marcus",
+   "client": "City",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 10,
+   "jobNo": "592-602",
+   "client": "Jurgens/Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "2023.05.09 - As per Mike",
+   "text": "2023.05.09 - As per Mike",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "BUFFELSKRAAL BDY",
+   "text": "BUFFELSKRAAL BDY",
+   "qtyReqd": 1,
+   "jobNo": "587",
+   "client": "Buffel",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "KAGGIES",
+   "text": "KAGGIES",
+   "qtyReqd": 1,
+   "jobNo": "588",
+   "client": "Buffel",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "KEGO",
+   "text": "KEGO",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Kego",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "MACDONALD'S",
+   "text": "MACDONALD'S",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Macdonalds",
+   "comment": null
+  },
+  {
+   "date": "2023-05-06",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": null,
+   "client": "Voorraad",
+   "comment": null
+  },
+  {
+   "date": "2023-05-22",
+   "detail": "MOFFATS LOGISTICS",
+   "text": "MOFFATS LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Neill",
+   "comment": null
+  },
+  {
+   "date": "2023-05-22",
+   "detail": "CEFRATEC",
+   "text": "CEFRATEC",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2023-05-22",
+   "detail": "PINDULO",
+   "text": "PINDULO",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Zyho",
+   "comment": "Foto by Henrico"
+  },
+  {
+   "date": "2023-05-22",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "699; 700; 695; 620;695; 511; 692; 656; 701;702",
+   "client": "Mobile Freight, UKUFUNDA, WST, Theuns, TM Trucking, Transpakwe, GNS Grain",
+   "comment": null
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 1,
+   "jobNo": "698",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "PZN TRUCKING",
+   "text": "PZN TRUCKING",
+   "qtyReqd": 2,
+   "jobNo": "658, 659",
+   "client": "PZN TRUCKING",
+   "comment": null
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "THUNZI LOGISTICS",
+   "text": "THUNZI LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "696",
+   "client": "FISTOZ",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "KAGGIES",
+   "text": "KAGGIES",
+   "qtyReqd": 1,
+   "jobNo": "605",
+   "client": "Kaggies",
+   "comment": "2de Wa"
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "MOFFATS LOGISTICS",
+   "text": "MOFFATS LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Neill",
+   "comment": null
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "PINDULO",
+   "text": "PINDULO",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Zyho",
+   "comment": "Foto by Henrico"
+  },
+  {
+   "date": "2023-05-30",
+   "detail": "RWS LOGISTICO",
+   "text": "RWS LOGISTICO",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Riaan repairs",
+   "comment": null
+  },
+  {
+   "date": "2023-06-09",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 12,
+   "jobNo": "591; 614 - 616; 666",
+   "client": "Sime x1; Afrimat x4; BH Comp. x1; Voorraad vir City x6",
+   "comment": null
+  },
+  {
+   "date": "2023-06-09",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "505",
+   "comment": null
+  },
+  {
+   "date": "2023-06-09",
+   "detail": "ABNORMAL BOARDS",
+   "text": "ABNORMAL BOARDS",
+   "qtyReqd": 3,
+   "jobNo": "663-665",
+   "client": "Tama Trucking",
+   "comment": "PBS Units - Moet nog hoeveelheid bevestig"
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "BIG BANG TRANSPORT",
+   "text": "BIG BANG TRANSPORT",
+   "qtyReqd": 5,
+   "jobNo": "669-673",
+   "client": "Gamatuba",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 15,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "W.O.T",
+   "text": "W.O.T",
+   "qtyReqd": 1,
+   "jobNo": "693",
+   "client": "World of Transport",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "text": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "qtyReqd": 2,
+   "jobNo": "542-543",
+   "client": "SSS Transport",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "LEADER TRAILR",
+   "text": "LEADER TRAILR",
+   "qtyReqd": 6,
+   "jobNo": "540",
+   "client": "DR MINING X1, City X5",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "TAMA",
+   "text": "TAMA",
+   "qtyReqd": 5,
+   "jobNo": "663,664,665,548,698",
+   "client": "Tama trucking (PBS)",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "524-528",
+   "client": "Njp",
+   "comment": null
+  },
+  {
+   "date": "2023-06-19",
+   "detail": "RWS LOGISTICO",
+   "text": "RWS LOGISTICO",
+   "qtyReqd": 1,
+   "jobNo": "Riaan repairs",
+   "client": "RWS Repair",
+   "comment": "Eindig CO"
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "KEGO",
+   "text": "KEGO",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 20,
+   "jobNo": "674; 515-523",
+   "client": "All About; GNS GRAAN; Empuma; Interfreight; Voorraad x10",
+   "comment": null
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 1,
+   "jobNo": "462",
+   "client": "Mill trans",
+   "comment": null
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 1,
+   "jobNo": "541",
+   "client": "Luk Logic",
+   "comment": null
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "CEFRATEC",
+   "text": "CEFRATEC",
+   "qtyReqd": 2,
+   "jobNo": "678; 703",
+   "client": "Cefratec",
+   "comment": null
+  },
+  {
+   "date": "2023-06-30",
+   "detail": "STAR LIZARD",
+   "text": "STAR LIZARD",
+   "qtyReqd": 3,
+   "jobNo": "675 - 677",
+   "client": "Star 1 - 3",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "EMPIRE",
+   "text": "EMPIRE",
+   "qtyReqd": 2,
+   "jobNo": "870.871",
+   "client": "Empire",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "BCI",
+   "text": "(Olifant) BCI (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "515-519",
+   "client": "GNS Graan",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": "675, 676, 677, 462,",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "UMBOSO",
+   "text": "UMBOSO",
+   "qtyReqd": 2,
+   "jobNo": "895, 896",
+   "client": "Rene",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 2,
+   "jobNo": "807.808",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "163,164,165",
+   "client": "Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "COMET LOGISTICS",
+   "text": "COMET LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "699, 700",
+   "client": "Brainwave",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "PZN TRUCKING",
+   "text": "PZN TRUCKING",
+   "qtyReqd": 2,
+   "jobNo": "660, 661",
+   "client": "PZN",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "MACDONALD'S",
+   "text": "MACDONALD'S",
+   "qtyReqd": 4,
+   "jobNo": "Repairs",
+   "client": "Macdonalds",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "GLIMLAG",
+   "text": "GLIMLAG",
+   "qtyReqd": 4,
+   "jobNo": "Repairs",
+   "client": "Glimlag boerdery",
+   "comment": null
+  },
+  {
+   "date": "2023-07-10",
+   "detail": "GIFAPPELTJIE",
+   "text": "GIFAPPELTJIE",
+   "qtyReqd": 1,
+   "jobNo": "Mike klient",
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "(Olifant)   EDL   (Olifant)",
+   "text": "(Olifant) EDL (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "655",
+   "client": "EDL",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "(Olifant)  SKY    (Olifant)",
+   "text": "(Olifant) SKY (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "535",
+   "client": "Sky",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "(Olifant)  PDL   (Olifant)",
+   "text": "(Olifant) PDL (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "690; 691",
+   "client": "PDL",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 1,
+   "jobNo": "656",
+   "client": "Imvusa",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "LEDIRANG",
+   "text": "LEDIRANG",
+   "qtyReqd": 1,
+   "jobNo": "653",
+   "client": "Ledirang",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "NM SMIT",
+   "text": "NM SMIT",
+   "qtyReqd": 1,
+   "jobNo": "534",
+   "client": "Into Asia",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "RUDWES CARRIERS",
+   "text": "RUDWES CARRIERS",
+   "qtyReqd": 2,
+   "jobNo": "316; 317",
+   "client": "Rudwes",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "MSHESI",
+   "text": "MSHESI",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Samson 34;35",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "SMART HAULING",
+   "text": "SMART HAULING",
+   "qtyReqd": 1,
+   "jobNo": "899",
+   "client": "Smart 4",
+   "comment": null
+  },
+  {
+   "date": "2023-07-20",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 19,
+   "jobNo": "897; 792; 657; 658; 738 - 742",
+   "client": "Empuma x1, Mobile x1,      Gerda x2;NJP HVB x5; City x10",
+   "comment": null
+  },
+  {
+   "date": "2023-07-28",
+   "detail": "MSHESI",
+   "text": "MSHESI",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Samson 34; 35",
+   "comment": null
+  },
+  {
+   "date": "2023-07-28",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": null,
+   "client": "NJP HBV",
+   "comment": "26 Julie Werk kaart ontvang"
+  },
+  {
+   "date": "2023-07-28",
+   "detail": "IC4",
+   "text": "IC4",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "PDL",
+   "comment": "Laat verandering vanaf Klient"
+  },
+  {
+   "date": "2023-07-28",
+   "detail": "BJS CARRIERS",
+   "text": "BJS CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "BJS",
+   "comment": null
+  },
+  {
+   "date": "2023-07-28",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "WF DE JAGER",
+   "text": "WF DE JAGER",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Wessel",
+   "comment": "Klient kom haal maandag"
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "MG JACOBSZ FARMING",
+   "text": "MG JACOBSZ FARMING",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "MG Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "JAMBOLA",
+   "text": "JAMBOLA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Luyo",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "DKL",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2023-08-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 18,
+   "jobNo": null,
+   "client": "Infinte X5 ; WST X2; ERMELO STENE X1; City Voorraad x10",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "METEOR FEEDS",
+   "text": "METEOR FEEDS",
+   "qtyReqd": 1,
+   "jobNo": "",
+   "client": "Meteor",
+   "comment": "Mike klient"
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "ERMELO BRICKS",
+   "text": "ERMELO BRICKS",
+   "qtyReqd": 1,
+   "jobNo": "",
+   "client": "Ermelo stene",
+   "comment": "Vir Klient"
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "VENTURE ROCK",
+   "text": "VENTURE ROCK",
+   "qtyReqd": 1,
+   "jobNo": "893",
+   "client": "Hermien",
+   "comment": "Staan By City"
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "EMPIRE",
+   "text": "EMPIRE",
+   "qtyReqd": 2,
+   "jobNo": "889, 890",
+   "client": "Erika",
+   "comment": "Staan By City"
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "FDP",
+   "text": "(Olifant) FDP (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "894, 900",
+   "client": "Dawie Putter",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "STAR LIZARD",
+   "text": "STAR LIZARD",
+   "qtyReqd": 2,
+   "jobNo": "885, 886",
+   "client": "Ledgends Group",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "EL DYNAMIC LOGISTICS",
+   "text": "EL DYNAMIC LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "901, 902",
+   "client": "E Louw",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 1,
+   "jobNo": "1002",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "828",
+   "client": "Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "797, 798, 444, 872, 1023, 840, 987, 988, 793, 794, 1018, 1019, 1020",
+   "client": "Silver Falls x1, Safetec x2, Metaload x2, Louis Fouche x1, Faithrich x1, Narrow Path, Dikwacwi x2, drak x2,",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "FRENCH LOGISTIX",
+   "text": "FRENCH LOGISTIX",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "539",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "HANSIE DU PLESSIS",
+   "text": "HANSIE DU PLESSIS",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "837, 838, 839",
+   "comment": null
+  },
+  {
+   "date": "2023-08-15",
+   "detail": "UMBUSO",
+   "text": "UMBUSO",
+   "qtyReqd": 4,
+   "jobNo": "837, 838, 839",
+   "client": "Rene",
+   "comment": null
+  },
+  {
+   "date": "2023-08-25",
+   "detail": "DIKGACWI LOGISTICS",
+   "text": "DIKGACWI LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-08-25",
+   "detail": "JCT",
+   "text": "(Olifant) JCT (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "1000, 1001",
+   "comment": null
+  },
+  {
+   "date": "2023-08-25",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "545, 1002, 680, 681, 917, 1044, 1045, 1078, 1079",
+   "client": "Faithrich, ECH, Sarakis x2, All About, Straw x2, Theuns, WAW",
+   "comment": null
+  },
+  {
+   "date": "2023-08-25",
+   "detail": "WGS",
+   "text": "(Olifant) WGS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "1046",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "RUDWES CARRIERS",
+   "text": "RUDWES CARRIERS",
+   "qtyReqd": 2,
+   "jobNo": "318, 319",
+   "client": "Rudwes",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "JLF",
+   "text": "(Olifant) JLF (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "1001",
+   "client": "JLF - Neill",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 13,
+   "jobNo": null,
+   "client": "Louis Fouche x1, Silverfalls x2, Safetec x1, WST x2, City x5, Jamil x1, CY Technologies X1",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 3,
+   "jobNo": "812, 813, 814",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "METALOAD - LOGO",
+   "text": "METALOAD - LOGO",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Metaload",
+   "comment": "Foto by Ruben"
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "1047",
+   "client": "Jb vervoer",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "JAIG",
+   "text": "JAIG",
+   "qtyReqd": 2,
+   "jobNo": "310, 311",
+   "client": "Jaig",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 21,
+   "jobNo": "310, 311",
+   "client": "Dezmo",
+   "comment": "Nou 9 en later 12"
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "MSHESI",
+   "text": "MSHESI",
+   "qtyReqd": 1,
+   "jobNo": "1001",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2023-09-04",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "Luk logic",
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "JAIG",
+   "text": "JAIG",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "JASMIC",
+   "text": "JASMIC",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Riaan Repairs",
+   "comment": "Repair"
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "CY LOGISTICS",
+   "text": "CY LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "1074",
+   "comment": "Inligting na die werkskaart gekry"
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "SMART FLEET MANAGEMENT",
+   "text": "SMART FLEET MANAGEMENT",
+   "qtyReqd": 1,
+   "jobNo": "545",
+   "client": "Smart",
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "METALOAD",
+   "text": "METALOAD",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "1003",
+   "comment": "Waens Geruil - 2de Langvic by gekom"
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "LENATA",
+   "text": "LENATA",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "1025-1027",
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "LORCHA",
+   "text": "LORCHA",
+   "qtyReqd": 5,
+   "jobNo": "55-59",
+   "client": "Careful carriers",
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "CEFRATEC",
+   "text": "CEFRATEC",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-09-21",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 19,
+   "jobNo": null,
+   "client": "Drak x3, WAW x1, Spaar x2, Straw x3, L&L x3, NPT X1, Loufrans x2, Star Lizard x2, Safetec x1, Louis Fouche x1",
+   "comment": null
+  },
+  {
+   "date": "2023-09-29",
+   "detail": "TRADECOR",
+   "text": "TRADECOR",
+   "qtyReqd": 15,
+   "jobNo": null,
+   "client": "1130 -1144",
+   "comment": null
+  },
+  {
+   "date": "2023-09-29",
+   "detail": "(Olifant)  HJS   (Olifant)",
+   "text": "(Olifant) HJS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "7",
+   "comment": null
+  },
+  {
+   "date": "2023-09-29",
+   "detail": "(Olifant)  IMS  (Olifant)",
+   "text": "(Olifant) IMS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "3",
+   "comment": null
+  },
+  {
+   "date": "2023-09-29",
+   "detail": "SMT LOGISTICS",
+   "text": "SMT LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "12, 13",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 11,
+   "jobNo": "1130 - 1141",
+   "client": "Tradekor",
+   "comment": "Het spelling bevesting"
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "1265",
+   "client": "Njp",
+   "comment": "Skou wa x1 nou volgende 10 later"
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "SPEED TRUCK",
+   "text": "SPEED TRUCK",
+   "qtyReqd": 3,
+   "jobNo": "1142 - 1144",
+   "client": "Speed Truck",
+   "comment": "Skeletal"
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 8,
+   "jobNo": "1082 - 1089",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 10,
+   "jobNo": "1004 - 1012",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 9,
+   "jobNo": "1065 - 1069, 716-717, 15, 1141",
+   "client": "Infinte x5, Ntree x2, WST x1, Silverfalls x1 (Skeletal)",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "KAGGIES",
+   "text": "KAGGIES",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben Sales",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 2,
+   "jobNo": "1048 & 1049",
+   "client": "Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "1201 & 1202; 1042; 1034 - 1308",
+   "client": "Rosa x2,  Allabout x1, Infinite x5",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "HLONGIE TRADING",
+   "text": "HLONGIE TRADING",
+   "qtyReqd": 2,
+   "jobNo": "1299 & 1300",
+   "client": "Hlongi x2",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "NM SMIT",
+   "text": "NM SMIT",
+   "qtyReqd": 2,
+   "jobNo": "1195 &1196",
+   "client": "Into Asia x2",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "477",
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2023-10-16",
+   "detail": "CY LOGISTICS",
+   "text": "CY LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "Ruben Client",
+   "client": "CY Technologies",
+   "comment": "1X vir nuwe trok 1x Vir Bestaande trok"
+  },
+  {
+   "date": "2023-10-23",
+   "detail": "(Olifant)   HSG    (Olifant)",
+   "text": "(Olifant) HSG (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "1308",
+   "client": "HSG",
+   "comment": null
+  },
+  {
+   "date": "2023-10-23",
+   "detail": "(Olifant)   MBA    (Olifant)",
+   "text": "(Olifant) MBA (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "1041",
+   "client": "MBA",
+   "comment": null
+  },
+  {
+   "date": "2023-10-23",
+   "detail": "VANDRAU",
+   "text": "VANDRAU",
+   "qtyReqd": 1,
+   "jobNo": "1197",
+   "client": "Russel SAF",
+   "comment": null
+  },
+  {
+   "date": "2023-10-23",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 8,
+   "jobNo": "1309 -1316",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2023-10-23",
+   "detail": "EMPIRE",
+   "text": "EMPIRE",
+   "qtyReqd": 1,
+   "jobNo": "891",
+   "client": "Loufrans Groep",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "(Olifant)   GFD    (Olifant)",
+   "text": "(Olifant) GFD (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "REDSERV",
+   "text": "REDSERV",
+   "qtyReqd": 2,
+   "jobNo": "1080, 1081",
+   "client": "Reserv",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "IDC",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "LATLOU LOGISTICS",
+   "text": "LATLOU LOGISTICS",
+   "qtyReqd": 5,
+   "jobNo": null,
+   "client": "IDC",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "LETSO",
+   "text": "LETSO",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "IDC",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 18,
+   "jobNo": "935 - 951",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2023-11-01",
+   "detail": "LEDIRANG",
+   "text": "LEDIRANG",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Repairs",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "text": "SS & SONS                                           SIFISO SYDNEY & SONS",
+   "qtyReqd": 6,
+   "jobNo": "1327-1331; 1237",
+   "client": "SSS transport",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 6,
+   "jobNo": "466-467",
+   "client": "Upward",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "KAGGIES",
+   "text": "KAGGIES",
+   "qtyReqd": 3,
+   "jobNo": "1170",
+   "client": "Kaggies",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "BUFFELSKRAAL BDY",
+   "text": "BUFFELSKRAAL BDY",
+   "qtyReqd": 1,
+   "jobNo": "1171",
+   "client": "Buffelskraal",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "ERMELO BRICKS",
+   "text": "ERMELO BRICKS",
+   "qtyReqd": 1,
+   "jobNo": "1185",
+   "client": "Ermelo Stene",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "MG JACOBSZ FARMING",
+   "text": "MG JACOBSZ FARMING",
+   "qtyReqd": 2,
+   "jobNo": "1344; 1234",
+   "client": "MG Jacobs",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 1,
+   "jobNo": "1342",
+   "client": "Into Asia",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "SMART FLEET MANAGEMENT",
+   "text": "SMART FLEET MANAGEMENT",
+   "qtyReqd": 1,
+   "jobNo": "546",
+   "client": "Smart 4",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 2,
+   "jobNo": "1235; 1236",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 13,
+   "jobNo": null,
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "KESHO",
+   "text": "KESHO",
+   "qtyReqd": 1,
+   "jobNo": "Marcus",
+   "client": "Kesho",
+   "comment": null
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": null,
+   "client": "10 City/ 5 Finals",
+   "comment": "PBCx2"
+  },
+  {
+   "date": "2023-11-16",
+   "detail": "LEEUWBERG",
+   "text": "LEEUWBERG",
+   "qtyReqd": 1,
+   "jobNo": "1238",
+   "client": "Leeuberg",
+   "comment": null
+  },
+  {
+   "date": "2023-12-11",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 20,
+   "jobNo": null,
+   "client": null,
+   "comment": "City 10 Finals 10"
+  },
+  {
+   "date": "2023-12-11",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2023-12-11",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2023-12-11",
+   "detail": "FRENCH LOGISTICS",
+   "text": "FRENCH LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "French",
+   "comment": null
+  },
+  {
+   "date": "2023-12-11",
+   "detail": "W.O.T",
+   "text": "W.O.T",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "W.O.T",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "9",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "VERMAAK TRANSPORT",
+   "text": "VERMAAK TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 15,
+   "jobNo": null,
+   "client": "20-27; 28-33",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "ERMELO BRICKS",
+   "text": "ERMELO BRICKS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "51 & 52",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "(Olifant)   IMS    (Olifant)",
+   "text": "(Olifant) IMS (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "54 & 55",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 13,
+   "jobNo": null,
+   "client": "Metaload 12-14, City 10",
+   "comment": null
+  },
+  {
+   "date": "2024-01-10",
+   "detail": "NYIKO",
+   "text": "NYIKO",
+   "qtyReqd": 10,
+   "jobNo": "Oom Louis",
+   "client": "NJP/NYIKO",
+   "comment": null
+  },
+  {
+   "date": "2024-01-18",
+   "detail": "MSHESI TRANSPORT",
+   "text": "MSHESI TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "61-62",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2024-01-18",
+   "detail": "MACDONALDS TRANSPORT",
+   "text": "MACDONALDS TRANSPORT",
+   "qtyReqd": 17,
+   "jobNo": null,
+   "client": "34-50",
+   "comment": null
+  },
+  {
+   "date": "2024-01-18",
+   "detail": "XVEST",
+   "text": "XVEST",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "117 - 126",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "M\u00dcLLER REITZ",
+   "text": "M\u00dcLLER REITZ",
+   "qtyReqd": 1,
+   "jobNo": "139",
+   "client": "Muller R",
+   "comment": "Dubble punt bo die U"
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 1,
+   "jobNo": "238",
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "KESHO",
+   "text": "KESHO",
+   "qtyReqd": 1,
+   "jobNo": "247",
+   "client": "Kesho",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "XVEST",
+   "text": "XVEST",
+   "qtyReqd": 1,
+   "jobNo": "246",
+   "client": "Xvest 11",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "JALOB",
+   "text": "JALOB",
+   "qtyReqd": 1,
+   "jobNo": "Riaan Repairs",
+   "client": "Jalob",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "TRANSPAKWE",
+   "text": "TRANSPAKWE",
+   "qtyReqd": 2,
+   "jobNo": "Riaan Repairs",
+   "client": "Transpakwe",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "EXCEED PRO LOGISTICS",
+   "text": "EXCEED PRO LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "245",
+   "client": "Xceed",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "GCL TRANSPORT",
+   "text": "GCL TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": "248-250",
+   "client": "GCL",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "BJS CARRIERS",
+   "text": "BJS CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "144",
+   "client": "BJS",
+   "comment": null
+  },
+  {
+   "date": "2024-01-30",
+   "detail": "BUFFELSKRAAL BDY",
+   "text": "BUFFELSKRAAL BDY",
+   "qtyReqd": 1,
+   "jobNo": "286",
+   "client": "Buffelskraal 6",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 9,
+   "jobNo": "256, 287, 258, 59, 234, 257,",
+   "client": "METALOAD x3, Silverfalls x1, Terry x1, Cawood Salts x2, WSTx2",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "CAWOOD SALT WORKS",
+   "text": "CAWOOD SALT WORKS",
+   "qtyReqd": 1,
+   "jobNo": "291-293",
+   "client": "Cawood",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 4,
+   "jobNo": "63, 283-286",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "63, 283-286",
+   "client": "Samson",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 1,
+   "jobNo": "287",
+   "client": "Upward Spiral",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 15,
+   "jobNo": "1262-1276",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": "1181, 1182",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "TEXMACOM",
+   "text": "TEXMACOM",
+   "qtyReqd": 2,
+   "jobNo": "315-316",
+   "client": "Texmacom",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "WINDPOMP TRANSPORT",
+   "text": "WINDPOMP TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "300",
+   "client": "Windpomp",
+   "comment": null
+  },
+  {
+   "date": "2024-02-12",
+   "detail": "THREE PEAKS",
+   "text": "THREE PEAKS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike Klient",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 6,
+   "jobNo": "235; 236; 382",
+   "client": "METALOAD x2, Windpomp x2, Gerhard(Buffel) x1, Drak x1",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "TEXMACOM",
+   "text": "TEXMACOM",
+   "qtyReqd": 2,
+   "jobNo": "315-316",
+   "client": "Texmacom",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 2,
+   "jobNo": "381",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "BUFFELSKRAAL BDY",
+   "text": "BUFFELSKRAAL BDY",
+   "qtyReqd": 1,
+   "jobNo": "391-392",
+   "client": "Buffel",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "(Oliefant) IMS (Oliefant)",
+   "text": "(Olifant) IMS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "394",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 14,
+   "jobNo": "288 -289; 291; 295; 379; 380; 290; 127-133",
+   "client": "Koketso x2; Safetech x1; Milea x1; Johan Len x1; Ukufunda x1; Konstuct x1; Empuma x6; Gaseemelwe x1",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "PJ WOLMARANS",
+   "text": "PJ WOLMARANS",
+   "qtyReqd": 1,
+   "jobNo": "383",
+   "client": "PJ Wol",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "THREE PEAKS",
+   "text": "THREE PEAKS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike Klient",
+   "comment": "NB"
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "LE-RU",
+   "text": "LE-RU",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Ruben Klient",
+   "comment": null
+  },
+  {
+   "date": "2024-02-23",
+   "detail": "ZENBULK",
+   "text": "ZENBULK",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben Klient",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": "412-414, 297, 292,304, 306-310, 415-418",
+   "client": "Metaload x3; Safetech x1; Drak x5; TM Trucking x2; North Reef x4",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 3,
+   "jobNo": "288,289,156",
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "W.O.T",
+   "text": "W.O.T",
+   "qtyReqd": 1,
+   "jobNo": "259",
+   "client": "World of Transport",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "EXCEED PRO LOGISTICS",
+   "text": "EXCEED PRO LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "398.399",
+   "client": "Xceed",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 2,
+   "jobNo": "302.303",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "(Oliefant) JLF (Oliefant)",
+   "text": "(Olifant) JLF (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "298-299",
+   "client": "JLF",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "MILEA",
+   "text": "MILEA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben Klient",
+   "comment": null
+  },
+  {
+   "date": "2024-03-04",
+   "detail": "RUDWES CARRIERS",
+   "text": "RUDWES CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Chassis Rebuild",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 17,
+   "jobNo": "419-420; 458; 461; 426; 481;314",
+   "client": "Skar Freight x2; TMD x1; Drak x1; Metaload x1; Repairs x10; CFW x1; Sisama x1",
+   "comment": "Repair werk aan Ex-Langvic inruil waens"
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "294-297",
+   "client": "NJP",
+   "comment": "NB"
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 4,
+   "jobNo": "421-424",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "425",
+   "client": "Msheshi",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "VDM",
+   "text": "(Olifant) VDM (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "427-429",
+   "client": "Gert van der Merwe",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "(oliefant) PMH (oliefant)",
+   "text": "(Olifant) PMH (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "457",
+   "client": "PMH",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 5,
+   "jobNo": "317-321",
+   "client": "Upward",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "RUDWES CARRIERS",
+   "text": "RUDWES CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "477",
+   "client": "Rudwes",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "WINBERG TRANSPORT",
+   "text": "WINBERG TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "395-396",
+   "client": "Winberg",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "ONYX",
+   "text": "ONYX",
+   "qtyReqd": 1,
+   "jobNo": "462",
+   "client": "Onyx",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "LUGISTIX",
+   "text": "LUGISTIX",
+   "qtyReqd": 1,
+   "jobNo": "482",
+   "client": "Luanlogic",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "377",
+   "client": "Falcon Force",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 1,
+   "jobNo": "459",
+   "client": "Dezmo",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "ONE LIFE                                    LIVE IT IN GOD",
+   "text": "ONE LIFE                                    LIVE IT IN GOD",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-03-18",
+   "detail": "SOUTH REEF MINING",
+   "text": "SOUTH REEF MINING",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "Neill",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 4,
+   "jobNo": "435 - 438",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "439",
+   "client": "Msheshi",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "VDM",
+   "text": "(Olifant) VDM (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "430",
+   "client": "Gert van der Merwe",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "ONYX",
+   "text": "ONYX",
+   "qtyReqd": 1,
+   "jobNo": "476",
+   "client": "Onxy",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "ENTLE LOGISTICS",
+   "text": "ENTLE LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Afrimat Comm",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "SISAMA",
+   "text": "SISAMA",
+   "qtyReqd": 2,
+   "jobNo": "482",
+   "client": "Sisama 2",
+   "comment": "Eerste wa moet naamplate ruil, 2de Wa Kry nuwe ene"
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "ROCKCOM",
+   "text": "ROCKCOM",
+   "qtyReqd": 1,
+   "jobNo": "478",
+   "client": "Rockom 1",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "(oliefant) CFW (oliefant)",
+   "text": "(Olifant) CFW (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "481",
+   "client": "CFW",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "ONE LIFE                                    LIVE IT IN GOD",
+   "text": "ONE LIFE                                    LIVE IT IN GOD",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-04-02",
+   "detail": "SOUTH REEF MINING",
+   "text": "SOUTH REEF MINING",
+   "qtyReqd": 8,
+   "jobNo": "431 - 434",
+   "client": "North Reef",
+   "comment": "Eerste 4 Moet Naamplate ruil, Volgende 4 op Putte"
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 14,
+   "jobNo": "322;323; 479; 324-327",
+   "client": "777 x2; JL Rob x1; Metaload x4; Silverfalls x1; City x2; PBC x4",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 3,
+   "jobNo": "475; 476; 477",
+   "client": "Clack x3",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "JAMIL",
+   "text": "JAMIL",
+   "qtyReqd": 1,
+   "jobNo": "520",
+   "client": "Jamil",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "DEZMO TRANS",
+   "text": "DEZMO TRANS",
+   "qtyReqd": 20,
+   "jobNo": "164-173; 500-509",
+   "client": "Desmo",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "VULA VALLA",
+   "text": "VULA VALLA",
+   "qtyReqd": 8,
+   "jobNo": "463-470",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 2,
+   "jobNo": "495",
+   "client": "Falcon",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "298-301;375",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "(Olifant) HJS (Olifant)",
+   "text": "(Olifant) HJS (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "441",
+   "client": "HJS",
+   "comment": null
+  },
+  {
+   "date": "2024-04-09",
+   "detail": "MOVING FORWARD",
+   "text": "MOVING FORWARD",
+   "qtyReqd": 1,
+   "jobNo": "483",
+   "client": "MF",
+   "comment": null
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Metaloadx6 ; Repairs x2; TL van Zylx1; Wessel Jnrx1",
+   "comment": "Metaload 6 extra waens gekoop"
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "JAHM",
+   "text": "JAHM",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "ZENBULK",
+   "text": "ZENBULK",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "FAST FLAME",
+   "text": "FAST FLAME",
+   "qtyReqd": 1,
+   "jobNo": "497",
+   "client": "Flatbed",
+   "comment": null
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 8,
+   "jobNo": "499;559-565",
+   "client": "Coetzee",
+   "comment": "8 waens - 4 nou bou ; 4 bietjie later"
+  },
+  {
+   "date": "2024-04-22",
+   "detail": "LUGISTIX",
+   "text": "LUGISTIX",
+   "qtyReqd": 1,
+   "jobNo": "482",
+   "client": "Luanlogic",
+   "comment": null
+  },
+  {
+   "date": "2024-04-30",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 30,
+   "jobNo": null,
+   "client": "Dezmo x30",
+   "comment": "Naamplate om Ruil"
+  },
+  {
+   "date": "2024-04-30",
+   "detail": "TEXMACOM",
+   "text": "TEXMACOM",
+   "qtyReqd": 3,
+   "jobNo": "485-487",
+   "client": "Texmacom",
+   "comment": "Vrydag 3 Mei By finals"
+  },
+  {
+   "date": "2024-04-30",
+   "detail": "VULA VALLA",
+   "text": "VULA VALLA",
+   "qtyReqd": 5,
+   "jobNo": "546-550",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2024-05-07",
+   "detail": "(Olifant) CMP (Olifant)",
+   "text": "(Olifant) CMP (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "570",
+   "client": "CMP Farm",
+   "comment": "Nuwe Klient"
+  },
+  {
+   "date": "2024-05-07",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": "582;583; 571; 556;557; City",
+   "client": "Metaload x2; Narrow Path x1; TBC x2; Ex-Langvic Repairs x10",
+   "comment": "2 Vallas gekanseleer kry Leader Naamplaat"
+  },
+  {
+   "date": "2024-05-07",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 4,
+   "jobNo": "541-544",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2024-05-07",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 8,
+   "jobNo": "499;559-565",
+   "client": "Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2024-05-10",
+   "detail": "ONE LIFE                                    LIVE IT IN GOD",
+   "text": "ONE LIFE                                    LIVE IT IN GOD",
+   "qtyReqd": 6,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-05-10",
+   "detail": "BARNARD VERVOER",
+   "text": "BARNARD VERVOER",
+   "qtyReqd": 12,
+   "jobNo": "542-531; 575-578",
+   "client": "Barnard",
+   "comment": null
+  },
+  {
+   "date": "2024-05-10",
+   "detail": "SISAMA",
+   "text": "SISAMA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Nicky",
+   "comment": "Umbono nr4 word geruil"
+  },
+  {
+   "date": "2024-05-10",
+   "detail": "MKUZE",
+   "text": "MKUZE",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-05-10",
+   "detail": "MGT",
+   "text": "(Olifant) MGT (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": "2de Handse Waens wat verkoop is"
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 9,
+   "jobNo": "592-593; 586; 584; 589; 599; 587; 588; 591",
+   "client": "Good Glaze x2; WST x2; Tsetsefly x1; Straw x1; Konstruct x1; WAWx1; Thiart x1",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "SMM LOGISTICS",
+   "text": "SMM LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "596 & 597",
+   "client": "SMM X2",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "PPK HAULERS",
+   "text": "PPK HAULERS",
+   "qtyReqd": 2,
+   "jobNo": "594 & 595",
+   "client": "PPK X2",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 2,
+   "jobNo": "589 & 590",
+   "client": "Esaleone x2",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "Nicky",
+   "client": "Msheshi",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 1,
+   "jobNo": "595",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2024-05-16",
+   "detail": "ZENBULK",
+   "text": "ZENBULK",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 12,
+   "jobNo": "589-590; 615-618; 626; 605; 598; 599; 587; 588",
+   "client": "X-Vest x2; Tradeport x1; Dreyer x4; Tsetsefly x1; Straw x1; Skar x1; Promech x1",
+   "comment": "X-Vest koop 2 Ex-Langvic Repairs"
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 6,
+   "jobNo": "551-5552; 601-604",
+   "client": "Tradekor - Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "614",
+   "client": "Msheshi",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "GCL TRANSPORT",
+   "text": "GCL TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": "619-621",
+   "client": "GCL 8, 9, 10",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "(Olifant)  IMS  (Olifant)",
+   "text": "(Olifant) IMS (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "624-625; 589, 599",
+   "client": "IMS",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "FAST FLAME",
+   "text": "FAST FLAME",
+   "qtyReqd": 1,
+   "jobNo": "Flatdeck",
+   "client": "Fast Flame",
+   "comment": null
+  },
+  {
+   "date": "2024-05-27",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Nicky",
+   "comment": null
+  },
+  {
+   "date": "2024-05-30",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 4,
+   "jobNo": "669-672",
+   "client": "Upward Spiral",
+   "comment": null
+  },
+  {
+   "date": "2024-05-30",
+   "detail": "GOOD   GLAZE   LOGISTICS",
+   "text": "GOOD   GLAZE   LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "Good glaze",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 30,
+   "jobNo": "654; 655; 659; 657; 658; 656; 640-650; 629; 605; 632; 606-608; 627;",
+   "client": "WSTx1; Metaload x6; Straw x1; City x6; Deon Kimberly x1; De-Klerk x1; Koketso x1; Vendcorp x11; SAF x1; Dandre x1",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 1,
+   "jobNo": "",
+   "client": "Upward Spiral",
+   "comment": "Voorraad Wa verkoop"
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 3,
+   "jobNo": "611-613",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 2,
+   "jobNo": "639",
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "JAMIL",
+   "text": "JAMIL",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Nicky",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "600",
+   "client": "Falcon",
+   "comment": null
+  },
+  {
+   "date": "2024-06-06",
+   "detail": "GLIMLAG",
+   "text": "GLIMLAG",
+   "qtyReqd": 4,
+   "jobNo": "633-636",
+   "client": "Glimlag",
+   "comment": null
+  },
+  {
+   "date": "2024-06-19",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 8,
+   "jobNo": "651-652; 674;713-714",
+   "client": "Afrimat x1 ; Metaload x2; TL van Zyl x2",
+   "comment": null
+  },
+  {
+   "date": "2024-06-19",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 5,
+   "jobNo": "700-704",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2024-06-19",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 13,
+   "jobNo": "701-712; 627",
+   "client": "Langvic",
+   "comment": "WST geruil vir Langvic"
+  },
+  {
+   "date": "2024-06-19",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 4,
+   "jobNo": "697-700",
+   "client": "Upward Spiral",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "KALAHARI ROOTS",
+   "text": "KALAHARI ROOTS",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Ex-Falcon Force",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "LAD & LASSES",
+   "text": "LAD & LASSES",
+   "qtyReqd": 1,
+   "jobNo": "609",
+   "client": "L&L",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 26,
+   "jobNo": "691-694; 707-708, 653; 660; 661;713; 709-710; 711-714; 691-693; 667-668",
+   "client": "Lusthof x4; Theuns X3; Silverfalls x5; Allabout x1;  Safetech x3; Narrow x2; Cornie x2; Gerrie x3; Kai x3",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 12,
+   "jobNo": "675-686",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "(Olifant)  CMT  (Olifant)",
+   "text": "(Olifant) CMT (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "690",
+   "client": "CMT",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 2,
+   "jobNo": "694-695",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "702-703",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "SYLMOU",
+   "text": "SYLMOU",
+   "qtyReqd": 4,
+   "jobNo": "Mike",
+   "client": "Sylmou",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "EXPIDOR",
+   "text": "EXPIDOR",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Mike",
+   "comment": null
+  },
+  {
+   "date": "2024-07-02",
+   "detail": "MH LOGICA",
+   "text": "MH LOGICA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Henrico",
+   "comment": null
+  },
+  {
+   "date": "2024-07-09",
+   "detail": "SIYAKHULA",
+   "text": "SIYAKHULA",
+   "qtyReqd": 4,
+   "jobNo": "691-694",
+   "client": "Lusthof",
+   "comment": null
+  },
+  {
+   "date": "2024-07-09",
+   "detail": "LULOGIX",
+   "text": "LULOGIX",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Neill",
+   "comment": null
+  },
+  {
+   "date": "2024-07-09",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2024-07-09",
+   "detail": "CY LOGISTICS",
+   "text": "CY LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2024-07-19",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 20,
+   "jobNo": "719-720; 721-722; 730-732; 664-666; 711-712; 718; 714,100,668; 792-793",
+   "client": "Betopess x2; WAW x2; Koketso x3; SAFETEC x3; Johannes x2; Boni x1; Tucker x3; Alex x2",
+   "comment": null
+  },
+  {
+   "date": "2024-07-19",
+   "detail": "MANDT",
+   "text": "MANDT",
+   "qtyReqd": 1,
+   "jobNo": "716",
+   "client": "MANDT",
+   "comment": null
+  },
+  {
+   "date": "2024-07-19",
+   "detail": "IOS TIPPERS",
+   "text": "IOS TIPPERS",
+   "qtyReqd": 5,
+   "jobNo": "723-727",
+   "client": "IOS",
+   "comment": null
+  },
+  {
+   "date": "2024-07-19",
+   "detail": "SMT LOGISTICS",
+   "text": "SMT LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "729",
+   "client": "SMT",
+   "comment": null
+  },
+  {
+   "date": "2024-07-19",
+   "detail": "LOUFRANS",
+   "text": "LOUFRANS",
+   "qtyReqd": 1,
+   "jobNo": "Henrico",
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2024-07-24",
+   "detail": "IOS TIPPERS",
+   "text": "IOS TIPPERS",
+   "qtyReqd": 1,
+   "jobNo": "Extra",
+   "client": "IOS 14",
+   "comment": "Ry Vrydag"
+  },
+  {
+   "date": "2024-07-24",
+   "detail": "VFOUR",
+   "text": "VFOUR",
+   "qtyReqd": 4,
+   "jobNo": "733-736",
+   "client": "Eco Renergy",
+   "comment": null
+  },
+  {
+   "date": "2024-07-24",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 10,
+   "jobNo": "737-740; 728; 800-804",
+   "client": "Freightgistics x 4; Jambisko x1; SA Freight x5",
+   "comment": null
+  },
+  {
+   "date": "2024-07-24",
+   "detail": "BJS CARRIERS",
+   "text": "BJS CARRIERS",
+   "qtyReqd": 2,
+   "jobNo": "Neil",
+   "client": "BJS Carriers",
+   "comment": null
+  },
+  {
+   "date": "2024-07-24",
+   "detail": "KAI TRUCX",
+   "text": "KAI TRUCX",
+   "qtyReqd": 3,
+   "jobNo": "Henrico",
+   "client": "Kai",
+   "comment": "Ry Vrydag"
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 23,
+   "jobNo": "825; 826; 741-746; 747-749; 665-666; 823; 808-812;805-806; 807",
+   "client": "777; Sweeny Freightgistics x 6; Cruise Cargo x3; Koketso x1; Safetec x4; Silverfalls x6 ; Narrow x1",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "JAMBISKO",
+   "text": "JAMBISKO",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Jambisko",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "SA FREIGHT",
+   "text": "SA FREIGHT",
+   "qtyReqd": 5,
+   "jobNo": "Mike",
+   "client": "SA Freight",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "704-706",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "(Olifant)  CMT  (Olifant)",
+   "text": "(Olifant) CMT (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "794",
+   "client": "CMT",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "STAR LIZARD",
+   "text": "STAR LIZARD",
+   "qtyReqd": 3,
+   "jobNo": "797-799",
+   "client": "Star Lizard 8-10",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "LUGISTIX",
+   "text": "LUGISTIX",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Neill",
+   "comment": null
+  },
+  {
+   "date": "2024-08-01",
+   "detail": "RHINO PLANT HIRE",
+   "text": "RHINO PLANT HIRE",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "HLONGIE TRADING",
+   "text": "HLONGIE TRADING",
+   "qtyReqd": 2,
+   "jobNo": "821 ; 820",
+   "client": "Hlongi x2",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 10,
+   "jobNo": "812;823;931",
+   "client": "Silverfalls 25 - 29",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "MH LOGICA",
+   "text": "MH LOGICA",
+   "qtyReqd": 1,
+   "jobNo": "Henrico",
+   "client": "Tautliner",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 28,
+   "jobNo": "Mike",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "KHALEEDS",
+   "text": "KHALEEDS",
+   "qtyReqd": 5,
+   "jobNo": "Mike",
+   "client": "Vallas",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "WESWIL CARGO",
+   "text": "WESWIL CARGO",
+   "qtyReqd": 2,
+   "jobNo": "Henrico",
+   "client": "Weswil Cargo",
+   "comment": null
+  },
+  {
+   "date": "2024-08-13",
+   "detail": "MANDT",
+   "text": "MANDT",
+   "qtyReqd": 1,
+   "jobNo": "829",
+   "client": "MANDT",
+   "comment": null
+  },
+  {
+   "date": "2024-08-26",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 14,
+   "jobNo": "933-942; 831-832;",
+   "client": "Karee x2; Metalaod x10;??? X1; ??? X1",
+   "comment": null
+  },
+  {
+   "date": "2024-08-26",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "308-310",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-08-26",
+   "detail": "MRD Logistics",
+   "text": "MRD Logistics",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Andries (2nd Handse Trailer)",
+   "comment": null
+  },
+  {
+   "date": "2024-08-26",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 2,
+   "jobNo": "943-944",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2024-09-10",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 14,
+   "jobNo": "939-942; 970-979",
+   "client": "Metaload x14",
+   "comment": null
+  },
+  {
+   "date": "2024-09-10",
+   "detail": "ACTIVE POWER",
+   "text": "ACTIVE POWER",
+   "qtyReqd": 20,
+   "jobNo": "947-966",
+   "client": "Active Power x20",
+   "comment": null
+  },
+  {
+   "date": "2024-09-10",
+   "detail": "PG ROOS CARRIERS",
+   "text": "PG ROOS CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "946",
+   "client": "PG Roos",
+   "comment": null
+  },
+  {
+   "date": "2024-09-10",
+   "detail": "BJS CARRIERS",
+   "text": "BJS CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "945",
+   "client": "BJS Carriers",
+   "comment": null
+  },
+  {
+   "date": "2024-09-20",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 5,
+   "jobNo": "978; 979; 977; 1034;1035; 984-985",
+   "client": "Hofftrans x2; Metaloadx3; Stock x2; Jahm x2; Ex-Dezmo x2;",
+   "comment": null
+  },
+  {
+   "date": "2024-09-25",
+   "detail": "HPS TRANSPORT",
+   "text": "HPS TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "982-983",
+   "client": "HPS x2",
+   "comment": null
+  },
+  {
+   "date": "2024-09-25",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 7,
+   "jobNo": "978; 979; 977; 1034;1035; 984-985",
+   "client": "Metaload x3; Stock x2; Hofftrans x2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-01",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 8,
+   "jobNo": "987-993",
+   "client": "MG Plant x8",
+   "comment": null
+  },
+  {
+   "date": "2024-10-01",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 3,
+   "jobNo": "1022-1024",
+   "client": "Umbono x3",
+   "comment": null
+  },
+  {
+   "date": "2024-10-01",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 2,
+   "jobNo": "1028-1029",
+   "client": "Msheshi x2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-01",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "311-313",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-10-01",
+   "detail": "BO KAROO",
+   "text": "BO KAROO",
+   "qtyReqd": 4,
+   "jobNo": null,
+   "client": "Henrico",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "VPS HAULERS",
+   "text": "VPS HAULERS",
+   "qtyReqd": 10,
+   "jobNo": "996-1005",
+   "client": "Vallas x 10",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 2,
+   "jobNo": "1026-1027",
+   "client": "Umbono x2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 2,
+   "jobNo": "1054-1055",
+   "client": "Esaleone x2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "1056",
+   "client": "Falcon Force bulk x1",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "LETSO",
+   "text": "LETSO",
+   "qtyReqd": 1,
+   "jobNo": "1057",
+   "client": "Letso x1",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "BCI",
+   "text": "(Olifant) BCI (Olifant)",
+   "qtyReqd": 6,
+   "jobNo": "1074-1079",
+   "client": "BCI 9-12",
+   "comment": null
+  },
+  {
+   "date": "2024-10-10",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 4,
+   "jobNo": "1059-1062",
+   "client": "Shosholoza 11-14",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "MARBOD",
+   "text": "MARBOD",
+   "qtyReqd": 10,
+   "jobNo": "1074-1081",
+   "client": "Marbod",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "(Olifant)  JLF (Olifant)",
+   "text": "(Olifant) JLF (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "1075",
+   "client": "JLF",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "PG  ROOS  CARRIERS",
+   "text": "PG  ROOS  CARRIERS",
+   "qtyReqd": 3,
+   "jobNo": "1088 - 1090",
+   "client": "PG Roos",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "JDJ  PLANT  HIRE",
+   "text": "JDJ  PLANT  HIRE",
+   "qtyReqd": 2,
+   "jobNo": "Neill",
+   "client": "JDJ",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 1,
+   "jobNo": "1030",
+   "client": "Mseshi",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "LEADER  TRAILER",
+   "text": "LEADER  TRAILER",
+   "qtyReqd": 21,
+   "jobNo": "1095-1100; 1076-1079; 1086 & 1087",
+   "client": "METALOAD x14 ; Skar x4; Exceed x1; Johan Fouriex2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "314-318",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2024-10-21",
+   "detail": "ONYX",
+   "text": "ONYX",
+   "qtyReqd": 1,
+   "jobNo": "1066",
+   "client": "Onyx",
+   "comment": null
+  },
+  {
+   "date": "2024-10-31",
+   "detail": "MARBOD",
+   "text": "MARBOD",
+   "qtyReqd": 2,
+   "jobNo": "1136-1137",
+   "client": "Marbod Skeletal x2",
+   "comment": null
+  },
+  {
+   "date": "2024-10-31",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 6,
+   "jobNo": "1112-1114",
+   "client": "Tradekor Skeletal",
+   "comment": null
+  },
+  {
+   "date": "2024-10-31",
+   "detail": "VIZENGE 2020",
+   "text": "VIZENGE 2020",
+   "qtyReqd": 1,
+   "jobNo": "1069",
+   "client": "Susray ( Tautliner)",
+   "comment": null
+  },
+  {
+   "date": "2024-10-31",
+   "detail": "MISS LUCY TRUCKING",
+   "text": "MISS LUCY TRUCKING",
+   "qtyReqd": 1,
+   "jobNo": "1091",
+   "client": "CY (Tautliner)",
+   "comment": null
+  },
+  {
+   "date": "2024-12-02",
+   "detail": "PG ROOS CARRIERS",
+   "text": "PG ROOS CARRIERS",
+   "qtyReqd": 3,
+   "jobNo": "1162-1164",
+   "client": "Pg Roos",
+   "comment": null
+  },
+  {
+   "date": "2024-12-02",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 10,
+   "jobNo": "1149-1156",
+   "client": "Upward / Voorraad x10",
+   "comment": null
+  },
+  {
+   "date": "2024-12-02",
+   "detail": "INCEBA CARRIERS",
+   "text": "INCEBA CARRIERS",
+   "qtyReqd": 3,
+   "jobNo": "1160",
+   "client": "Windpomp",
+   "comment": null
+  },
+  {
+   "date": "2024-12-02",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "1168-1172",
+   "client": "Bakubung X5",
+   "comment": null
+  },
+  {
+   "date": "2024-12-02",
+   "detail": "ZINGARO",
+   "text": "ZINGARO",
+   "qtyReqd": 12,
+   "jobNo": "1157-1158",
+   "client": "Zingaro Spisiale Skrif",
+   "comment": "Mike help met regte font"
+  },
+  {
+   "date": "2024-12-09",
+   "detail": "TUGELA STEEL",
+   "text": "TUGELA STEEL",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "1175",
+   "comment": null
+  },
+  {
+   "date": "2024-12-09",
+   "detail": "JCT TRANSPORT",
+   "text": "JCT TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "1180-1181",
+   "client": "JCT",
+   "comment": "Volgende Jaar"
+  },
+  {
+   "date": "2024-12-09",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "1178-1179",
+   "comment": "Volgende Jaar"
+  },
+  {
+   "date": "2024-12-09",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "1183-1184",
+   "client": "DKL",
+   "comment": "Volgende Jaar"
+  },
+  {
+   "date": "2025-01-08",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "Nicky",
+   "client": "MG Plant",
+   "comment": "Klient kom haal Vrydag"
+  },
+  {
+   "date": "2025-01-08",
+   "detail": "JCT TRANSPORT",
+   "text": "JCT TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "1180-1181",
+   "client": "JCT",
+   "comment": null
+  },
+  {
+   "date": "2025-01-08",
+   "detail": "DKL TRANSPORT",
+   "text": "DKL TRANSPORT",
+   "qtyReqd": 3,
+   "jobNo": "1183-1184",
+   "client": "DKL",
+   "comment": null
+  },
+  {
+   "date": "2025-01-08",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "1176; 1182; 1177, 1165, 1166",
+   "client": "CFW X2; Narrow Path x1; X-Vest x2",
+   "comment": null
+  },
+  {
+   "date": "2025-01-08",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 2,
+   "jobNo": "1178-1179",
+   "client": "Esaleone",
+   "comment": null
+  },
+  {
+   "date": "2025-01-15",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 20,
+   "jobNo": "1159 & 1161; 1118-1135",
+   "client": "TAT Skeletals x18; Autoforce x2",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 18,
+   "jobNo": "1118-1135",
+   "client": "TAT Skeletals x15; Time Tunex3",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "XVEST",
+   "text": "XVEST",
+   "qtyReqd": 2,
+   "jobNo": "1165-1166",
+   "client": "Xvest Tautliners",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "17-21",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "TUGELA STEEL",
+   "text": "TUGELA STEEL",
+   "qtyReqd": 2,
+   "jobNo": "6 ; 7",
+   "client": "Tugela steel",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 3,
+   "jobNo": "22-24",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2025-01-23",
+   "detail": "YELLOWMAN",
+   "text": "YELLOWMAN",
+   "qtyReqd": 2,
+   "jobNo": "15 ; 16",
+   "client": "NRP",
+   "comment": null
+  },
+  {
+   "date": "2025-01-30",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 6,
+   "jobNo": "Nicky",
+   "client": "Time Tune x4; TAT Skeletals x2",
+   "comment": "Ex-Dezmo geruil"
+  },
+  {
+   "date": "2025-01-30",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 2,
+   "jobNo": "Nicky",
+   "client": "Umbono Ruil Met Msheshi",
+   "comment": null
+  },
+  {
+   "date": "2025-01-30",
+   "detail": "BCI",
+   "text": "(Olifant) BCI (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "Nicky",
+   "client": "BCI",
+   "comment": "Ex-Dezmo geruil"
+  },
+  {
+   "date": "2025-02-04",
+   "detail": "YELLOWMAN",
+   "text": "YELLOWMAN",
+   "qtyReqd": 2,
+   "jobNo": "15 ; 16",
+   "client": "NRP",
+   "comment": null
+  },
+  {
+   "date": "2025-02-04",
+   "detail": "CRUISE CARGO",
+   "text": "CRUISE CARGO",
+   "qtyReqd": 1,
+   "jobNo": "78",
+   "client": "Cruise Cargo",
+   "comment": null
+  },
+  {
+   "date": "2025-02-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 16,
+   "jobNo": "80; 14; 7-13; 25-31",
+   "client": "Safetec x1; SCCF x1; Metaload x14",
+   "comment": null
+  },
+  {
+   "date": "2025-02-13",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "96 - 98; 68 ;81",
+   "client": "CFW x3; Koketso x1 ; Autoforce x1",
+   "comment": null
+  },
+  {
+   "date": "2025-02-13",
+   "detail": "LAD AND LASSES",
+   "text": "LAD AND LASSES",
+   "qtyReqd": 4,
+   "jobNo": "82-85",
+   "client": "Lad and Lasses",
+   "comment": null
+  },
+  {
+   "date": "2025-02-13",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "79",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2025-02-13",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 12,
+   "jobNo": "84-95",
+   "client": "Tradekor Skeletals x8 , FD x4",
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 16,
+   "jobNo": "99-102; 103-104; 32-36",
+   "client": "RBFx2; SMBx4; Metaloadx5; Skar x4",
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "KJM LOGISTICS",
+   "text": "KJM LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "Nicky/ Ruben",
+   "client": "Ex-Dezmo",
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "VPS FEEDLOT",
+   "text": "VPS FEEDLOT",
+   "qtyReqd": 1,
+   "jobNo": "110",
+   "client": "Vallas Dropside trailer",
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": "1070-1071",
+   "client": "Milltrans Flatdec",
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "MKUZE",
+   "text": "MKUZE",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "KINGSVALLY FARMS",
+   "text": "KINGSVALLY FARMS",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-02-18",
+   "detail": "SMASH",
+   "text": "SMASH",
+   "qtyReqd": 12,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 12,
+   "jobNo": "116; 37-43; 117; 112",
+   "client": "Safetec x1; Metaload x7; Skar x2; Loadex x1; PKS x1",
+   "comment": null
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "(olifant) FGH (olifant)",
+   "text": "(Olifant) FGH (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "111",
+   "client": "FGH x1",
+   "comment": null
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "(olifant) TGA (olifant)",
+   "text": "(Olifant) TGA (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "118",
+   "client": "TGAx1",
+   "comment": null
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "LENATA",
+   "text": "LENATA",
+   "qtyReqd": 2,
+   "jobNo": "114 - 115",
+   "client": "Lenata x2",
+   "comment": "BPW Aste"
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "(olifant) L J FOUCH\u00c9 (olifant)",
+   "text": "(Olifant) L J FOUCH\u00c9 (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Louis Fouche",
+   "comment": "Metaload Blou Verf"
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "(olifant) LANI FOUCH\u00c9 (olifant)",
+   "text": "(Olifant) LANI FOUCH\u00c9 (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Louis Fouche",
+   "comment": "L & L PINK verf"
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "(olifant) A & S (olifant)",
+   "text": "(Olifant) A & S (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "113",
+   "client": "A & S",
+   "comment": "Jost Aste"
+  },
+  {
+   "date": "2025-02-26",
+   "detail": "FRENCH LOGISTICS",
+   "text": "FRENCH LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "French",
+   "comment": null
+  },
+  {
+   "date": "2025-03-06",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 13,
+   "jobNo": "170 - 172 ; 194-195; 119-126",
+   "client": "JL Robinson x1; Safetec x2; Metaload x8; Jamil x2",
+   "comment": null
+  },
+  {
+   "date": "2025-03-19",
+   "detail": "DIRARO GROUP",
+   "text": "DIRARO GROUP",
+   "qtyReqd": 21,
+   "jobNo": "193",
+   "client": "Diraro",
+   "comment": null
+  },
+  {
+   "date": "2025-03-19",
+   "detail": "MSHESHI",
+   "text": "MSHESHI",
+   "qtyReqd": 2,
+   "jobNo": "Nicky",
+   "client": "Sokoza ruil met Mseshi",
+   "comment": null
+  },
+  {
+   "date": "2025-03-19",
+   "detail": "HPS TRANSPORT",
+   "text": "HPS TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "162",
+   "client": "HPS",
+   "comment": null
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "VPS FEEDLOT",
+   "text": "VPS FEEDLOT",
+   "qtyReqd": 1,
+   "jobNo": "110",
+   "client": "Vallas Dropside trailer",
+   "comment": null
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "SA FREIGHT",
+   "text": "SA FREIGHT",
+   "qtyReqd": 7,
+   "jobNo": "197-202",
+   "client": "SA Freight 6 - 12",
+   "comment": null
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "YELLOWMAN",
+   "text": "YELLOWMAN",
+   "qtyReqd": 2,
+   "jobNo": "190-191",
+   "client": "Yellowman / NRP",
+   "comment": "HD 40cube"
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "MSESHI",
+   "text": "MSESHI",
+   "qtyReqd": 2,
+   "jobNo": "187-188",
+   "client": "Mseshi",
+   "comment": null
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "SOKOZA",
+   "text": "SOKOZA",
+   "qtyReqd": 1,
+   "jobNo": "189",
+   "client": "Sokoza",
+   "comment": null
+  },
+  {
+   "date": "2025-04-01",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "192",
+   "client": "Ok Kitchen",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "LATEGAN BOERDERY",
+   "text": "LATEGAN BOERDERY",
+   "qtyReqd": 2,
+   "jobNo": "211",
+   "client": "Pieter Lategan",
+   "comment": "Plus een voorraad wa"
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "(olifant) FGH (olifant)",
+   "text": "(Olifant) FGH (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "Henrico",
+   "client": "FGA",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "(olifant) TGA (olifant)",
+   "text": "(Olifant) TGA (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "206",
+   "client": "TGA",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "CY LOGISTICS",
+   "text": "CY LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "213",
+   "client": "CY logistigs",
+   "comment": "TAUTLINER"
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 1,
+   "jobNo": "190",
+   "client": "Clack",
+   "comment": "WALKING FLOOR"
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "MH LOGICA",
+   "text": "MH LOGICA",
+   "qtyReqd": 1,
+   "jobNo": "214",
+   "client": "Mh Logica",
+   "comment": "TAUTLINER"
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "ZINGARO",
+   "text": "ZINGARO",
+   "qtyReqd": 5,
+   "jobNo": "217-221",
+   "client": "Zingaro Spisiale Skrif",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "PIKET TRANS",
+   "text": "PIKET TRANS",
+   "qtyReqd": 1,
+   "jobNo": "203",
+   "client": "Piket",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "NEZAR AGRI",
+   "text": "NEZAR AGRI",
+   "qtyReqd": 1,
+   "jobNo": "212",
+   "client": "Nezar",
+   "comment": null
+  },
+  {
+   "date": "2025-04-24",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 13,
+   "jobNo": "205, 208",
+   "client": "EJJ , SARAKIS",
+   "comment": null
+  },
+  {
+   "date": "2025-05-13",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": "129-131, 215-216, 209",
+   "client": "Metaload x6 , Rebuild x4, HBA x2,        Jamil x 1, Konstruct x3",
+   "comment": null
+  },
+  {
+   "date": "2025-05-13",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 2,
+   "jobNo": "210-211",
+   "client": "Shosholoza",
+   "comment": null
+  },
+  {
+   "date": "2025-05-13",
+   "detail": "BAXLINE",
+   "text": "BAXLINE",
+   "qtyReqd": 6,
+   "jobNo": "212-217",
+   "client": "Baxline",
+   "comment": "3-As Flatdeck"
+  },
+  {
+   "date": "2025-05-13",
+   "detail": "IMVUSA",
+   "text": "IMVUSA",
+   "qtyReqd": 1,
+   "jobNo": "218",
+   "client": "Imvusa",
+   "comment": "Walking Floor Nr 2"
+  },
+  {
+   "date": "2025-05-13",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "206",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2025-05-28",
+   "detail": "LANGVIC",
+   "text": "LANGVIC",
+   "qtyReqd": 4,
+   "jobNo": "223 - 226",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2025-05-28",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "234",
+   "client": "Ok Kitchen",
+   "comment": null
+  },
+  {
+   "date": "2025-05-28",
+   "detail": "KAI TRUCX",
+   "text": "KAI TRUCX",
+   "qtyReqd": 1,
+   "jobNo": "235",
+   "client": "Kai",
+   "comment": null
+  },
+  {
+   "date": "2025-05-28",
+   "detail": "KALAHARI ROOTS",
+   "text": "KALAHARI ROOTS",
+   "qtyReqd": 1,
+   "jobNo": "237",
+   "client": "Kalahari Roots",
+   "comment": null
+  },
+  {
+   "date": "2025-06-03",
+   "detail": "(olifant) MST (olifant)",
+   "text": "(Olifant) MST (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "223 - 226",
+   "client": "Langvic",
+   "comment": null
+  },
+  {
+   "date": "2025-06-03",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "229-233",
+   "client": "METALOAD",
+   "comment": null
+  },
+  {
+   "date": "2025-06-03",
+   "detail": "HBA BULK",
+   "text": "HBA BULK",
+   "qtyReqd": 2,
+   "jobNo": "204 ; 205",
+   "client": "HBA",
+   "comment": null
+  },
+  {
+   "date": "2025-06-03",
+   "detail": "BAXLINE ( in Italic )",
+   "text": "BAXLINE ( in Italic )",
+   "qtyReqd": 6,
+   "jobNo": "212-217",
+   "client": "BAXLINE",
+   "comment": "Naamplaat op wa en Tussen Landing Legs (12 in totaal)"
+  },
+  {
+   "date": "2025-06-10",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 8,
+   "jobNo": "249-256",
+   "client": "MG Plant",
+   "comment": null
+  },
+  {
+   "date": "2025-06-10",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 5,
+   "jobNo": "238-240",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2025-06-23",
+   "detail": "(olifant)  C.F.W  (olifant)",
+   "text": "(Olifant) C.F.W (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "CFW",
+   "comment": null
+  },
+  {
+   "date": "2025-06-23",
+   "detail": "MWP SOLUTIONS",
+   "text": "MWP SOLUTIONS",
+   "qtyReqd": 1,
+   "jobNo": "257",
+   "client": "MWP",
+   "comment": null
+  },
+  {
+   "date": "2025-06-23",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": "1181, 1182",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2025-06-23",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "244-248; 258",
+   "client": "NJP",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "KE - MATETE",
+   "text": "KE - MATETE",
+   "qtyReqd": 15,
+   "jobNo": "Johein Repairs + Produksie 315-323",
+   "client": "Matete",
+   "comment": null
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "JB",
+   "comment": null
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "ZENBULK",
+   "text": "ZENBULK",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Zenbulk",
+   "comment": null
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 10,
+   "jobNo": "Oom Louis",
+   "client": "Tradekor",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "261; 313; 324; Rebuilds 5",
+   "client": "WST x1 ; Metaload x2; Rebuilds x5",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "JACOBS TRANSPORT",
+   "text": "JACOBS TRANSPORT",
+   "qtyReqd": 4,
+   "jobNo": "271-274",
+   "client": "Jacobs",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-02",
+   "detail": "(olifant)  TM & S  (olifant)",
+   "text": "(Olifant) TM & S (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "Nelize",
+   "client": "TM & S",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "FIZZER",
+   "text": "FIZZER",
+   "qtyReqd": 1,
+   "jobNo": "270",
+   "client": "Khawuleza 2",
+   "comment": null
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 5,
+   "jobNo": "315-312",
+   "client": "Shosholoza",
+   "comment": null
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "PIKET TRANS",
+   "text": "PIKET TRANS",
+   "qtyReqd": 1,
+   "jobNo": "283",
+   "client": "Piket",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "MACDONALD'S",
+   "text": "MACDONALD'S",
+   "qtyReqd": 8,
+   "jobNo": "294-301",
+   "client": "Macdonalds Transport",
+   "comment": "4 nou ; 4 later"
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 14,
+   "jobNo": "281-282; 325-326; ,324; 261; 330-335",
+   "client": "HBA X2, SILVERFALLS X4; Metaload x 2; SMG Mining x6",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "(olifant) MST (olifant)",
+   "text": "(Olifant) MST (Olifant)",
+   "qtyReqd": 3,
+   "jobNo": "Rebrand",
+   "client": "Ex-Langvic",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "313",
+   "client": "Ok Kitchen",
+   "comment": ""
+  },
+  {
+   "date": "2025-07-17",
+   "detail": "RZ PLANT HIRE",
+   "text": "RZ PLANT HIRE",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": "As per Email"
+  },
+  {
+   "date": "2025-08-01",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "343-346; 281-282; 356-357; 326; 397; 281-282",
+   "client": "Metaload x4, HBA x2; JL Robinson x1; Silverfalls x2; Silverfalls x1",
+   "comment": null
+  },
+  {
+   "date": "2025-08-01",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "351-355",
+   "client": "MG Plant",
+   "comment": null
+  },
+  {
+   "date": "2025-08-01",
+   "detail": "MACDONALD'S",
+   "text": "MACDONALD'S",
+   "qtyReqd": 8,
+   "jobNo": "302-309",
+   "client": "Macdonalds Transport",
+   "comment": "NR 8 - 16"
+  },
+  {
+   "date": "2025-08-01",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": "338-341",
+   "client": "Luk Logic",
+   "comment": null
+  },
+  {
+   "date": "2025-08-01",
+   "detail": "VALOSTAR",
+   "text": "VALOSTAR",
+   "qtyReqd": 3,
+   "jobNo": "275-277",
+   "client": "Valostart",
+   "comment": null
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "326; 397; 371; 281-282; 349-350; 372",
+   "client": "Silverfalls x1; Safetech x1; HBA x2; Time Tune x2; Konstruct x 2",
+   "comment": null
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 2,
+   "jobNo": "408-409",
+   "client": "Coetzee 39-40",
+   "comment": null
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": "398-401",
+   "client": "Luk Logic",
+   "comment": "NR 5 - 8"
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "VALOSTAR",
+   "text": "VALOSTAR",
+   "qtyReqd": 3,
+   "jobNo": "Mike",
+   "client": "Valostart",
+   "comment": "Tautliners x 3"
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "METAL LINE AFRICA",
+   "text": "METAL LINE AFRICA",
+   "qtyReqd": 23,
+   "jobNo": "MLA",
+   "client": "Metal line skeletals",
+   "comment": "Mike het tekening met Schalk gereel"
+  },
+  {
+   "date": "2025-08-19",
+   "detail": "SMASH",
+   "text": "SMASH",
+   "qtyReqd": 18,
+   "jobNo": "Mike",
+   "client": "Smash",
+   "comment": "Mike het tekening met Schalk gereel"
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "Wag vir Oom Louis Terug voer",
+   "text": "Wag vir Oom Louis Terug voer",
+   "qtyReqd": 10,
+   "jobNo": "284-293",
+   "client": "TAT Skeletals",
+   "comment": null
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "(olifant) TGA (olifant)",
+   "text": "(Olifant) TGA (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Henrico",
+   "comment": null
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "(olifant) FGH (olifant)",
+   "text": "(Olifant) FGH (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Henrico",
+   "comment": null
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 18,
+   "jobNo": "430-434; 343-346 (448x2); 410-412; 421-422",
+   "client": "Silverfalls x5; Metaload x8; Safetec x3; Afrimat x2; Chad PE x1 ;",
+   "comment": null
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "XBFS",
+   "text": "XBFS",
+   "qtyReqd": 2,
+   "jobNo": "347-348",
+   "client": "XBFS Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2025-09-04",
+   "detail": "BCI",
+   "text": "(Olifant) BCI (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Nelize",
+   "client": "BCI",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "(olifant) TGA (olifant)",
+   "text": "(Olifant) TGA (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Henrico",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 8,
+   "jobNo": "423-446",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "LUMINAR FREIGHT",
+   "text": "LUMINAR FREIGHT",
+   "qtyReqd": 1,
+   "jobNo": "469",
+   "client": "Luminar Freight",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "DYNAMIC POOL",
+   "text": "DYNAMIC POOL",
+   "qtyReqd": 1,
+   "jobNo": "472",
+   "client": "Dynamic Pools",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 11,
+   "jobNo": "456-466",
+   "client": "MG Plant 26 - 36",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "RUDS TRANSPORT",
+   "text": "RUDS TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "2nd Hand Trailers",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "EXCEED PRO LOGISTICS",
+   "text": "EXCEED PRO LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "2nd Hand Trailers",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "SEBUSENG",
+   "text": "SEBUSENG",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "LIGHT MEDIA",
+   "text": "LIGHT MEDIA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 2,
+   "jobNo": "514 - 515",
+   "client": "FALCON FORCE",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "XVEST",
+   "text": "XVEST",
+   "qtyReqd": 3,
+   "jobNo": "418-420",
+   "client": "X-VEST",
+   "comment": "6/12 Flatdeck"
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "ALGOA CARTAGE",
+   "text": "ALGOA CARTAGE",
+   "qtyReqd": 1,
+   "jobNo": "525",
+   "client": "MR ONSITE",
+   "comment": "6/12 Flatdeck"
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "HANSIE DU PLESSIS",
+   "text": "HANSIE DU PLESSIS",
+   "qtyReqd": 1,
+   "jobNo": "525",
+   "client": "Hansie",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 4,
+   "jobNo": "452-453; 427",
+   "client": "Sweeney x2; WST  x1",
+   "comment": null
+  },
+  {
+   "date": "2025-09-23",
+   "detail": "Wag vir Oom Louis Terug voer",
+   "text": "Wag vir Oom Louis Terug voer",
+   "qtyReqd": 10,
+   "jobNo": "284-293",
+   "client": "TAT Skeletals",
+   "comment": null
+  },
+  {
+   "date": "2025-10-02",
+   "detail": "BETH EL TRADING",
+   "text": "BETH EL TRADING",
+   "qtyReqd": 1,
+   "jobNo": "Nelize",
+   "client": "Roelf",
+   "comment": null
+  },
+  {
+   "date": "2025-10-02",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 5,
+   "jobNo": "Mike",
+   "client": "Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2025-10-02",
+   "detail": "LETSO",
+   "text": "LETSO",
+   "qtyReqd": 2,
+   "jobNo": "501-502",
+   "client": "Letso x 2",
+   "comment": null
+  },
+  {
+   "date": "2025-10-02",
+   "detail": "KLAVER",
+   "text": "KLAVER",
+   "qtyReqd": 2,
+   "jobNo": "483-484",
+   "client": "Klaver Plant Hire",
+   "comment": null
+  },
+  {
+   "date": "2025-10-02",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 2,
+   "jobNo": "481-482",
+   "client": "Karee",
+   "comment": null
+  },
+  {
+   "date": "2025-10-08",
+   "detail": "(Olifant)  DEMATA  (Olifant)",
+   "text": "(Olifant) DEMATA (Olifant)",
+   "qtyReqd": 2,
+   "jobNo": "481/482",
+   "client": "Ex-Karee",
+   "comment": null
+  },
+  {
+   "date": "2025-10-08",
+   "detail": "HANSIE DU PLESSIS",
+   "text": "HANSIE DU PLESSIS",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Voorraad wa verkope",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "VALOSTAR",
+   "text": "VALOSTAR",
+   "qtyReqd": 2,
+   "jobNo": "523-524",
+   "client": "Valostar 4-5",
+   "comment": "Tautliners"
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "485",
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "MARBOD",
+   "text": "MARBOD",
+   "qtyReqd": 3,
+   "jobNo": "364-366",
+   "client": "Marbod 13 - 15",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 1,
+   "jobNo": "487",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "HPS TRANSPORT",
+   "text": "HPS TRANSPORT",
+   "qtyReqd": 2,
+   "jobNo": "488-489",
+   "client": "HPS",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "LANGA ZWANE PROJECTS",
+   "text": "LANGA ZWANE PROJECTS",
+   "qtyReqd": 1,
+   "jobNo": "490",
+   "client": "Langa Zwane",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "428; 538; 216; 220-221; 518",
+   "client": "WSTx1, Metaload x3; JL Robinson x1; Alex Maintance x1; Love investments x1; Arvesco x1",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "LETSO",
+   "text": "LETSO",
+   "qtyReqd": 1,
+   "jobNo": "501",
+   "client": "Letso",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "KALAHARI ROOTS",
+   "text": "KALAHARI ROOTS",
+   "qtyReqd": 2,
+   "jobNo": "521;540",
+   "client": "Kalahari Roots",
+   "comment": null
+  },
+  {
+   "date": "2025-10-13",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 2,
+   "jobNo": "502; 503",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": "504 - 507",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 17,
+   "jobNo": "215; 216; 220; 221; 538; 370; 279; 280; 520; 473; 474; 539; 516; 565",
+   "client": "Metaload Tankers x4; Alex Maintance x1; Arvesco x1; JL Robinson x1; Safetec x2; Stock x1; Metaload Tippers x2; Skar Freight x2; Attie x2; MJT x1",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 2,
+   "jobNo": "Mike",
+   "client": "Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 2,
+   "jobNo": "515; 540",
+   "client": "Falcon force",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "JAMIL",
+   "text": "JAMIL",
+   "qtyReqd": 3,
+   "jobNo": "562-564",
+   "client": "Jamil",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "XBFS",
+   "text": "XBFS",
+   "qtyReqd": 2,
+   "jobNo": "541; 542",
+   "client": "XBFS - Tridem Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "PG ROOS CARRIERS",
+   "text": "PG ROOS CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "Henrico",
+   "client": "PG Roos",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "SUPA VOLT TECH",
+   "text": "SUPA VOLT TECH",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "Supa Volt",
+   "comment": null
+  },
+  {
+   "date": "2025-10-22",
+   "detail": "OKUNGCONO",
+   "text": "OKUNGCONO",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Nuwe Klient",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "ROCLIN",
+   "text": "ROCLIN",
+   "qtyReqd": 3,
+   "jobNo": "Mike",
+   "client": "Roclin Repairs",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "TRADE AFRIKA",
+   "text": "TRADE AFRIKA",
+   "qtyReqd": 19,
+   "jobNo": null,
+   "client": "TAT Skeletals",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 1,
+   "jobNo": "504 - 507",
+   "client": "Luk",
+   "comment": "Voorraad Wa verkoop"
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "KLAVER",
+   "text": "KLAVER",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Klaver",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Coetzee",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Tradekor Skeletal",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 7,
+   "jobNo": null,
+   "client": "Safetec x1; Metaload x 4",
+   "comment": null
+  },
+  {
+   "date": "2025-11-06",
+   "detail": "DEMATA",
+   "text": "DEMATA",
+   "qtyReqd": 10,
+   "jobNo": null,
+   "client": "Karee nuwe naam",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "RENTLOGIX",
+   "text": "RENTLOGIX",
+   "qtyReqd": 8,
+   "jobNo": null,
+   "client": "Rentlogix",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "SMASH",
+   "text": "SMASH",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Time tune - Smash logo",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "T.A SHENGE",
+   "text": "T.A SHENGE",
+   "qtyReqd": 1,
+   "jobNo": "577",
+   "client": "Siyibani",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 3,
+   "jobNo": "476-478",
+   "client": "Metaload x3",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 5,
+   "jobNo": "578-582",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "Naamplate - Trailord",
+   "text": "Naamplate - Trailord",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "RENTLOGIX",
+   "text": "RENTLOGIX",
+   "qtyReqd": 8,
+   "jobNo": null,
+   "client": "Rentlogix",
+   "comment": null
+  },
+  {
+   "date": "2025-11-12",
+   "detail": "VR CARGO",
+   "text": "VR CARGO",
+   "qtyReqd": 10,
+   "jobNo": "559; 584-591",
+   "client": "VR Cargo",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "OK kitchen",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "MOTABA.KG",
+   "text": "MOTABA.KG",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "Motaba",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 11,
+   "jobNo": "608-611; 475-478; 614-615",
+   "client": "Profreight x 4; Metaload x5; Khumkani x2",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "LENATA",
+   "text": "LENATA",
+   "qtyReqd": 1,
+   "jobNo": "598",
+   "client": "Lenata",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "KLAVER",
+   "text": "KLAVER",
+   "qtyReqd": 1,
+   "jobNo": "566",
+   "client": "Klaver",
+   "comment": null
+  },
+  {
+   "date": "2025-11-24",
+   "detail": "PINDULO",
+   "text": "PINDULO",
+   "qtyReqd": 1,
+   "jobNo": "606",
+   "client": "Zyho 2",
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "SPACE",
+   "text": "SPACE",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Ruben/Kevin",
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "HPS TRANSPORT",
+   "text": "HPS TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "612",
+   "client": "HPS",
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "800",
+   "client": "MG Plant",
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "Leader Trailer",
+   "text": "Leader Trailer",
+   "qtyReqd": 8,
+   "jobNo": "596; 801-803; 477",
+   "client": "Straw, Metaload Vervang x3; Metaload 146; Metaload Tankers x4",
+   "comment": null
+  },
+  {
+   "date": "2025-11-28",
+   "detail": "Rudwes Carriers",
+   "text": "Rudwes Carriers",
+   "qtyReqd": 1,
+   "jobNo": "613",
+   "client": "Rudwes",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "TSAATHEBE",
+   "text": "TSAATHEBE",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Ruben",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "(Olifant)  MG  (Olifant)",
+   "text": "(Olifant) MG (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "805-808; 801",
+   "client": "MG Plant",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 7,
+   "jobNo": "494-495",
+   "client": "WST x2; METALOAD TANKERS x 4; Narrow Path  x1",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "CRUISER CARRIERS",
+   "text": "CRUISER CARRIERS",
+   "qtyReqd": 1,
+   "jobNo": "809",
+   "client": "CRUIZER",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 1,
+   "jobNo": "701",
+   "client": "Esaleone",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "810",
+   "client": "Falcon",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "CRUISE CARGO",
+   "text": "CRUISE CARGO",
+   "qtyReqd": 1,
+   "jobNo": "807",
+   "client": "Cruise Cargo",
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "Naamplate - Trailord",
+   "text": "Naamplate - Trailord",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2025-12-10",
+   "detail": "RENTLOGIX                                 FRANK 082 824 0685",
+   "text": "RENTLOGIX                                 FRANK 082 824 0685",
+   "qtyReqd": 8,
+   "jobNo": "543-550",
+   "client": "Rentlogix",
+   "comment": "Trailord Size"
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 4,
+   "jobNo": "571-573; 808",
+   "client": "Umbono",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "MSESHI",
+   "text": "MSESHI",
+   "qtyReqd": 3,
+   "jobNo": "802; 804",
+   "client": "Mseshi",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 7,
+   "jobNo": "7; 16; 17; 27",
+   "client": "Narrow Path; MJT; WST x2; TANVICOR",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "SISAMA",
+   "text": "SISAMA",
+   "qtyReqd": 1,
+   "jobNo": "806",
+   "client": "Sisama",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 8,
+   "jobNo": "08 15",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "UPWARD SPIRAL",
+   "text": "UPWARD SPIRAL",
+   "qtyReqd": 5,
+   "jobNo": "809-813",
+   "client": "Upward Spiral",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 2,
+   "jobNo": "25-26",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2026-01-08",
+   "detail": "ROCKOM",
+   "text": "ROCKOM",
+   "qtyReqd": 1,
+   "jobNo": "805",
+   "client": "Rockom",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "3; 4; 16; 17 ;36; 105; 106; 107",
+   "client": "Roundbox x2; Metaload x1 ; LD Trans x2; WST x2; BT Trucks x1",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "RJP TRANSPORT",
+   "text": "RJP TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "6",
+   "client": "RJP",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "18 - 21",
+   "client": "NJP",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "2026.02,03",
+   "text": "2026.02,03",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 4,
+   "jobNo": "113-115",
+   "client": "Tanvicor x4",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 7,
+   "jobNo": "108; 109; 110",
+   "client": "Safetec x2; Silverfalls x1 ; WST x2; NACS x2",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "MKUZE",
+   "text": "MKUZE",
+   "qtyReqd": 4,
+   "jobNo": "104;176-178",
+   "client": "Dreyer Senekal x4",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "LUK LOGIC",
+   "text": "LUK LOGIC",
+   "qtyReqd": 4,
+   "jobNo": "508-511",
+   "client": "Luk",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 1,
+   "jobNo": "173",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "(olifant) TGA (olifant)",
+   "text": "(Olifant) TGA (Olifant)",
+   "qtyReqd": 4,
+   "jobNo": "179-180",
+   "client": "TGA",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "IOS TIPPERS",
+   "text": "IOS TIPPERS",
+   "qtyReqd": 5,
+   "jobNo": "116-119",
+   "client": "IOS",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "UMBONO",
+   "text": "UMBONO",
+   "qtyReqd": 3,
+   "jobNo": null,
+   "client": "181-183",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": "437-438; 37-38; 37",
+   "client": "Attie x2; Straw x2; BH Comprehensive x2;  Betopess x2",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "AHRENSFELDE",
+   "text": "AHRENSFELDE",
+   "qtyReqd": 1,
+   "jobNo": "30",
+   "client": "Kambro Pecan Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "RALETSOHO TRANS",
+   "text": "RALETSOHO TRANS",
+   "qtyReqd": 1,
+   "jobNo": "607",
+   "client": "Limomoyane Flatdeck",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 1,
+   "jobNo": "202",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "LENATA",
+   "text": "LENATA",
+   "qtyReqd": 2,
+   "jobNo": "190-191",
+   "client": "Lenata",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "FALCON FORCE BULK",
+   "text": "FALCON FORCE BULK",
+   "qtyReqd": 1,
+   "jobNo": "201",
+   "client": "Falcon Force",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "Abnormal Boards",
+   "text": "Abnormal Boards",
+   "qtyReqd": 20,
+   "jobNo": null,
+   "client": "Autoforce Quads",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "SEBUSENG",
+   "text": "SEBUSENG",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Sebuseng",
+   "comment": null
+  },
+  {
+   "date": "2026-02-16",
+   "detail": "METAFUEL",
+   "text": "METAFUEL",
+   "qtyReqd": 4,
+   "jobNo": "802-803",
+   "client": "Metaload tankers",
+   "comment": null
+  },
+  {
+   "date": "2026-02-27",
+   "detail": "Naamplate - Leader",
+   "text": "Naamplate - Leader",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": null,
+   "comment": null
+  },
+  {
+   "date": "2026-02-27",
+   "detail": "CHRIMAR",
+   "text": "CHRIMAR",
+   "qtyReqd": 2,
+   "jobNo": "Louis",
+   "client": "Chrimar",
+   "comment": null
+  },
+  {
+   "date": "2026-02-27",
+   "detail": "FRENCH LOGISTICS",
+   "text": "FRENCH LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "French Refurb",
+   "comment": null
+  },
+  {
+   "date": "2026-02-27",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "Nicky",
+   "client": "Voorraad/Repair",
+   "comment": null
+  },
+  {
+   "date": "2026-02-27",
+   "detail": "NACS LOGISTICS",
+   "text": "NACS LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "NACS",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "282",
+   "client": "Ok Kitchen",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "SUPA VOLT TECH",
+   "text": "SUPA VOLT TECH",
+   "qtyReqd": 1,
+   "jobNo": "287",
+   "client": "Supa Volt Tech",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 4,
+   "jobNo": "284; 285; 286; 289",
+   "client": "Renewsol x1; Interfreight x 1; Betopess x1",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "LATLOU LOGISTICS",
+   "text": "LATLOU LOGISTICS",
+   "qtyReqd": 2,
+   "jobNo": "280; 281",
+   "client": "Latlou",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "SMASH",
+   "text": "SMASH",
+   "qtyReqd": 3,
+   "jobNo": "290-292",
+   "client": "Time tune - Smash logo",
+   "comment": null
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "ESALEONE",
+   "text": "ESALEONE",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "Esaleone",
+   "comment": "SAF Ratel Voorraad"
+  },
+  {
+   "date": "2026-03-10",
+   "detail": "Abnormal Boards",
+   "text": "Abnormal Boards",
+   "qtyReqd": 14,
+   "jobNo": "Nr 25-39",
+   "client": "Autoforce Quads",
+   "comment": null
+  },
+  {
+   "date": "2026-03-27",
+   "detail": "TRADEKOR",
+   "text": "TRADEKOR",
+   "qtyReqd": 12,
+   "jobNo": "257-266",
+   "client": "Tradekor 1-10",
+   "comment": "Plus 2 vir Repair"
+  },
+  {
+   "date": "2026-03-27",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "204-205; 240; 245-246; 277-278; 195",
+   "client": "Saldana Freight x2; Frans Cillier x1; LCR x2; JL Robinson x2; Silverfalls Dinki x1 ; 2 Voorraad",
+   "comment": null
+  },
+  {
+   "date": "2026-03-27",
+   "detail": "METAFUEL",
+   "text": "METAFUEL",
+   "qtyReqd": 4,
+   "jobNo": "31-34",
+   "client": "Metaload Tanker 7-10",
+   "comment": null
+  },
+  {
+   "date": "2026-03-27",
+   "detail": "BONTHA",
+   "text": "BONTHA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Kevin",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 18,
+   "jobNo": "192-194; 196-198; 296; 297; 243",
+   "client": "Safetec x3; Silverfalls x3; Nampo x2; Voorraad x4; LCR x 2 ; Mokele x2; Metaload French x1; NM Freight x1",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "MILLTRANS",
+   "text": "MILLTRANS",
+   "qtyReqd": 5,
+   "jobNo": "184-188",
+   "client": "Milltrans",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "BONTHA",
+   "text": "BONTHA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "Kevin",
+   "comment": "Een vir Klient"
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "ITEKENG LOGISTICS & ENERGIES",
+   "text": "ITEKENG LOGISTICS & ENERGIES",
+   "qtyReqd": 2,
+   "jobNo": "244",
+   "client": "CC Steelworks",
+   "comment": "Een vir Klient"
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "ZYHO",
+   "text": "ZYHO",
+   "qtyReqd": 2,
+   "jobNo": "Mike",
+   "client": "Zyho",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "JACODANIE",
+   "text": "JACODANIE",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "Jaco Danie",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "(OLIFANT)    FURHEND     (OLIFANT)                                                                                         LEADER TRAILER",
+   "text": "(OLIFANT)    FURHEND     (OLIFANT)                                                                                         LEADER TRAILER",
+   "qtyReqd": 2,
+   "jobNo": "Ruben",
+   "client": "Jaco Danie",
+   "comment": "Ruben het foto ge-epos"
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "(olifant ) RVD  (olifant)",
+   "text": "(Olifant) RVD (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "RVD Investments",
+   "comment": null
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "243; 024; 203;320-321",
+   "client": "Kumkani x2; Sarakis x1 ; Autoforce Drawbar x1; Voorraad nr3 x1",
+   "comment": null
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "ITEKENG LOGISTICS & ENERGIES",
+   "text": "ITEKENG LOGISTICS & ENERGIES",
+   "qtyReqd": 2,
+   "jobNo": "244",
+   "client": "CC Steelworks",
+   "comment": "Een vir Klient"
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "(olifant ) RVD  (olifant)",
+   "text": "(Olifant) RVD (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "RVD Investments",
+   "comment": null
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "BAXLINE",
+   "text": "BAXLINE",
+   "qtyReqd": 6,
+   "jobNo": "212-217",
+   "client": "Baxline after plaat",
+   "comment": null
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "BAXLINE",
+   "text": "BAXLINE",
+   "qtyReqd": 12,
+   "jobNo": "212-217",
+   "client": "Baxline Landing Legs",
+   "comment": "Italic blou plaat tussen Landing Legs"
+  },
+  {
+   "date": "2026-04-29",
+   "detail": "ELLF",
+   "text": "ELLF",
+   "qtyReqd": 1,
+   "jobNo": "244",
+   "client": "Tanvicor",
+   "comment": "Voorraad wa"
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "Oom Louis het reeds deur gegee",
+   "text": "Oom Louis het reeds deur gegee",
+   "qtyReqd": null,
+   "jobNo": "322-326",
+   "client": "RT",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": "309-318; 343",
+   "client": "Instimbi x10; Jan Greef x1; Repairs x4",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "SA FREIGHT",
+   "text": "SA FREIGHT",
+   "qtyReqd": 6,
+   "jobNo": "348-353",
+   "client": "SA FREIGHT",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "KITCHEN TRANSPORT",
+   "text": "KITCHEN TRANSPORT",
+   "qtyReqd": 1,
+   "jobNo": "345",
+   "client": "Kitchen",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "AMRO",
+   "text": "AMRO",
+   "qtyReqd": 3,
+   "jobNo": "311-313",
+   "client": "Amro",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "BT TRUCKS",
+   "text": "BT TRUCKS",
+   "qtyReqd": 1,
+   "jobNo": "374",
+   "client": "BT Trucks",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "ZYHO",
+   "text": "ZYHO",
+   "qtyReqd": 1,
+   "jobNo": "309",
+   "client": "Zyho",
+   "comment": null
+  },
+  {
+   "date": "2026-05-19",
+   "detail": "KALAHARI ROOTS",
+   "text": "KALAHARI ROOTS",
+   "qtyReqd": 2,
+   "jobNo": "340-341",
+   "client": "Kalahari Roots",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "BT TRUCKS",
+   "text": "BT TRUCKS",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "JB Vervoer",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "NACS LOGISTICS",
+   "text": "NACS LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "Ruben",
+   "client": "NACS LOGISTICS",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "MUJATI TRANS",
+   "text": "MUJATI TRANS",
+   "qtyReqd": 3,
+   "jobNo": "Ruben",
+   "client": "JACO DANIE TRUST",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "(olifant ) RIVER VALLEY  (olifant)",
+   "text": "(Olifant) RIVER VALLEY (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "River Valley",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "BONTHA",
+   "text": "BONTHA",
+   "qtyReqd": 1,
+   "jobNo": "Attie",
+   "client": "Bonta",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "T\u0160HIT\u0160HILA",
+   "text": "T\u0160HIT\u0160HILA",
+   "qtyReqd": 1,
+   "jobNo": null,
+   "client": "RT",
+   "comment": null
+  },
+  {
+   "date": "2026-06-01",
+   "detail": "LENATA",
+   "text": "LENATA",
+   "qtyReqd": 2,
+   "jobNo": "371 ; 373",
+   "client": "Lenata",
+   "comment": ""
+  },
+  {
+   "date": "2026-06-05",
+   "detail": "(olifant) MST (olifant)",
+   "text": "(Olifant) MST (Olifant)",
+   "qtyReqd": 6,
+   "jobNo": "267-272",
+   "client": "Langvic MST",
+   "comment": null
+  },
+  {
+   "date": "2026-06-05",
+   "detail": "SHOSHOLOZA",
+   "text": "SHOSHOLOZA",
+   "qtyReqd": 5,
+   "jobNo": "377-381",
+   "client": "Shosholoza",
+   "comment": null
+  },
+  {
+   "date": "2026-06-05",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 15,
+   "jobNo": "342; 311-313; 346-347; 344; 342; 382-388",
+   "client": "Big Boy x4; Silverfalls x3; Amro x3; T&A x1; Hamze x2; Repair x2",
+   "comment": null
+  },
+  {
+   "date": "2026-06-05",
+   "detail": "BEEKO LOGISTICS",
+   "text": "BEEKO LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "244",
+   "client": "Beeko",
+   "comment": null
+  },
+  {
+   "date": "2026-06-05",
+   "detail": "MEMEZA",
+   "text": "MEMEZA",
+   "qtyReqd": 2,
+   "jobNo": "Mike",
+   "client": "Memeza",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "KAI TRUCX",
+   "text": "KAI TRUCX",
+   "qtyReqd": 1,
+   "jobNo": "Mike",
+   "client": "Kai",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "DOA CARRIERS",
+   "text": "DOA CARRIERS",
+   "qtyReqd": 2,
+   "jobNo": "Jean-Louis/Ruben",
+   "client": "DOA",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 11,
+   "jobNo": "402-406;  389-392; 304",
+   "client": "Intsimbi x1; Saldana Freight x2; Renewsol x1; Tyre 360 x1; Safetec x4; Repairs x2 ; Metaload Ongeluk x1",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "LETSO",
+   "text": "LETSO",
+   "qtyReqd": 2,
+   "jobNo": "400-401",
+   "client": "Letso",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "JABULA",
+   "text": "JABULA",
+   "qtyReqd": 6,
+   "jobNo": "402; 415-419; 423",
+   "client": "Jabula",
+   "comment": null
+  },
+  {
+   "date": "2026-06-24",
+   "detail": "KALAHARI ROOTS",
+   "text": "KALAHARI ROOTS",
+   "qtyReqd": 1,
+   "jobNo": "340-341",
+   "client": "Kalahari Roots",
+   "comment": null
+  },
+  {
+   "date": "2026-07-07",
+   "detail": "Zyho",
+   "text": "Zyho",
+   "qtyReqd": 2,
+   "jobNo": "Mike",
+   "client": "Zyho",
+   "comment": null
+  },
+  {
+   "date": "2026-07-07",
+   "detail": "CONGO",
+   "text": "CONGO",
+   "qtyReqd": 15,
+   "jobNo": "354-368",
+   "client": "Congo",
+   "comment": null
+  },
+  {
+   "date": "2026-07-07",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 5,
+   "jobNo": "Amos",
+   "client": "Repairs/Refurbs",
+   "comment": null
+  },
+  {
+   "date": "2026-07-20",
+   "detail": "CJZ Logistics",
+   "text": "CJZ Logistics",
+   "qtyReqd": 1,
+   "jobNo": "448",
+   "client": "CJZ",
+   "comment": null
+  },
+  {
+   "date": "2026-07-20",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 10,
+   "jobNo": "369; 426; 4252; 449; 444; 429-431",
+   "client": "Narrow Path x1; Silverfalls x1; Renewsol x1; Betopes x1; WST x1; TM Truck x2; SMB x3",
+   "comment": null
+  },
+  {
+   "date": "2026-07-20",
+   "detail": "SA FREIGHT",
+   "text": "SA FREIGHT",
+   "qtyReqd": 2,
+   "jobNo": "435; 436",
+   "client": "SAF",
+   "comment": null
+  },
+  {
+   "date": "2026-07-20",
+   "detail": "BO KAROO",
+   "text": "BO KAROO",
+   "qtyReqd": 3,
+   "jobNo": "432-434",
+   "client": "Bo Karoo 6-8",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 11,
+   "jobNo": "479-481; 485; 450-451",
+   "client": "Safetech x3; Konstruct x1; Repairs x5; NSL x2",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "JB VERVOER",
+   "text": "JB VERVOER",
+   "qtyReqd": 2,
+   "jobNo": "445; 446",
+   "client": "JB 7 & 8",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "NJP",
+   "text": "(Olifant) NJP (Olifant)",
+   "qtyReqd": 5,
+   "jobNo": "474-478",
+   "client": "NJP 114-118",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "CONGO",
+   "text": "CONGO",
+   "qtyReqd": 3,
+   "jobNo": "482-484",
+   "client": "Congo 16-18",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "T\u0160HIT\u0160HILA",
+   "text": "T\u0160HIT\u0160HILA",
+   "qtyReqd": 5,
+   "jobNo": "404-408",
+   "client": "RTG 6-10",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "TANVICOR",
+   "text": "TANVICOR",
+   "qtyReqd": 2,
+   "jobNo": "375-342",
+   "client": "Tanvicor",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "METAFUEL",
+   "text": "METAFUEL",
+   "qtyReqd": 2,
+   "jobNo": "396-397",
+   "client": "Metafuel",
+   "comment": null
+  },
+  {
+   "date": "2026-08-04",
+   "detail": "SPACE",
+   "text": "SPACE",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "Space",
+   "comment": null
+  },
+  {
+   "date": "2026-08-28",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 8,
+   "jobNo": null,
+   "client": "Rework Trailers",
+   "comment": null
+  },
+  {
+   "date": "2026-08-28",
+   "detail": "(oliefant) EDL (oliefant)",
+   "text": "(Olifant) EDL (Olifant)",
+   "qtyReqd": 1,
+   "jobNo": "Henrico",
+   "client": "EDL",
+   "comment": null
+  },
+  {
+   "date": "2026-09-02",
+   "detail": "MACDONALDS",
+   "text": "MACDONALDS",
+   "qtyReqd": 21,
+   "jobNo": "486-527",
+   "client": "Macdonals",
+   "comment": null
+  },
+  {
+   "date": "2026-09-02",
+   "detail": "COETZEE TRANS",
+   "text": "COETZEE TRANS",
+   "qtyReqd": 2,
+   "jobNo": "503;504",
+   "client": "Coetzee platbak",
+   "comment": null
+  },
+  {
+   "date": "2026-09-02",
+   "detail": "NACS LOGISTICS",
+   "text": "NACS LOGISTICS",
+   "qtyReqd": 1,
+   "jobNo": "494",
+   "client": "NACS",
+   "comment": null
+  },
+  {
+   "date": "2026-09-02",
+   "detail": "LAD AND LASSES",
+   "text": "LAD AND LASSES",
+   "qtyReqd": 6,
+   "jobNo": "505-507 ; ekta vir Klant",
+   "client": "L&L Tautliner + Ander waens",
+   "comment": null
+  },
+  {
+   "date": "2026-09-02",
+   "detail": "LEADER TRAILER",
+   "text": "LEADER TRAILER",
+   "qtyReqd": 6,
+   "jobNo": "510; Repairs x5",
+   "client": "Silverfalls x1",
+   "comment": null
+  }
+ ],
+ "flagged": [
+  {
+   "date": "2022-10-22",
+   "detail": "Moet nog Bevestig",
+   "text": "Moet nog Bevestig",
+   "qtyReqd": 2,
+   "jobNo": null,
+   "client": "Pro Freight 6 & 7",
+   "comment": "Nodig 'n werks kaart"
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 1,
+   "jobNo": "36",
+   "client": "Kesho",
+   "comment": null
+  },
+  {
+   "date": "2023-01-16",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 1,
+   "jobNo": "64",
+   "client": "Fortman",
+   "comment": null
+  },
+  {
+   "date": "2023-05-22",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": null,
+   "jobNo": null,
+   "client": "Loufrans",
+   "comment": null
+  },
+  {
+   "date": "2023-06-09",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 5,
+   "jobNo": "669 - 673",
+   "client": "Gamatuba",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "?????",
+   "text": "?????",
+   "qtyReqd": 2,
+   "jobNo": "1201 & 1202",
+   "client": "Rosa x2",
+   "comment": null
+  },
+  {
+   "date": "2023-10-04",
+   "detail": "?????",
+   "text": "?????",
+   "qtyReqd": 2,
+   "jobNo": "1299 & 1300",
+   "client": "Hlongi x2",
+   "comment": null
+  },
+  {
+   "date": "2024-06-19",
+   "detail": "????",
+   "text": "????",
+   "qtyReqd": 4,
+   "jobNo": "691-694",
+   "client": "Lusthof",
+   "comment": "Mike sal nuwe kleure en naam bevestig"
+  },
+  {
+   "date": "2024-12-09",
+   "detail": "????",
+   "text": "????",
+   "qtyReqd": 20,
+   "jobNo": "1118-1128",
+   "client": "TAT Skeletals",
+   "comment": "Volgende Jaar"
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 2,
+   "jobNo": "106-107",
+   "client": "LD Trans",
+   "comment": null
+  },
+  {
+   "date": "2026-01-26",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 3,
+   "jobNo": "4",
+   "client": "BT trucks",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 1,
+   "jobNo": "211",
+   "client": "Jan Greef",
+   "comment": null
+  },
+  {
+   "date": "2026-04-13",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 1,
+   "jobNo": "Kevin",
+   "client": "RVD Investments",
+   "comment": null
+  },
+  {
+   "date": "2026-07-07",
+   "detail": "???",
+   "text": "???",
+   "qtyReqd": 8,
+   "jobNo": "409-412; 420-423",
+   "client": "NWB Drawbar",
+   "comment": null
+  }
+ ]
+}
