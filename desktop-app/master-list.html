@@ -13,6 +13,12 @@
     --text:#1A1D21; --text-muted:#5B6169; --text-faint:#8B929B;
     --success:#2F9E52; --danger:#C23B30; --radius:10px;
   }
+  #syncToastWrap{ position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; max-width:340px; }
+  .sync-toast{ background:var(--panel-raised); border:1px solid var(--gold); border-left:4px solid var(--gold); border-radius:8px; padding:10px 14px; box-shadow:0 4px 14px rgba(0,0,0,0.18); font-size:13px; color:var(--text); animation:syncToastIn 0.2s ease-out; }
+  .sync-toast .sync-toast-title{ font-weight:700; color:var(--gold-dim); margin-bottom:2px; }
+  @keyframes syncToastIn{ from{ opacity:0; transform:translateX(20px);} to{ opacity:1; transform:translateX(0);} }
+  @keyframes rowFlash{ 0%{ background:rgba(184,134,46,0.35); } 100%{ background:transparent; } }
+  tr.sync-flash{ animation:rowFlash 2.5s ease-out; }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--void);}
   body{font-family:'Inter',sans-serif; color:var(--text); min-height:100vh;}
@@ -86,6 +92,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<div id="syncToastWrap"></div>
 <div class="wrap">
 
   <div class="topbar">
@@ -344,11 +351,11 @@
     <tbody id="nameplatesBody"></tbody>
   </table>
 
-  <h2 class="section">Parts Issued — Imported From Tablet</h2>
-  <div id="ledgerWrap"><div class="empty">No slips imported yet. On the tablet, tap "Upload to Master List" → Copy Code, then paste it above and hit Import.</div></div>
+  <h2 class="section">Parts Issued — Live From Terminal</h2>
+  <div id="ledgerWrap"><div class="empty">No slips yet. These appear automatically the moment they're submitted on the terminal — nothing to import.</div></div>
 
   <h2 class="section">Spot Check Log — Physical Count Corrections</h2>
-  <div id="spotCheckLedgerWrap"><div class="empty">No spot checks imported yet. These set the stock level directly rather than deducting from it.</div></div>
+  <div id="spotCheckLedgerWrap"><div class="empty">No spot checks yet. These set the stock level directly rather than deducting from it, and appear automatically from the terminal or from entries made here.</div></div>
 
   <h2 class="section">Open PO Confirmations</h2>
   <div class="empty" style="margin-bottom:8px;">Import a PO here as soon as the office has it ready — before anything's arrived. It'll show 0 of however many, then tick off automatically as deliveries against that PO number get imported from the tablet.</div>
@@ -391,7 +398,7 @@
   </div>
 
   <h2 class="section">Goods Received Ledger — Deliveries In</h2>
-  <div id="goodsReceivedLedgerWrap"><div class="empty">No deliveries imported yet. These add to stock, matched against the order number when there is one.</div></div>
+  <div id="goodsReceivedLedgerWrap"><div class="empty">No deliveries yet. These appear automatically the moment they're logged on the terminal, matched against the order number when there is one.</div></div>
 
 </div>
 
@@ -3979,16 +3986,55 @@ async function pullMissedStockTransactions(){
   }catch(e){ console.error('Sync pull failed — offline?', e); }
 }
 
+const SYNC_TXN_LABEL = { delivery: 'Delivery', issue: 'Parts Issued', spot_check: 'Spot Check', adjustment: 'Adjustment' };
+
+// Makes a live incoming change from the terminal/tablet impossible to miss:
+// a toast in the corner naming what changed, and a brief highlight flash on
+// the affected stock row — without this, a quantity update was silent and
+// only visible if you happened to be staring at that exact row.
+function showSyncToast(txn, itemName){
+  const wrap = document.getElementById('syncToastWrap');
+  if(!wrap) return;
+  const label = SYNC_TXN_LABEL[txn.type] || 'Stock Update';
+  let detail;
+  if(txn.type === 'spot_check'){
+    detail = `${itemName} → set to ${txn.absolute_qty}`;
+  } else {
+    const delta = Number(txn.delta_qty);
+    detail = `${itemName} ${delta >= 0 ? '+' : ''}${delta}`;
+  }
+  const el = document.createElement('div');
+  el.className = 'sync-toast';
+  el.innerHTML = `<div class="sync-toast-title">${label} — from ${txn.source_device || 'terminal'}</div><div>${detail}</div>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 5000);
+}
+
+function flashStockRow(sku){
+  const cell = document.querySelector(`#stockBody [data-sku="${CSS.escape(sku)}"]`);
+  const row = cell && cell.closest('tr');
+  if(!row) return;
+  row.classList.remove('sync-flash');
+  void row.offsetWidth; // restart animation if it's already mid-flash
+  row.classList.add('sync-flash');
+}
+
 function startRealtimeStockSync(){
   if(!supabaseClient) return;
   supabaseClient
     .channel('stock_transactions_changes')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stock_transactions' }, payload => {
-      applyRemoteStockTransaction(payload.new);
+      const txn = payload.new;
+      const item = stock.find(s=>s.sku===txn.item_id);
+      applyRemoteStockTransaction(txn);
       saveState();
       render();
       renderLedger();
       renderGoodsReceivedLedger();
+      if(txn.source_device !== 'Master List'){
+        showSyncToast(txn, (item && item.name) || txn.item_id);
+        flashStockRow(txn.item_id);
+      }
       try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
     })
     .subscribe();
