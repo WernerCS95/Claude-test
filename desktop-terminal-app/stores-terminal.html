@@ -949,6 +949,64 @@
   </div>
 </div>
 
+<!-- Nameplates modal — Fit (issue to a job) and Cut (add stock), quantity
+     only, no cost/value anywhere in this feature. -->
+<div class="modal-bg" id="nameplatesModal">
+  <div class="addjob-card">
+    <h3>🏷️ Nameplates</h3>
+    <div class="sub">Fit a plate to a job, or log a fresh batch just cut. Quantity only — nameplates never carry a price or count toward stock value.</div>
+
+    <div style="display:flex; gap:6px; margin-bottom:14px;">
+      <button class="clock-btn" id="npTabFitBtn" style="flex:1;">Fit to Job</button>
+      <button class="clock-btn" id="npTabCutBtn" style="flex:1;">Cut / Add Stock</button>
+    </div>
+
+    <div id="npFitSection">
+      <div class="addjob-field">
+        <label>Job Nr or Client</label>
+        <input type="text" id="npFitSearchInput" placeholder="Type a job number or client name…">
+      </div>
+      <div id="npFitClientPicks" style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;"></div>
+      <div class="addjob-field">
+        <label>Plate text to cut/fit</label>
+        <input type="text" id="npFitTextInput" placeholder="Suggested text appears here — edit if this job needs something different">
+        <div id="npFitTextHint" style="font-size:10.5px; color:var(--text-faint); margin-top:3px;"></div>
+      </div>
+      <div class="addjob-field">
+        <label>Qty</label>
+        <input type="number" id="npFitQtyInput" min="1" value="1" style="width:100px;">
+      </div>
+      <div class="addjob-field">
+        <label>Job Nr (optional, for the record)</label>
+        <input type="text" id="npFitJobNoInput" placeholder="e.g. 24-118">
+      </div>
+    </div>
+
+    <div id="npCutSection" style="display:none;">
+      <div class="addjob-field">
+        <label>Plate text</label>
+        <input type="text" id="npCutTextInput" placeholder="e.g. LEADER TRAILERS, or a client name">
+        <div id="npCutTextHint" style="font-size:10.5px; color:var(--text-faint); margin-top:3px;"></div>
+      </div>
+      <div class="addjob-field">
+        <label>Qty cut</label>
+        <input type="number" id="npCutQtyInput" min="1" value="1" style="width:100px;">
+      </div>
+    </div>
+
+    <div class="addjob-field" style="margin-top:6px;">
+      <label>Qty on hand</label>
+      <div id="npStockList" style="max-height:160px; overflow-y:auto; font-size:12px; color:var(--text-muted);"></div>
+    </div>
+
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="npCancelBtn">Close</button>
+      <button class="addjob-save" id="npFitConfirmBtn">Fit — Issue to Job</button>
+      <button class="addjob-save" id="npCutConfirmBtn" style="display:none;">Cut — Add to Stock</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="mixingRoomModal">
   <div class="addjob-card">
     <h3>🧪 Mixing Room Count</h3>
@@ -1807,6 +1865,209 @@ function loadCustomKits(){
 function saveCustomKits(){
   try{ localStorage.setItem(CUSTOM_KITS_KEY, JSON.stringify(customKits)); }catch(e){}
 }
+
+/* ====================== NAMEPLATES ======================
+   Digitizes the 3+ year manual Excel process. Quantity only — no
+   price, no cost, never contributes to stock value anywhere. Synced
+   through the same shared ledger as every other stock category
+   (tagged cat:'Nameplates' in its meta so Master List can find it and
+   exclude it from Total Stock Value), same offline-first pattern as
+   Diesel/Steel/Tyres.
+
+   Matching rule: "last used, unless specified" — the suggested plate
+   text for a client is whatever text was last CONFIRMED (via an
+   actual Fit) for that client, not a hand-maintained list. New/unknown
+   clients default to "LEADER TRAILERS". A plain 3-letter text (e.g.
+   client initials) gets the "(Olifant) XXX (Olifant)" treatment,
+   matching the historical convention. A one-off override never
+   changes the stored default — only a confirmed Fit does.
+========================================================================= */
+const NAMEPLATE_DEFAULT_TEXT = 'LEADER TRAILERS';
+const NAMEPLATE_QTY_KEY = 'leader-stores-nameplate-qty-v1';
+const NAMEPLATE_CLIENT_MAP_KEY = 'leader-stores-nameplate-client-map-v1';
+const NAMEPLATE_LOG_KEY = 'leader-stores-nameplate-log-v1';
+
+let nameplateQty = {};          // { [plateText]: qty }
+let nameplateClientMap = {};    // { [clientKeyLower]: { text, clientDisplay, lastUsedAt } }
+let nameplateLog = [];          // [{_id, type:'cut'|'fit', text, qty, jobNo, client, date, time, worker}]
+
+function loadNameplateQty(){
+  try{ nameplateQty = JSON.parse(localStorage.getItem(NAMEPLATE_QTY_KEY)) || {}; }catch(e){ nameplateQty = {}; }
+}
+function saveNameplateQty(){
+  try{ localStorage.setItem(NAMEPLATE_QTY_KEY, JSON.stringify(nameplateQty)); }catch(e){}
+}
+function loadNameplateClientMap(){
+  try{ nameplateClientMap = JSON.parse(localStorage.getItem(NAMEPLATE_CLIENT_MAP_KEY)) || {}; }catch(e){ nameplateClientMap = {}; }
+}
+function saveNameplateClientMap(){
+  try{ localStorage.setItem(NAMEPLATE_CLIENT_MAP_KEY, JSON.stringify(nameplateClientMap)); }catch(e){}
+}
+function loadNameplateLog(){
+  try{ nameplateLog = JSON.parse(localStorage.getItem(NAMEPLATE_LOG_KEY)) || []; }catch(e){ nameplateLog = []; }
+}
+function saveNameplateLog(){
+  try{ localStorage.setItem(NAMEPLATE_LOG_KEY, JSON.stringify(nameplateLog)); }catch(e){}
+}
+
+// Formats a plain 3-letter text as the elephant-flanked convention. Anything
+// else (a full name, or already-formatted text) passes through unchanged —
+// idempotent, safe to call on text that's already formatted.
+function formatNameplateText(raw){
+  const t = (raw || '').trim();
+  if(/^[A-Za-z]{3}$/.test(t)) return `(Olifant) ${t.toUpperCase()} (Olifant)`;
+  return t;
+}
+
+// The core matching rule: last confirmed text for this client, or the
+// default if this client has no history yet. Case-insensitive on the
+// client name so "coetzee trans" and "Coetzee Trans" hit the same entry.
+function getSuggestedNameplateText(client){
+  const key = (client || '').trim().toLowerCase();
+  if(key && nameplateClientMap[key]) return nameplateClientMap[key].text;
+  return NAMEPLATE_DEFAULT_TEXT;
+}
+
+// Only a confirmed Fit updates the "last used" default — a one-off
+// override (typing something different for this one job) never touches
+// the stored mapping, exactly as the matching rule requires.
+function recordNameplateClientUsage(client, text){
+  const key = (client || '').trim().toLowerCase();
+  if(!key) return;
+  nameplateClientMap[key] = { text, clientDisplay: client.trim(), lastUsedAt: new Date().toISOString() };
+  saveNameplateClientMap();
+}
+
+function adjustNameplateQty(text, delta){
+  nameplateQty[text] = (nameplateQty[text] || 0) + delta;
+  saveNameplateQty();
+}
+
+function renderNameplateStockList(){
+  const wrap = document.getElementById('npStockList');
+  if(!wrap) return;
+  const entries = Object.keys(nameplateQty).filter(t=>nameplateQty[t] !== 0).sort();
+  if(entries.length === 0){ wrap.innerHTML = '<div style="color:var(--text-faint);">No nameplate stock logged yet.</div>'; return; }
+  wrap.innerHTML = entries.map(t=>`<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--panel-line);"><span>${t}</span><span class="num" style="font-weight:700;">${nameplateQty[t]}</span></div>`).join('');
+}
+
+function npSetTab(tab){
+  document.getElementById('npFitSection').style.display = tab === 'fit' ? 'block' : 'none';
+  document.getElementById('npCutSection').style.display = tab === 'cut' ? 'block' : 'none';
+  document.getElementById('npFitConfirmBtn').style.display = tab === 'fit' ? 'block' : 'none';
+  document.getElementById('npCutConfirmBtn').style.display = tab === 'cut' ? 'block' : 'none';
+  document.getElementById('npTabFitBtn').style.background = tab === 'fit' ? 'var(--gold)' : '';
+  document.getElementById('npTabFitBtn').style.color = tab === 'fit' ? '#fff' : '';
+  document.getElementById('npTabCutBtn').style.background = tab === 'cut' ? 'var(--gold)' : '';
+  document.getElementById('npTabCutBtn').style.color = tab === 'cut' ? '#fff' : '';
+}
+
+function openNameplatesModal(){
+  document.getElementById('npFitSearchInput').value = '';
+  document.getElementById('npFitTextInput').value = '';
+  document.getElementById('npFitTextHint').textContent = '';
+  document.getElementById('npFitQtyInput').value = '1';
+  document.getElementById('npFitJobNoInput').value = '';
+  document.getElementById('npFitClientPicks').innerHTML = '';
+  document.getElementById('npCutTextInput').value = '';
+  document.getElementById('npCutTextHint').textContent = '';
+  document.getElementById('npCutQtyInput').value = '1';
+  npSetTab('fit');
+  renderNameplateStockList();
+  document.getElementById('nameplatesModal').classList.add('show');
+}
+document.getElementById('npCancelBtn').onclick = ()=> document.getElementById('nameplatesModal').classList.remove('show');
+document.getElementById('npTabFitBtn').onclick = ()=> npSetTab('fit');
+document.getElementById('npTabCutBtn').onclick = ()=> npSetTab('cut');
+
+// Typing a client/job name suggests the matched text live, and offers up
+// to 5 known clients matching what's typed so far as quick picks.
+document.getElementById('npFitSearchInput').addEventListener('input', e=>{
+  const val = e.target.value.trim();
+  const suggested = getSuggestedNameplateText(val);
+  document.getElementById('npFitTextInput').value = suggested;
+  const key = val.toLowerCase();
+  const known = nameplateClientMap[key];
+  document.getElementById('npFitTextHint').textContent = known
+    ? `Last used for "${known.clientDisplay}" on ${known.lastUsedAt.slice(0,10)} — edit above if this job is different.`
+    : (val ? 'No history for this client yet — defaulting to LEADER TRAILERS. Edit above if this job needs something specific.' : '');
+
+  const picksWrap = document.getElementById('npFitClientPicks');
+  picksWrap.innerHTML = '';
+  if(val.length >= 2){
+    const matches = Object.values(nameplateClientMap)
+      .filter(c=>c.clientDisplay.toLowerCase().includes(key))
+      .slice(0, 5);
+    matches.forEach(c=>{
+      const chip = document.createElement('button');
+      chip.className = 'clock-btn';
+      chip.style.cssText = 'font-size:11px; padding:4px 10px;';
+      chip.textContent = c.clientDisplay;
+      chip.onclick = ()=>{
+        document.getElementById('npFitSearchInput').value = c.clientDisplay;
+        document.getElementById('npFitTextInput').value = c.text;
+        document.getElementById('npFitTextHint').textContent = `Last used for "${c.clientDisplay}" on ${c.lastUsedAt.slice(0,10)} — edit above if this job is different.`;
+        picksWrap.innerHTML = '';
+      };
+      picksWrap.appendChild(chip);
+    });
+  }
+});
+
+document.getElementById('npCutTextInput').addEventListener('input', e=>{
+  const formatted = formatNameplateText(e.target.value);
+  const onHand = nameplateQty[formatted] || nameplateQty[e.target.value.trim()] || 0;
+  document.getElementById('npCutTextHint').textContent = `Currently on hand: ${onHand}${formatted !== e.target.value.trim() ? ` — will be logged as "${formatted}"` : ''}`;
+});
+
+document.getElementById('npFitConfirmBtn').onclick = ()=>{
+  const client = document.getElementById('npFitSearchInput').value.trim();
+  const rawText = document.getElementById('npFitTextInput').value.trim();
+  const qty = Number(document.getElementById('npFitQtyInput').value);
+  const jobNo = document.getElementById('npFitJobNoInput').value.trim();
+  if(!rawText){ alert('Enter or confirm the plate text first.'); return; }
+  if(isNaN(qty) || qty <= 0){ alert('Enter a valid quantity.'); return; }
+  const text = formatNameplateText(rawText);
+
+  adjustNameplateQty(text, -qty);
+  if(client) recordNameplateClientUsage(client, text);
+  const now = new Date();
+  nameplateLog.push({
+    _id: 'np' + Date.now(),
+    type: 'fit', text, qty, jobNo, client,
+    date: now.toISOString().slice(0,10),
+    time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    worker: state.worker ? state.worker.name : null
+  });
+  saveNameplateLog();
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'issue', delta_qty: -qty, meta: { jobNo, customer: client, worker: state.worker ? state.worker.name : null, item_name: text, item_cat: 'Nameplates' } });
+
+  alert(`Fitted ${qty} × "${text}"${jobNo ? ' — Job ' + jobNo : ''}${client ? ' — ' + client : ''}.`);
+  openNameplatesModal();
+};
+
+document.getElementById('npCutConfirmBtn').onclick = ()=>{
+  const rawText = document.getElementById('npCutTextInput').value.trim();
+  const qty = Number(document.getElementById('npCutQtyInput').value);
+  if(!rawText){ alert('Enter the plate text first.'); return; }
+  if(isNaN(qty) || qty <= 0){ alert('Enter a valid quantity.'); return; }
+  const text = formatNameplateText(rawText);
+
+  adjustNameplateQty(text, qty);
+  const now = new Date();
+  nameplateLog.push({
+    _id: 'np' + Date.now(),
+    type: 'cut', text, qty, jobNo: '', client: '',
+    date: now.toISOString().slice(0,10),
+    time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    worker: state.worker ? state.worker.name : null
+  });
+  saveNameplateLog();
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'delivery', delta_qty: qty, meta: { item_name: text, item_cat: 'Nameplates' } });
+
+  alert(`Logged ${qty} × "${text}" cut and added to stock.`);
+  openNameplatesModal();
+};
 
 // Built-in kits (Electrical, Finishes, etc.) are hardcoded, but their
 // component lists can still be edited from the tablet — the edit gets
@@ -3584,7 +3845,8 @@ const GROUPS = [
   { key:"Misc",          label:"Misc",        icon:"🗂️" },
   { key:"Uncategorized", label:"Mixing Room", icon:"img:paintBucket", note:"Onsite mixing room stock — not yours, but you track updates from it" },
   { key:"SteelGroup",    label:"Steel",       icon:"img:steelTile" },
-  { key:"TyresGroup",    label:"Tyres",       icon:"img:tyresTile" }
+  { key:"TyresGroup",    label:"Tyres",       icon:"img:tyresTile" },
+  { key:"NameplatesGroup", label:"Nameplates", icon:"🏷️" }
 ];
 const STEEL_SUBGROUPS = ["Plates","Tubing","Flatbar"];
 // GROUPS drives the Main Page tiles, which now includes routing-only keys
@@ -4312,6 +4574,13 @@ function renderGroupGrid(){
         <div class="item-label">${g.label}</div>
         <div style="font-size:10px; color:var(--text-faint);">${count} size${count===1?'':'s'} tracked</div>
       `;
+    } else if(g.key === 'NameplatesGroup'){
+      const total = Object.values(nameplateQty).reduce((s,q)=>s+(q>0?q:0), 0);
+      tile.innerHTML = `
+        <div class="item-icon" style="background:rgba(200,155,60,0.12); display:flex; align-items:center; justify-content:center; font-size:26px;">${renderGroupIcon(g.icon)}</div>
+        <div class="item-label">${g.label}</div>
+        <div style="font-size:10px; color:var(--text-faint);">${total} on hand</div>
+      `;
     } else {
       const count = groupItemCount(g.key);
       tile.innerHTML = `
@@ -4328,6 +4597,7 @@ function renderGroupGrid(){
       if(g.key === 'VehicleService') return openVehicleServicePage();
       if(g.key === 'SteelGroup') return openSteelModal();
       if(g.key === 'TyresGroup') return openTyresModal();
+      if(g.key === 'NameplatesGroup') return openNameplatesModal();
       return openGroup(g.key, g.label);
     };
     grid.appendChild(tile);
@@ -7296,6 +7566,9 @@ loadItemCustomizations();
 loadCompletedJobs();
 loadNewItems();
 loadCustomKits();
+loadNameplateQty();
+loadNameplateClientMap();
+loadNameplateLog();
 loadBuiltinKitOverrides();
 loadItemCategoryOverrides();
 loadMixingRoomQty();
@@ -7411,7 +7684,18 @@ async function flushSyncOutbox(){
 // it, same rule already used for local GRN entry.
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
-  if(txn.type === 'spot_check'){
+  // Nameplates track quantity in their own dict (nameplateQty), separate
+  // from the normal item catalog's qtyOnHand — route on meta.item_cat
+  // rather than trying to guess from the item_id shape.
+  const isNameplate = txn.meta && txn.meta.item_cat === 'Nameplates';
+  if(isNameplate){
+    if(txn.type === 'spot_check'){
+      nameplateQty[txn.item_id] = Number(txn.absolute_qty);
+    } else {
+      nameplateQty[txn.item_id] = (nameplateQty[txn.item_id] || 0) + Number(txn.delta_qty);
+    }
+    saveNameplateQty();
+  } else if(txn.type === 'spot_check'){
     setQtyOnHand(txn.item_id, Number(txn.absolute_qty));
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
     const latestSpotCheck = getMostRecentSpotCheckDate(txn.item_id);

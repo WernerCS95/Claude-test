@@ -337,6 +337,13 @@
     <tbody id="stockBody"></tbody>
   </table>
 
+  <h2 class="section">🏷️ Nameplates — Quantity Only, Never Valued</h2>
+  <div class="sub" style="margin-bottom:10px;">Synced live from the terminal/tablet's Cut and Fit actions. No price, no cost, excluded from Total Stock Value above.</div>
+  <table>
+    <thead><tr><th>Plate Text</th><th class="right">Qty On Hand</th></tr></thead>
+    <tbody id="nameplatesBody"></tbody>
+  </table>
+
   <h2 class="section">Parts Issued — Imported From Tablet</h2>
   <div id="ledgerWrap"><div class="empty">No slips imported yet. On the tablet, tap "Upload to Master List" → Copy Code, then paste it above and hit Import.</div></div>
 
@@ -636,6 +643,11 @@ function openingValue(){
 // actually counts toward company value (rental + gas cost varies by
 // whether the bottle still has gas in it), via checkboxes on that row.
 function itemValue(item){
+  // Nameplates are quantity-only, tracked purely by count — they must
+  // never contribute to stock value, regardless of whatever price field
+  // they happen to carry (hard requirement, not just a default-to-zero
+  // convention).
+  if(item.cat === 'Nameplates') return 0;
   if(item.gasTracking){
     let qty = 0;
     if(item.includeFull) qty += item.fullQty || 0;
@@ -1929,7 +1941,7 @@ const GROUP_DISPLAY_NAMES = { Uncategorized: "Mixing Room", Plates: "Steel — P
 
 function populateGroupFilter(){
   const sel = document.getElementById('groupFilter');
-  const groups = [...new Set(stock.map(i=>i.cat))].sort();
+  const groups = [...new Set(stock.filter(i=>i.cat !== 'Nameplates').map(i=>i.cat))].sort();
   const currentOptions = [...sel.options].map(o=>o.value).filter(v=>v!=="");
   // Only rebuild if the actual set of categories changed — avoids losing
   // the person's current selection every single render for no reason.
@@ -2199,17 +2211,32 @@ document.getElementById('correctGeneratorTankBtn').onclick = async ()=>{
   }
 };
 
+function renderNameplatesSection(){
+  const wrap = document.getElementById('nameplatesBody');
+  if(!wrap) return;
+  const plates = stock.filter(i=>i.cat === 'Nameplates').sort((a,b)=>a.name.localeCompare(b.name));
+  if(plates.length === 0){
+    wrap.innerHTML = `<tr><td colspan="2" style="text-align:center; color:var(--text-faint); padding:14px;">No nameplate activity synced yet.</td></tr>`;
+    return;
+  }
+  wrap.innerHTML = plates.map(p=>`<tr><td>${p.name}</td><td class="right num">${p.qty}</td></tr>`).join('');
+}
+
 function render(){
   populateGroupFilter();
   renderDieselTankGauge();
   renderGeneratorTankGauge();
   renderQuickAsk();
+  renderNameplatesSection();
   const body = document.getElementById('stockBody');
   body.innerHTML = "";
   let belowMin = 0;
-  stock.forEach(item=>{ if(item.qty < item.min) belowMin++; });
+  stock.forEach(item=>{ if(item.cat !== 'Nameplates' && item.qty < item.min) belowMin++; });
 
-  let visible = stock;
+  // Nameplates get their own dedicated section (renderNameplatesSection)
+  // instead of living in the valued stock table — quantity-only, no
+  // price/min/max columns make sense for them.
+  let visible = stock.filter(i=>i.cat !== 'Nameplates');
   if(stockGroupFilter) visible = visible.filter(i=>i.cat===stockGroupFilter);
   if(stockSearch) visible = visible.filter(i=>i.name.toLowerCase().includes(stockSearch) || i.sku.toLowerCase().includes(stockSearch));
 
