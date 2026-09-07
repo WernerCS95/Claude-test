@@ -12,8 +12,8 @@
     "appId": "co.leadertrailers.storesterminal.desktop",
     "productName": "Leader Stores Terminal",
     "directories": { "output": "dist" },
-    "files": ["main.js", "stores-terminal.html"],
-    "win": { "target": "nsis" },
+    "files": ["main.js", "stores-terminal.html", "build/icon.png"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   },
   "devDependencies": {
