@@ -602,6 +602,10 @@
       <h2>Current Slip</h2>
       <div class="sub">Tap items on the left to add them</div>
     </div>
+    <div id="editModeBanner" style="display:none; background:var(--amber); color:#1a1200; font-size:11px; font-weight:600; padding:8px 12px; border-radius:6px; margin:0 16px 10px; justify-content:space-between; align-items:center;">
+      <span>✎ Correcting a past slip — submitting saves the fix in place, it won't create a new entry.</span>
+      <button id="cancelEditBtn" style="background:none; border:1px solid #1a1200; color:#1a1200; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer;">Cancel</button>
+    </div>
     <div class="slip-lines" id="slipLines">
       <div class="slip-empty">No items added yet.<br>Scan a clock number, pick a customer, then tap items.</div>
     </div>
@@ -7144,6 +7148,7 @@ function renderSlip(){
   if(state.slip.length===0){
     wrap.innerHTML = `<div class="slip-empty">No items added yet.<br>Scan a clock number, pick a customer, then tap items.</div>`;
     updateSubmitState();
+    renderEditModeBanner();
     return;
   }
   wrap.innerHTML = "";
@@ -7178,6 +7183,7 @@ function renderSlip(){
     };
   });
   updateSubmitState();
+  renderEditModeBanner();
 }
 
 function updateSubmitState(){
@@ -7187,19 +7193,38 @@ function updateSubmitState(){
 }
 
 document.getElementById('submitBtn').onclick = ()=>{
-  const now = new Date();
-  const entry = {
-    _id: 'e' + Date.now(),
-    date: now.toISOString().slice(0,10),
-    time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    worker: state.worker.name,
-    clock: state.worker.clock,
-    customer: state.customer,
-    jobNo: state.jobNo,
-    lines: JSON.parse(JSON.stringify(state.slip)),
-    synced: false
-  };
-  state.log.unshift(entry);
+  const isCorrection = !!state.editingLogId;
+  let entry;
+
+  if(isCorrection){
+    entry = state.log.find(e=>e._id===state.editingLogId);
+    if(!entry){ alert('The original entry could not be found — it may have been deleted. Correction cancelled.'); cancelEditingLogEntry(); return; }
+    // Reverse exactly what the original lines did, then apply the new
+    // lines fresh — atomically, in this one action, so stock is never
+    // observed in a half-corrected state and the net effect always
+    // matches the difference between old and new (same principle as the
+    // Goods Received batch edit).
+    reverseLogEntryStock(entry, 'Log entry corrected on terminal');
+    entry.worker = state.worker.name;
+    entry.clock = state.worker.clock;
+    entry.customer = state.customer;
+    entry.jobNo = state.jobNo;
+    entry.lines = JSON.parse(JSON.stringify(state.slip));
+  } else {
+    const now = new Date();
+    entry = {
+      _id: 'e' + Date.now(),
+      date: now.toISOString().slice(0,10),
+      time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+      worker: state.worker.name,
+      clock: state.worker.clock,
+      customer: state.customer,
+      jobNo: state.jobNo,
+      lines: JSON.parse(JSON.stringify(state.slip)),
+      synced: false
+    };
+    state.log.unshift(entry);
+  }
   saveLog();
   renderLog();
 
@@ -7223,12 +7248,14 @@ document.getElementById('submitBtn').onclick = ()=>{
   // forcing a re-scan after every single slip was the wrong assumption.
   // Whoever's on this tablet stays "logged in" until they deliberately
   // scan a different clock number.
+  state.editingLogId = null;
   state.slip = [];
   document.getElementById('jobNoInput').value = "";
   renderJobSpec();
   state.jobNo = "";
   renderSlip();
   renderWorker();
+  renderEditModeBanner();
   renderGrid(); // tiles must redraw now — otherwise Qty on Hand looks stuck at the old number until something else happens to refresh the grid
   clearDraft();
 };
@@ -7309,6 +7336,7 @@ function renderLog(){
         if(!confirm(`Delete this log entry?\n\n${label}\n\nThis restores the ${entry.lines.length} line(s) back onto Qty on Hand — synced to every other device.`)) return;
         reverseLogEntryStock(entry, 'Log entry deleted on terminal');
         state.log = state.log.filter(e=>e._id!==btn.dataset.deleteId);
+        if(state.editingLogId === btn.dataset.deleteId) cancelEditingLogEntry(); // was open for correction — that no longer makes sense
         saveLogNoSync();
         renderLog();
         renderSyncStatus();
@@ -7361,17 +7389,20 @@ function reverseLogEntryStock(entry, reason){
   });
 }
 
+// Editing a submitted slip does NOT touch stock or the log yet — it just
+// loads the original into the slip builder and remembers which entry this
+// is correcting. Nothing about stock changes unless/until Submit is
+// actually pressed (matching the Goods Received edit pattern: the reverse
+// + reapply happens atomically inside the submit action, not the moment
+// Edit is clicked — backing out of an edit without submitting leaves
+// everything untouched, exactly as if Edit was never clicked).
 function editLogEntry(id){
-  const idx = state.log.findIndex(e=>e._id===id);
-  if(idx === -1) return;
-  const entry = state.log[idx];
+  const entry = state.log.find(e=>e._id===id);
+  if(!entry) return;
 
-  if(!confirm(`Edit this slip?\n\n${entry.worker} — ${entry.customer}${entry.jobNo ? ' · Job '+entry.jobNo : ''} (${entry.time})\n\nThis restores its ${entry.lines.length} line(s) back onto Qty on Hand (synced to every other device), removes the original entry, and reloads it here so you can adjust and resubmit.`)) return;
+  if(!confirm(`Correct this slip?\n\n${entry.worker} — ${entry.customer}${entry.jobNo ? ' · Job '+entry.jobNo : ''} (${entry.time})\n\nLoads it here so you can fix the item/qty/details. Submitting saves the correction into this SAME entry (not a new one) and adjusts stock by the difference — synced to every other device. Nothing changes until you submit.`)) return;
 
-  reverseLogEntryStock(entry, 'Log entry edited on terminal');
-  state.log.splice(idx,1);
-  saveLog();
-  renderGrid();
+  state.editingLogId = id;
   state.worker = { clock: entry.clock, name: entry.worker };
   state.customer = entry.customer;
   state.jobNo = entry.jobNo;
@@ -7382,11 +7413,30 @@ function editLogEntry(id){
   renderWorker();
   renderCustomerChips();
   renderSlip();
-  renderLog();
+  renderEditModeBanner();
   const firstCat = ITEMS.find(i=>i.id===(state.slip[0] && state.slip[0].itemId))?.cat || 'Kits';
   const group = GROUPS.find(g=>g.key===firstCat) || GROUPS[0];
   openGroup(group.key, group.label);
 }
+
+function renderEditModeBanner(){
+  const banner = document.getElementById('editModeBanner');
+  if(!banner) return;
+  banner.style.display = state.editingLogId ? 'flex' : 'none';
+  const submitBtn = document.getElementById('submitBtn');
+  if(submitBtn) submitBtn.textContent = state.editingLogId ? 'Save Correction' : 'Submit Slip';
+}
+
+function cancelEditingLogEntry(){
+  state.editingLogId = null;
+  state.slip = [];
+  state.jobNo = "";
+  document.getElementById('jobNoInput').value = "";
+  renderJobSpec();
+  renderSlip();
+  renderEditModeBanner();
+}
+document.getElementById('cancelEditBtn').onclick = cancelEditingLogEntry;
 
 document.getElementById('clearLog').onclick = clearLog;
 document.getElementById('clearLogMain').onclick = clearLog;
