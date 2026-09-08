@@ -3937,9 +3937,14 @@ function mostRecentSpotCheckDateFor(sku){
 // same shared ledger that now drives the quantities.
 function addHistoryFromRemoteTransaction(txn, itemName){
   if(txn.source_device === 'Master List') return; // this device's own action — already in the ledger view when it was made
-  const dateStr = (txn.created_at || '').slice(0,10);
-  const timeStr = txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}) : '';
   const meta = txn.meta || {};
+  // The real date this happened, not when it synced — a delivery/issue
+  // captured offline on the terminal can sit queued for days before it
+  // reaches here; it must still file under the day it actually happened.
+  // Older rows synced before this fix never sent a real date — created_at
+  // is the best available fallback for those specifically.
+  const dateStr = meta.date || (txn.created_at || '').slice(0,10);
+  const timeStr = txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}) : '';
   if(txn.type === 'issue'){
     ledger.push({
       _id: txn.id, sku: txn.item_id, name: itemName,
@@ -3973,7 +3978,7 @@ function applyRemoteStockTransaction(txn){
     item.qty = Number(txn.absolute_qty);
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
     const latestSpotCheck = mostRecentSpotCheckDateFor(txn.item_id);
-    const txnDate = (txn.created_at || '').slice(0,10);
+    const txnDate = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
     const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
     if(!supersededBySpotCheck){
       item.qty = Math.max(0, (item.qty || 0) + Number(txn.delta_qty));

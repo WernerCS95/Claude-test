@@ -2152,7 +2152,7 @@ document.getElementById('npFitConfirmBtn').onclick = ()=>{
     worker: state.worker ? state.worker.name : null
   });
   saveNameplateLog();
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'issue', delta_qty: -qty, meta: { jobNo, customer: client, worker: state.worker ? state.worker.name : null, item_name: text, item_cat: 'Nameplates' } });
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'issue', delta_qty: -qty, meta: { jobNo, customer: client, worker: state.worker ? state.worker.name : null, item_name: text, item_cat: 'Nameplates', date: now.toISOString().slice(0,10) } });
 
   alert(`Fitted ${qty} × "${text}"${jobNo ? ' — Job ' + jobNo : ''}${client ? ' — ' + client : ''}.`);
   openNameplatesModal();
@@ -2175,7 +2175,7 @@ document.getElementById('npCutConfirmBtn').onclick = ()=>{
     worker: state.worker ? state.worker.name : null
   });
   saveNameplateLog();
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'delivery', delta_qty: qty, meta: { item_name: text, item_cat: 'Nameplates' } });
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: text, type: 'delivery', delta_qty: qty, meta: { item_name: text, item_cat: 'Nameplates', date: now.toISOString().slice(0,10) } });
 
   alert(`Logged ${qty} × "${text}" cut and added to stock.`);
   openNameplatesModal();
@@ -2969,7 +2969,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
     // recorded above either way — this only protects the running quantity.
     if(wasApplied){
       adjustQtyOnHand(l.sku, l.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { supplier: meta.supplier, grnNo: meta.grnNo, batchId, item_name: l.name, item_cat: l.cat } });
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { supplier: meta.supplier, grnNo: meta.grnNo, batchId, item_name: l.name, item_cat: l.cat, date: meta.date } });
     } else {
       skippedForNewerCount++;
     }
@@ -5973,7 +5973,7 @@ async function editGrnLine(lineId){
   // have been nothing at all, if a later spot check already covered it.
   if(line.appliedToQtyOnHand){
     adjustQtyOnHand(line.sku, -line.qty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'adjustment', delta_qty: -line.qty, meta: { reason: 'GRN line edited — reversing old qty', item_name: line.name, item_cat: line.cat } });
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'adjustment', delta_qty: -line.qty, meta: { reason: 'GRN line edited — reversing old qty', item_name: line.name, item_cat: line.cat, date: line.date } });
   }
   // Reapply using the CURRENT spot-check state, not whatever it was back
   // when this was first logged — a count could have happened since.
@@ -5981,7 +5981,7 @@ async function editGrnLine(lineId){
   const nowApplies = !(latestCount && latestCount > line.date);
   if(nowApplies){
     adjustQtyOnHand(line.sku, newQty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'delivery', delta_qty: newQty, meta: { reason: 'GRN line edited — reapplying new qty', item_name: line.name, item_cat: line.cat } });
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.sku, type: 'delivery', delta_qty: newQty, meta: { reason: 'GRN line edited — reapplying new qty', item_name: line.name, item_cat: line.cat, date: line.date } });
   }
 
   line.qty = newQty;
@@ -6518,7 +6518,7 @@ document.getElementById('dieselSubmitBtn').onclick = ()=>{
   renderLog();
 
   adjustQtyOnHand(entry.lines[0].itemId, -litres);
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: entry.lines[0].itemId, type: 'issue', delta_qty: -litres, meta: { jobNo: '', customer: entry.customer, worker: entry.worker, item_name: entry.lines[0].name } });
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: entry.lines[0].itemId, type: 'issue', delta_qty: -litres, meta: { jobNo: '', customer: entry.customer, worker: entry.worker, item_name: entry.lines[0].name, date: entry.date } });
 
   // Customer trucks are one-offs — Scania-Safetec today, something else
   // entirely next time. Remembering them here would clutter the dropdown
@@ -7366,11 +7366,11 @@ document.getElementById('submitBtn').onclick = ()=>{
     if(line.isKit && line.components){
       line.components.forEach(c=>{
         adjustQtyOnHand(c.sku, -(c.qty * line.qty));
-        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: c.name } });
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: c.name, date: entry.date } });
       });
     } else {
       adjustQtyOnHand(line.itemId, -line.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: line.name } });
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { jobNo: entry.jobNo, customer: entry.customer, worker: entry.worker, item_name: line.name, date: entry.date } });
     }
   });
 
@@ -7511,11 +7511,11 @@ function reverseLogEntryStock(entry, reason){
       line.components.forEach(c=>{
         const qtyBack = c.qty * line.qty;
         adjustQtyOnHand(c.sku, qtyBack);
-        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'adjustment', delta_qty: qtyBack, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: c.name } });
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'adjustment', delta_qty: qtyBack, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: c.name, date: entry.date } });
       });
     } else {
       adjustQtyOnHand(line.itemId, line.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'adjustment', delta_qty: line.qty, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: line.name } });
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'adjustment', delta_qty: line.qty, meta: { reason, jobNo: entry.jobNo, customer: entry.customer, item_name: line.name, date: entry.date } });
     }
   });
 }
@@ -7900,7 +7900,13 @@ function applyRemoteTransaction(txn){
     setQtyOnHand(txn.item_id, Number(txn.absolute_qty));
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
     const latestSpotCheck = getMostRecentSpotCheckDate(txn.item_id);
-    const txnDate = (txn.created_at || '').slice(0,10);
+    // The real event date (when it happened), not created_at (when it
+    // synced) — a delivery/issue captured offline and synced days later
+    // must still compare against the date it actually happened, or this
+    // "did a physical count already cover this" check compares against
+    // the wrong day. Older rows synced before this fix have no meta.date
+    // to fall back on — created_at is the best available answer for those.
+    const txnDate = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
     const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
     if(!supersededBySpotCheck){
       adjustQtyOnHand(txn.item_id, Number(txn.delta_qty));
