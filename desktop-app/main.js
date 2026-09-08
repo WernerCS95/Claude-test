@@ -1,6 +1,15 @@
 const { app, BrowserWindow, protocol, net } = require('electron');
 const path = require('path');
 const url = require('url');
+const fs = require('fs');
+
+// Dev mode — started via "npm run dev" (passes --dev). Opens DevTools
+// automatically and watches master-list.html on disk, reloading the window
+// the instant it's saved — no rebuild, no reinstall. Uses Node's built-in
+// fs.watch rather than a new dependency, since it's only ever watching one
+// file. See docs/DEV-MODE.md for what is and isn't identical to the real
+// packaged app in this mode.
+const DEV_MODE = process.argv.includes('--dev');
 
 /*
  * Storage-origin stability (this is the one thing that must never break):
@@ -30,6 +39,15 @@ function createWindow(){
   });
 
   win.loadURL('app://leaderapp/master-list.html');
+
+  if(DEV_MODE){
+    win.webContents.openDevTools();
+    const watchedFile = path.join(__dirname, 'master-list.html');
+    fs.watch(watchedFile, { persistent: true }, (eventType)=>{
+      if(eventType === 'change') win.webContents.reloadIgnoringCache();
+    });
+    console.log('[DEV MODE] Watching for changes: ' + watchedFile);
+  }
 }
 
 app.whenReady().then(() => {

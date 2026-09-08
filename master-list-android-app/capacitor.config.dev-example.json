@@ -1,0 +1,9 @@
+{
+  "appId": "co.leadertrailers.masterlist.android",
+  "appName": "Leader Master List",
+  "webDir": "www",
+  "server": {
+    "url": "http://YOUR-LAPTOP-IP:8101",
+    "cleartext": true
+  }
+}

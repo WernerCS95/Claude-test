@@ -1,6 +1,10 @@
 const { app, BrowserWindow, protocol, net } = require('electron');
 const path = require('path');
 const url = require('url');
+const fs = require('fs');
+
+// Dev mode — started via "npm run dev" (sets DEV_MODE=1). See docs/DEV-MODE.md.
+const DEV_MODE = process.argv.includes('--dev');
 
 /*
  * Same fixed-origin approach as the Master List desktop app: the page is
@@ -25,6 +29,15 @@ function createWindow(){
   });
 
   win.loadURL('app://leaderapp/stores-terminal.html');
+
+  if(DEV_MODE){
+    win.webContents.openDevTools();
+    const watchedFile = path.join(__dirname, 'stores-terminal.html');
+    fs.watch(watchedFile, { persistent: true }, (eventType)=>{
+      if(eventType === 'change') win.webContents.reloadIgnoringCache();
+    });
+    console.log('[DEV MODE] Watching for changes: ' + watchedFile);
+  }
 }
 
 app.whenReady().then(() => {
