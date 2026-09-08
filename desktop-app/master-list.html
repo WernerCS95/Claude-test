@@ -109,6 +109,7 @@
       <button class="btn" id="addNewItemBtn" style="border-color:var(--success); color:var(--success);">+ Add Item to Stock List</button>
       <button class="btn primary" id="saveDailyBtn">💾 Save Today's List</button>
       <button class="btn" id="orderListsBtn" style="border-color:var(--gold); color:var(--gold);">📋 Order Lists</button>
+      <button class="btn" id="kitSchedulerBtn" style="border-color:var(--steel); color:var(--steel);">🗓️ Kit Scheduler</button>
       <button class="btn" id="syncMenuBtn" style="border-color:var(--steel); color:var(--steel);">🔄 Sync ▾</button>
       <button class="btn" id="reportsMenuBtn" style="border-color:var(--gold); color:var(--gold);">📊 Reports ▾</button>
       <button class="btn" id="adminMenuBtn" style="border-color:var(--text-faint); color:var(--text-faint);">⚙ Admin ▾</button>
@@ -142,6 +143,76 @@
       <div style="display:flex; gap:8px;">
         <button class="btn primary" id="applyManualSyncBtn" style="flex:1;">Apply</button>
         <button class="btn" id="pasteManualSyncCloseBtn" style="flex:1;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kit Scheduler — Chassis + Finals calendar. A job goes into the pool
+       the moment it's added, drags onto a Chassis day and a Finals day
+       (independently), and locks once both are set. List view sorts by
+       Chassis date and checks running coverage of a tracked part against
+       real on-hand + open POs. -->
+  <div class="modal-bg" id="kitSchedulerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:flex-start; justify-content:center; z-index:310; overflow-y:auto; padding:24px 12px;">
+    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1180px; width:98%; margin-bottom:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <h3 style="margin:0;">🗓️ Kit Scheduler — Chassis + Finals</h3>
+        <button class="btn" id="ksCloseBtn">Close</button>
+      </div>
+      <div class="sub" style="margin-bottom:14px;">Drag a job onto a day in each calendar. A job locks once it has both a Chassis date and a Finals date — unassign either to unlock it again.</div>
+
+      <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="flex:1; min-width:140px;">
+          <label style="display:block; font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:4px;">Job Nr</label>
+          <input type="text" id="ksNewJobNr" placeholder="e.g. 529" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text);">
+        </div>
+        <div style="flex:2; min-width:160px;">
+          <label style="display:block; font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:4px;">Customer</label>
+          <input type="text" id="ksNewCustomer" placeholder="e.g. Itekeng" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text);">
+        </div>
+        <div style="flex:2; min-width:160px;">
+          <label style="display:block; font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:4px;">Trailer Type</label>
+          <input type="text" id="ksNewTrailerType" placeholder="e.g. Ratel 3CR12" list="ksTrailerTypeList" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text);">
+          <datalist id="ksTrailerTypeList"></datalist>
+        </div>
+        <button class="btn primary" id="ksAddJobBtn" style="padding:9px 16px;">+ Add Job</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div id="ksScheduledCount" style="font-size:12px; color:var(--text-faint);"></div>
+        <div style="display:flex; border:1px solid var(--panel-line); border-radius:6px; overflow:hidden;">
+          <button class="btn" id="ksViewCalendarBtn" style="border:none; border-radius:0;">▦ Calendar</button>
+          <button class="btn" id="ksViewListBtn" style="border:none; border-radius:0; border-left:1px solid var(--panel-line);">☰ List</button>
+        </div>
+      </div>
+
+      <div id="ksCalendarView">
+        <div style="background:var(--void); border:1px solid var(--panel-line); border-radius:8px; padding:10px; margin-bottom:12px;">
+          <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:8px;">Pool — not yet fully scheduled</div>
+          <div id="ksPool" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+        <div style="margin-bottom:6px; font-weight:700; font-size:12.5px; color:var(--steel);">CHASSIS</div>
+        <div id="ksChassisCalendar" style="display:flex; overflow-x:auto; border:1px solid var(--panel-line); border-radius:8px; margin-bottom:16px;"></div>
+        <div style="margin-bottom:6px; font-weight:700; font-size:12.5px; color:var(--steel);">FINALS</div>
+        <div id="ksFinalsCalendar" style="display:flex; overflow-x:auto; border:1px solid var(--panel-line); border-radius:8px;"></div>
+      </div>
+
+      <div id="ksListView" style="display:none;">
+        <div style="display:flex; gap:16px; align-items:flex-end; margin-bottom:12px; flex-wrap:wrap;">
+          <div>
+            <label style="display:block; font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:4px;">Tracking part</label>
+            <select id="ksTrackedPart" style="padding:8px 10px; border-radius:6px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); min-width:200px;"></select>
+          </div>
+          <div id="ksOnHandDisplay" style="font-size:12.5px; color:var(--text-muted);"></div>
+        </div>
+        <table>
+          <thead><tr><th>Job</th><th>Customer</th><th>Trailer Type</th><th>Chassis Date</th><th class="right">Need</th><th>Coverage</th><th>PO / Arrival</th></tr></thead>
+          <tbody id="ksListBody"></tbody>
+        </table>
+        <div id="ksShortfallBanner" style="display:none; margin-top:10px; padding:10px 14px; border-radius:8px; background:rgba(194,59,48,0.1); border:1px solid var(--danger); color:var(--danger); font-size:13px; font-weight:600;"></div>
+        <div style="margin-top:16px;">
+          <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; margin-bottom:6px;">Not yet scheduled (no Chassis date)</div>
+          <div id="ksNotScheduled" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -4092,6 +4163,456 @@ function startRealtimeStockSync(){
       try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
     })
     .subscribe();
+}
+
+
+/* ====================== KIT SCHEDULER — Chassis + Finals ======================
+   A real job registry, shared between Master List and the terminal (either
+   device can add/edit a job — synced the same way stock already is, just
+   through its own table since a job is a mutable record, not a delta).
+   The calendar/list UI itself lives only here in Master List, per the brief.
+
+   BOM data below is imported directly from Kits_BOM_FillIn_cleaned_2.xlsx
+   (47 verified variants, zero orphaned codes across every tab) — this is
+   the authoritative parts-per-variant source, not re-derived from JOB_SPECS
+   text. Only King Pins and Fifth Wheel map to real catalog stock items
+   today (verified against OPENING_STOCK); Brake Kits have no matching
+   catalog SKU at all yet, and Cylinders/Tarps/Electrical aren't broken
+   down by a spec that maps reliably — those show as reference-only in a
+   job's part list, not as a coverage-tracked part, rather than guessing.
+============================================================================== */
+
+const BOM_VARIANTS = {"RATEL-HFWEW":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"Henred","axleType":"Drum (Wewler)","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-HFMBSDRUM":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"Henred","axleType":"MBS Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-HFMBSDISC":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"Henred","axleType":"MBS Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-HFHFXDRUM":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"Henred","axleType":"HFX Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-SAFDISC1920":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-SAFDISC2040":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"SAF","axleType":"Disc 2040","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-SAFSAUER1920":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"SAF","axleType":"Drum 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-BPWDISC":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"BPW","axleType":"Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"RATEL-BPWDRUM":{"trailerType":"Side Tipper","model":"Ratel","axleSupplier":"BPW","axleType":"Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"5,9m","hydraulicKit":"Ratel","electricalDesc":"Standard 10 Lights"},"40M3-HFWEW":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"Henred","axleType":"Drum (Wewler)","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-HFMBSDRUM":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"Henred","axleType":"MBS Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-HFMBSDISC":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"Henred","axleType":"MBS Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-HFHFXDRUM":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"Henred","axleType":"HFX Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-SAFDISC1920":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-SAFSAUER1920":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"SAF","axleType":"Drum 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-SAFDISC2040":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"SAF","axleType":"Disc 2040","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-BPWDISC":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"BPW","axleType":"Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"40M3-BPWDRUM":{"trailerType":"Side Tipper","model":"40m\u00b3","axleSupplier":"BPW","axleType":"Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"8,7m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-HFWEW":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"Henred","axleType":"Drum (Wewler)","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-HFMBSDRUM":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"Henred","axleType":"MBS Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-HFMBSDISC":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"Henred","axleType":"MBS Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-HFHFXDRUM":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"Henred","axleType":"HFX Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-SAFDISC1920":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-SAFSAUER1920":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"SAF","axleType":"Drum 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-SAFDISC2040":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"SAF","axleType":"Disc 2040","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-BPWDISC":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"BPW","axleType":"Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"45M3-BPWDRUM":{"trailerType":"Side Tipper","model":"45m\u00b3","axleSupplier":"BPW","axleType":"Drum","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (1x) K301884 + (1x) K301883","tarpSize":"9,2m","hydraulicKit":"Standard","electricalDesc":"Standard 10 Lights"},"30M3PBS-HFWEW":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"Henred","axleType":"Drum (Wewler)","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K248715","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-HFMBSDRUM":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"Henred","axleType":"MBS Drum","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K248715","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-HFMBSDISC":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"Henred","axleType":"MBS Disc","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K226054","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-HFHFXDRUM":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"Henred","axleType":"HFX Drum","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K248715","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-SAFDISC1920":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K226054","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-SAFSAUER1920":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"SAF","axleType":"Drum 1920","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K248715","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-SAFDISC2040":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"SAF","axleType":"Disc 2040","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K226054","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-BPWDISC":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"BPW","axleType":"Disc","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K248715","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"30M3PBS-BPWDRUM":{"trailerType":"PBS Side Tipper","model":"30m\u00b3 PBS","axleSupplier":"BPW","axleType":"Drum","totalAxles":6,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K226054","tarpSize":"7,6m","hydraulicKit":"PBS","electricalDesc":"Standard 10 Lights"},"6-12TAUT-HFMECH":{"trailerType":"Tautliner","model":"6/12 Tautliner","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K192794","tarpSize":"Per spec","hydraulicKit":"10mm Clamps x24","electricalDesc":"Standard 10 Lights"},"6-12TAUT-BPWDISC":{"trailerType":"Tautliner","model":"6/12 Tautliner","axleSupplier":"BPW","axleType":"Disc","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"Per spec","hydraulicKit":"10mm Clamps x24","electricalDesc":"Standard 10 Lights"},"LOWBED-HFMECH":{"trailerType":"Lowbed","model":"Lowbed","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":3,"kingPinQty":1,"fifthWheelSpec":"","fifthWheelSku":null,"brakeKit":"K201006","tarpSize":null,"hydraulicKit":"10mm Clamps x24","electricalDesc":"Lowbed 6 Lights"},"QUAD-BPWDISC":{"trailerType":"Quad","model":"Quad","axleSupplier":"BPW","axleType":"Disc","totalAxles":8,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K295985","tarpSize":"7,6m","hydraulicKit":"4-Axle Quad","electricalDesc":"Standard 10 Lights"},"QUAD-SAFDISC1920":{"trailerType":"Quad","model":"Quad","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":8,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K295985","tarpSize":"7,6m","hydraulicKit":"4-Axle Quad","electricalDesc":"Standard 10 Lights"},"SKELETAL-HFMECH":{"trailerType":"Skeletal","model":"Skeletal","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"36DV","fifthWheelSku":"8-200-002","brakeKit":"K192794","tarpSize":null,"hydraulicKit":"10mm Clamps x24","electricalDesc":"Standard 10 Lights"},"ROADTRAIN-HFMECH":{"trailerType":"Roadtrain","model":"Roadtrain","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":9,"kingPinQty":3,"fifthWheelSpec":"36DV","fifthWheelSku":"8-200-002","brakeKit":"K254484","tarpSize":null,"hydraulicKit":"10mm Clamps x36","electricalDesc":"*New Kit required*"},"6-12FDLINK-SAFDISC1920":{"trailerType":"Flatdeck Link 6/12","model":"Flat deck","axleSupplier":"SAF","axleType":"Disc 1920","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K301877 + (2x) K301884","tarpSize":"Per spec","hydraulicKit":"10mm Clamps x24","electricalDesc":"Standard 10 Lights"},"6-12FDLINK-HFMECH":{"trailerType":"Flatdeck Link 6/12","model":"Flat deck","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":4,"kingPinQty":2,"fifthWheelSpec":"37CXW","fifthWheelSku":"8-200-004","brakeKit":"K192794","tarpSize":"Per spec","hydraulicKit":"10mm Clamps x24","electricalDesc":"Standard 10 Lights"},"TRIAXLE-FD-HFMECH":{"trailerType":"Flatdeck 3-As","model":"Flat deck","axleSupplier":"Henred","axleType":"Mechanical","totalAxles":3,"kingPinQty":1,"fifthWheelSpec":"","fifthWheelSku":null,"brakeKit":"K201006","tarpSize":null,"hydraulicKit":"10mm Clamps x24","electricalDesc":"Lowbed 6 Lights"},"TRIAXLE-ET-HFDRUM":{"trailerType":"End Tipper","model":"30m\u00b3 Sloper","axleSupplier":"Henred","axleType":"Drum","totalAxles":3,"kingPinQty":1,"fifthWheelSpec":"","fifthWheelSku":null,"brakeKit":"K173354","tarpSize":"8,7m","hydraulicKit":"End Tipper Hose","electricalDesc":"End Tipper 6 Lights"}};
+const BOM_MODEL_VARIANTS = {"Ratel":["RATEL-HFWEW","RATEL-HFMBSDRUM","RATEL-HFMBSDISC","RATEL-HFHFXDRUM","RATEL-SAFDISC1920","RATEL-SAFDISC2040","RATEL-SAFSAUER1920","RATEL-BPWDISC","RATEL-BPWDRUM"],"40m\u00b3":["40M3-HFWEW","40M3-HFMBSDRUM","40M3-HFMBSDISC","40M3-HFHFXDRUM","40M3-SAFDISC1920","40M3-SAFSAUER1920","40M3-SAFDISC2040","40M3-BPWDISC","40M3-BPWDRUM"],"45m\u00b3":["45M3-HFWEW","45M3-HFMBSDRUM","45M3-HFMBSDISC","45M3-HFHFXDRUM","45M3-SAFDISC1920","45M3-SAFSAUER1920","45M3-SAFDISC2040","45M3-BPWDISC","45M3-BPWDRUM"],"30m\u00b3 PBS":["30M3PBS-HFWEW","30M3PBS-HFMBSDRUM","30M3PBS-HFMBSDISC","30M3PBS-HFHFXDRUM","30M3PBS-SAFDISC1920","30M3PBS-SAFSAUER1920","30M3PBS-SAFDISC2040","30M3PBS-BPWDISC","30M3PBS-BPWDRUM"],"6/12 Tautliner":["6-12TAUT-HFMECH","6-12TAUT-BPWDISC"],"Lowbed":["LOWBED-HFMECH"],"Quad":["QUAD-BPWDISC","QUAD-SAFDISC1920"],"Skeletal":["SKELETAL-HFMECH"],"Roadtrain":["ROADTRAIN-HFMECH"],"Flat deck":["6-12FDLINK-SAFDISC1920","6-12FDLINK-HFMECH","TRIAXLE-FD-HFMECH"],"30m\u00b3 Sloper":["TRIAXLE-ET-HFDRUM"]};
+const DRAWBAR_BOM = {"kingPinQty":1,"fifthWheelSku":null,"fifthWheelSpec":null,"brakeKit":"K311173 (Full 7-Axle Set)","tarpSize":"6,7m (Leader) + 8,1m (Dolly/Follower)","hydraulicKit":null,"electricalDesc":"Draw bar 10 ligte kit","tires":{"qty":29,"spec":"315/80 R22,5 op Alu"}};
+
+const SCHEDULER_JOBS_KEY = 'leader-master-scheduler-jobs-v1';
+let schedulerJobs = {}; // { [jobNr]: { jobNr, customer, trailerType, variantCode, chassisDate, finalsDate, completed } }
+
+function loadSchedulerJobs(){
+  try{
+    const raw = localStorage.getItem(SCHEDULER_JOBS_KEY);
+    schedulerJobs = raw ? JSON.parse(raw) : {};
+  }catch(e){ schedulerJobs = {}; }
+}
+function saveSchedulerJobs(){
+  try{ localStorage.setItem(SCHEDULER_JOBS_KEY, JSON.stringify(schedulerJobs)); }catch(e){}
+}
+loadSchedulerJobs();
+
+// Every distinct Fifth Wheel SKU actually used in the BOM becomes its own
+// trackable "part" in List view — a job that needs a different Fifth Wheel
+// spec simply doesn't count against a Fifth Wheel SKU it doesn't use,
+// same idea as the prototype's needFor() returning null for "n/a".
+function distinctFifthWheelSkus(){
+  const seen = {};
+  Object.values(BOM_VARIANTS).forEach(v=>{
+    if(v.fifthWheelSku && !seen[v.fifthWheelSku]) seen[v.fifthWheelSku] = v.fifthWheelSpec;
+  });
+  return seen;
+}
+
+function bomForVariant(variantCode){
+  if(!variantCode) return null;
+  return BOM_VARIANTS[variantCode] || null;
+}
+
+// Resolves a job's BOM. Drawbar is a fixed single recipe (no variant
+// codes involved). Otherwise: if the job already has a confirmed
+// variantCode, use it. If not, try to match the job's free-text trailer
+// type against a BOM model group — if that model has exactly one variant,
+// auto-resolve; if it has several (different axle suppliers, which is the
+// real remaining gap — axle supplier isn't reliably recorded per job
+// today) or no match at all, this is "unmatched" and needs a manual pick.
+function resolveJobVariant(job){
+  if(!job) return { status:'none' };
+  const tt = (job.trailerType||'').trim();
+  if(tt.toLowerCase() === 'drawbar'){
+    return { status:'drawbar', bom: DRAWBAR_BOM };
+  }
+  if(job.variantCode && BOM_VARIANTS[job.variantCode]){
+    return { status:'resolved', variantCode: job.variantCode, bom: BOM_VARIANTS[job.variantCode] };
+  }
+  // Try a model match — the job's trailer type string containing (or
+  // being contained by) a BOM model name, case-insensitive.
+  const ttLower = tt.toLowerCase();
+  let matchedModel = null;
+  Object.keys(BOM_MODEL_VARIANTS).forEach(model=>{
+    if(matchedModel) return;
+    const modelLower = model.toLowerCase();
+    if(ttLower && (ttLower.includes(modelLower) || modelLower.includes(ttLower))) matchedModel = model;
+  });
+  const candidates = matchedModel ? BOM_MODEL_VARIANTS[matchedModel] : Object.keys(BOM_VARIANTS);
+  if(matchedModel && candidates.length === 1){
+    return { status:'resolved', variantCode: candidates[0], bom: BOM_VARIANTS[candidates[0]] };
+  }
+  return { status:'unmatched', candidates, matchedModel };
+}
+
+function kingPinNeedFor(job){
+  const r = resolveJobVariant(job);
+  if(r.status === 'drawbar') return { qty: r.bom.kingPinQty, sku: '8-900-001' };
+  if(r.status === 'resolved' && r.bom.kingPinQty != null) return { qty: r.bom.kingPinQty, sku: '8-900-001' };
+  return null;
+}
+function fifthWheelNeedFor(job, sku){
+  const r = resolveJobVariant(job);
+  const bom = r.status === 'drawbar' ? r.bom : (r.status === 'resolved' ? r.bom : null);
+  if(!bom || !bom.fifthWheelSku || bom.fifthWheelSku !== sku) return null;
+  return { qty: 1, sku: bom.fifthWheelSku };
+}
+
+// ---- Sync: a mutable job record, not an append-only delta — upsert to
+// its own table (scheduler_jobs), mirroring the stock_transactions
+// pattern but with update allowed, since a date gets set/unset repeatedly.
+const SCHEDULER_LAST_PULL_KEY = 'leader-master-scheduler-last-pull-v1';
+
+async function queueSchedulerJob(job){
+  job.updatedAt = new Date().toISOString();
+  schedulerJobs[job.jobNr] = job;
+  saveSchedulerJobs();
+  if(!supabaseClient) return;
+  try{
+    await supabaseClient.from('scheduler_jobs').upsert({
+      job_nr: job.jobNr, customer: job.customer || null, trailer_type: job.trailerType || null,
+      variant_code: job.variantCode || null, chassis_date: job.chassisDate || null,
+      finals_date: job.finalsDate || null, completed: !!job.completed,
+      source_device: 'Master List', updated_at: job.updatedAt
+    });
+  }catch(e){ console.error('Scheduler job sync push failed — will retry on next change', e); }
+}
+
+function applyRemoteSchedulerJob(row){
+  if(!row || !row.job_nr) return;
+  schedulerJobs[row.job_nr] = {
+    jobNr: row.job_nr, customer: row.customer, trailerType: row.trailer_type,
+    variantCode: row.variant_code, chassisDate: row.chassis_date, finalsDate: row.finals_date,
+    completed: !!row.completed, updatedAt: row.updated_at
+  };
+  saveSchedulerJobs();
+}
+
+async function pullSchedulerJobs(){
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.from('scheduler_jobs').select('*');
+    if(error){ console.error('Scheduler jobs pull failed', error); return; }
+    (data || []).forEach(applyRemoteSchedulerJob);
+    renderKitScheduler();
+  }catch(e){ console.error('Scheduler jobs pull failed — offline?', e); }
+}
+
+function startRealtimeSchedulerSync(){
+  if(!supabaseClient) return;
+  supabaseClient
+    .channel('scheduler_jobs_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduler_jobs' }, payload => {
+      applyRemoteSchedulerJob(payload.new);
+      renderKitScheduler();
+    })
+    .subscribe();
+}
+
+// ---- PO / arrival cross-reference — reuses the existing purchaseOrders
+// + Goods Received Ledger matching already built for Order Confirmations,
+// rather than inventing a second way to track this.
+function findPoStatusForSku(sku){
+  const byPo = buildByPo();
+  let best = null;
+  Object.keys(purchaseOrders).forEach(poNumber=>{
+    const po = purchaseOrders[poNumber];
+    const line = (po.lines || []).find(l=>l.sku === sku);
+    if(!line) return;
+    const deliveredLines = byPo[poNumber] || [];
+    const receivedQty = deliveredLines.filter(g=>g.sku===sku).reduce((s,g)=>s+g.qty, 0);
+    const status = { poNumber, qtyOrdered: line.qtyOrdered, receivedQty, arrived: receivedQty >= line.qtyOrdered, dateCreated: po.dateCreated };
+    if(!best) best = status;
+    // Prefer showing an open (not-yet-arrived) PO over an already-arrived one, most recent first.
+    else if(!status.arrived && best.arrived) best = status;
+    else if(status.arrived === best.arrived && status.dateCreated > best.dateCreated) best = status;
+  });
+  return best;
+}
+
+// ---- UI state ----
+let ksView = 'calendar';
+let ksTrackedPartKey = 'kingpins';
+
+function ksAllJobs(){
+  return Object.values(schedulerJobs).filter(j=>!j.completed);
+}
+function ksIsLocked(job){
+  return !!(job.chassisDate && job.finalsDate);
+}
+function ksPoolJobs(){
+  return ksAllJobs().filter(j=>!ksIsLocked(j));
+}
+
+function ksDayLabel(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return { dow: d.toLocaleDateString('en-ZA', { weekday:'short' }), dm: d.toLocaleDateString('en-ZA', { day:'numeric', month:'short' }) };
+}
+// Next 10 real weekdays from today — same window the prototype used.
+function ksWeekdayWindow(count){
+  const out = [];
+  let d = new Date();
+  d.setHours(0,0,0,0);
+  while(out.length < count){
+    const day = d.getDay();
+    if(day !== 0 && day !== 6) out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+const KS_DAYS = ksWeekdayWindow(10);
+const KS_TODAY = new Date().toISOString().slice(0,10);
+
+function ksJobColor(job){
+  const r = resolveJobVariant(job);
+  if(r.status === 'unmatched') return '#c23b30';
+  return 'var(--steel)';
+}
+
+function ksChipHtml(job, opts){
+  opts = opts || {};
+  const locked = ksIsLocked(job);
+  const r = resolveJobVariant(job);
+  const unresolved = r.status === 'unmatched';
+  return `<div class="ks-chip" data-ks-job="${job.jobNr}" draggable="${locked?'false':'true'}"
+      style="display:inline-flex; align-items:center; gap:5px; border-radius:8px; border:1px solid ${locked?'var(--panel-line)':'var(--panel-line)'}; padding:4px 8px; font-size:11.5px; background:${locked?'var(--void)':'var(--panel)'}; color:${locked?'var(--text-faint)':'var(--text)'}; ${locked?'cursor:default;':'cursor:grab;'}">
+      ${locked?'🔒':''}
+      <span style="width:7px; height:7px; border-radius:50%; background:${unresolved?'var(--danger)':(locked?'var(--panel-line)':'var(--steel)')};"></span>
+      <b>${job.jobNr}</b>
+      ${opts.small ? '' : `<span style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${job.customer||''}</span>`}
+      ${opts.showUnassign ? `<button data-ks-unassign="${job.jobNr}" data-ks-stage="${opts.stage}" style="border:none; background:none; color:var(--text-faint); cursor:pointer; padding:0; font-size:12px;">✕</button>` : ''}
+    </div>`;
+}
+
+function ksWireChipDrag(){
+  document.querySelectorAll('.ks-chip[draggable="true"]').forEach(chip=>{
+    chip.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', chip.dataset.ksJob);
+    });
+  });
+  document.querySelectorAll('[data-ks-unassign]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const jobNr = btn.dataset.ksUnassign;
+      const stage = btn.dataset.ksStage;
+      const job = schedulerJobs[jobNr];
+      if(!job) return;
+      if(stage === 'chassis') job.chassisDate = null; else job.finalsDate = null;
+      queueSchedulerJob(job);
+      renderKitScheduler();
+    };
+  });
+}
+
+function renderKsPool(){
+  const wrap = document.getElementById('ksPool');
+  const pool = ksPoolJobs();
+  wrap.innerHTML = pool.length
+    ? pool.map(j=>ksChipHtml(j, {})).join('')
+    : `<span style="font-size:12px; color:var(--text-faint);">All jobs fully scheduled.</span>`;
+  ksWireChipDrag();
+}
+
+function renderKsCalendar(stageKey, containerId){
+  const wrap = document.getElementById(containerId);
+  const jobs = ksAllJobs();
+  wrap.innerHTML = KS_DAYS.map(day=>{
+    const { dow, dm } = ksDayLabel(day);
+    const dayJobs = jobs.filter(j=>j[stageKey] === day);
+    const isToday = day === KS_TODAY;
+    return `<div class="ks-day" data-ks-drop="${day}" data-ks-stage="${stageKey==='chassisDate'?'chassis':'finals'}"
+        style="min-width:130px; border-right:1px solid var(--panel-line); padding:8px; min-height:100px; ${isToday?'background:rgba(184,134,46,0.08);':''}">
+      <div style="font-size:10.5px; font-weight:600; color:var(--text-faint); margin-bottom:6px;">${dow} <span style="font-weight:400;">${dm}</span></div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        ${dayJobs.map(j=>ksChipHtml(j, { small:true, showUnassign:true, stage: stageKey==='chassisDate'?'chassis':'finals' })).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-ks-drop]').forEach(dayEl=>{
+    dayEl.addEventListener('dragover', e=>e.preventDefault());
+    dayEl.addEventListener('drop', e=>{
+      e.preventDefault();
+      const jobNr = e.dataTransfer.getData('text/plain');
+      const job = schedulerJobs[jobNr];
+      if(!job) return;
+      const day = dayEl.dataset.ksDrop;
+      if(stageKey === 'chassisDate') job.chassisDate = day; else job.finalsDate = day;
+      queueSchedulerJob(job);
+      renderKitScheduler();
+    });
+  });
+  ksWireChipDrag();
+}
+
+function populateKsTrackedPartDropdown(){
+  const sel = document.getElementById('ksTrackedPart');
+  const fwSkus = distinctFifthWheelSkus();
+  let options = [`<option value="kingpins">King Pins</option>`];
+  Object.keys(fwSkus).forEach(sku=>{
+    options.push(`<option value="fw:${sku}">Fifth Wheel — ${fwSkus[sku]}</option>`);
+  });
+  sel.innerHTML = options.join('');
+  sel.value = ksTrackedPartKey;
+}
+
+function ksNeedForTrackedPart(job){
+  if(ksTrackedPartKey === 'kingpins') return kingPinNeedFor(job);
+  if(ksTrackedPartKey.startsWith('fw:')) return fifthWheelNeedFor(job, ksTrackedPartKey.slice(3));
+  return null;
+}
+function ksTrackedPartSku(){
+  if(ksTrackedPartKey === 'kingpins') return '8-900-001';
+  if(ksTrackedPartKey.startsWith('fw:')) return ksTrackedPartKey.slice(3);
+  return null;
+}
+
+function renderKsListView(){
+  populateKsTrackedPartDropdown();
+  const sku = ksTrackedPartSku();
+  const item = stock.find(s=>s.sku===sku);
+  const onHand = item ? item.qty : 0;
+  document.getElementById('ksOnHandDisplay').textContent = item
+    ? `On hand: ${onHand} — ${item.name}`
+    : `On hand: not in stock catalog yet (${sku})`;
+
+  const jobs = ksAllJobs();
+  const scheduled = jobs.filter(j=>j.chassisDate).sort((a,b)=> (a.chassisDate||'').localeCompare(b.chassisDate||''));
+  const notScheduled = jobs.filter(j=>!j.chassisDate);
+
+  let used = 0;
+  let firstShortJob = null;
+  const rows = scheduled.map(job=>{
+    const need = ksNeedForTrackedPart(job);
+    const needs = !!need;
+    if(needs) used += need.qty;
+    const covered = !needs || used <= onHand;
+    if(needs && !covered && !firstShortJob) firstShortJob = job;
+    const r = resolveJobVariant(job);
+    const { dow, dm } = job.chassisDate ? ksDayLabel(job.chassisDate) : { dow:'', dm:'' };
+    const poStatus = needs ? findPoStatusForSku(need.sku) : null;
+    let poCell = '<span style="color:var(--text-faint);">—</span>';
+    if(poStatus){
+      poCell = poStatus.arrived
+        ? `<span style="color:var(--success);">✓ PO ${poStatus.poNumber} — arrived</span>`
+        : `<span style="color:var(--amber);">PO ${poStatus.poNumber} — ${poStatus.receivedQty} of ${poStatus.qtyOrdered} arrived</span>`;
+    } else if(needs){
+      poCell = `<span style="color:var(--text-faint);">no open PO found</span>`;
+    }
+    let coverageCell;
+    if(!needs) coverageCell = `<span style="color:var(--text-faint);">doesn't use this part</span>`;
+    else if(covered) coverageCell = `<span style="color:var(--success); font-weight:600;">✓ covered</span>`;
+    else coverageCell = `<span style="color:var(--danger); font-weight:700;">⚠ order needed</span>`;
+    const variantNote = r.status === 'unmatched' ? ` <span style="color:var(--danger); font-size:10.5px;">(variant unconfirmed)</span>` : '';
+    return `<tr${needs && !covered ? ' style="background:rgba(194,59,48,0.06);"' : ''}>
+      <td><b>${job.jobNr}</b></td>
+      <td>${job.customer||''}</td>
+      <td>${job.trailerType||''}${variantNote}</td>
+      <td>${dow} ${dm}</td>
+      <td class="right num">${needs ? need.qty : '—'}</td>
+      <td>${coverageCell}</td>
+      <td>${poCell}</td>
+    </tr>`;
+  });
+
+  document.getElementById('ksListBody').innerHTML = rows.length ? rows.join('')
+    : `<tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:14px;">Nothing scheduled yet — drag jobs onto the Chassis calendar first.</td></tr>`;
+
+  const banner = document.getElementById('ksShortfallBanner');
+  if(firstShortJob){
+    banner.style.display = 'block';
+    banner.textContent = `First job outside coverage: #${firstShortJob.jobNr} — ${firstShortJob.customer||''}`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  document.getElementById('ksNotScheduled').innerHTML = notScheduled.length
+    ? notScheduled.map(j=>`<span style="font-size:11px; padding:4px 8px; border-radius:20px; background:var(--void); color:var(--text-faint);">${j.jobNr} — ${j.customer||''}</span>`).join('')
+    : `<span style="font-size:12px; color:var(--text-faint);">Everything has a Chassis date.</span>`;
+}
+
+function renderKitScheduler(){
+  const all = ksAllJobs();
+  const lockedCount = all.filter(ksIsLocked).length;
+  document.getElementById('ksScheduledCount').textContent = `${lockedCount} of ${all.length} job(s) fully scheduled (both Chassis + Finals set)`;
+
+  document.getElementById('ksCalendarView').style.display = ksView === 'calendar' ? 'block' : 'none';
+  document.getElementById('ksListView').style.display = ksView === 'list' ? 'block' : 'none';
+  document.getElementById('ksViewCalendarBtn').className = ksView === 'calendar' ? 'btn primary' : 'btn';
+  document.getElementById('ksViewListBtn').className = ksView === 'list' ? 'btn primary' : 'btn';
+
+  if(ksView === 'calendar'){
+    renderKsPool();
+    renderKsCalendar('chassisDate', 'ksChassisCalendar');
+    renderKsCalendar('finalsDate', 'ksFinalsCalendar');
+  } else {
+    renderKsListView();
+  }
+
+  // Trailer-type datalist for the Add Job field — every known BOM model
+  // plus "Drawbar", so typing matches something real when possible.
+  const dl = document.getElementById('ksTrailerTypeList');
+  if(dl && !dl.dataset.filled){
+    dl.innerHTML = [...Object.keys(BOM_MODEL_VARIANTS), 'Drawbar'].map(m=>`<option value="${m}">`).join('');
+    dl.dataset.filled = '1';
+  }
+}
+
+document.getElementById('kitSchedulerBtn').onclick = ()=>{
+  document.getElementById('kitSchedulerModal').style.display = 'flex';
+  renderKitScheduler();
+};
+document.getElementById('ksCloseBtn').onclick = ()=> document.getElementById('kitSchedulerModal').style.display = 'none';
+document.getElementById('ksViewCalendarBtn').onclick = ()=>{ ksView = 'calendar'; renderKitScheduler(); };
+document.getElementById('ksViewListBtn').onclick = ()=>{ ksView = 'list'; renderKitScheduler(); };
+document.getElementById('ksTrackedPart').addEventListener('change', e=>{
+  ksTrackedPartKey = e.target.value;
+  renderKsListView();
+});
+
+document.getElementById('ksAddJobBtn').onclick = ()=>{
+  const jobNr = document.getElementById('ksNewJobNr').value.trim();
+  const customer = document.getElementById('ksNewCustomer').value.trim();
+  const trailerType = document.getElementById('ksNewTrailerType').value.trim();
+  if(!jobNr){ alert('Enter a job number.'); return; }
+  if(schedulerJobs[jobNr] && !schedulerJobs[jobNr].completed){ alert(`Job ${jobNr} is already in the scheduler.`); return; }
+  const job = { jobNr, customer, trailerType, variantCode: null, chassisDate: null, finalsDate: null, completed: false };
+  const r = resolveJobVariant(job);
+  if(r.status === 'resolved') job.variantCode = r.variantCode;
+  queueSchedulerJob(job);
+  document.getElementById('ksNewJobNr').value = '';
+  document.getElementById('ksNewCustomer').value = '';
+  document.getElementById('ksNewTrailerType').value = '';
+  renderKitScheduler();
+};
+
+// Clicking an unmatched job's colored dot in the calendar pool offers a
+// manual variant pick — the exact fallback the brief calls for instead of
+// guessing an axle supplier. Delegated on the modal so it works for chips
+// re-rendered at any time.
+document.getElementById('kitSchedulerModal').addEventListener('click', e=>{
+  const chip = e.target.closest('.ks-chip');
+  if(!chip || e.target.closest('[data-ks-unassign]')) return;
+  const jobNr = chip.dataset.ksJob;
+  const job = schedulerJobs[jobNr];
+  if(!job) return;
+  const r = resolveJobVariant(job);
+  if(r.status !== 'unmatched') return;
+  const list = r.candidates.map(c=>`${c} — ${BOM_VARIANTS[c].model} / ${BOM_VARIANTS[c].axleSupplier} ${BOM_VARIANTS[c].axleType}`).join('\n');
+  showPromptModal(`Job ${jobNr}'s exact variant isn't confirmed (axle supplier not on file). Type the Variant Code from this list:\n\n${list}`, '').then(picked=>{
+    if(picked === null) return;
+    const code = picked.trim().toUpperCase();
+    if(!BOM_VARIANTS[code]){ alert('That code doesn\'t match one of the listed variants — nothing changed.'); return; }
+    job.variantCode = code;
+    queueSchedulerJob(job);
+    renderKitScheduler();
+  });
+});
+
+if(supabaseClient){
+  pullSchedulerJobs().then(startRealtimeSchedulerSync);
 }
 
 if(supabaseClient){
