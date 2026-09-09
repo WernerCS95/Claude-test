@@ -1044,6 +1044,7 @@
   <div class="addjob-card">
     <h3>⚙ More</h3>
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
+    <button class="clock-btn" id="schedulerJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🗓️ Scheduler Jobs (Chassis/Finals)</button>
     <button class="clock-btn" id="activityLogBtn" style="width:100%; margin-bottom:8px; border-color:var(--success); color:var(--success); text-align:left; padding:12px 14px;">👤 Who Did What</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
@@ -1063,6 +1064,34 @@
     <div id="retiredItemsList" style="max-height:440px; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="retiredItemsCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scheduler Jobs — add/edit the same job registry the Kit Scheduler
+     calendar in Master List runs on. Dates/dragging are Master-List-only
+     (that's where the calendar lives); this is just the add/edit side, so
+     a job can be entered from whichever device is handy. -->
+<div class="modal-bg" id="schedulerJobsModal">
+  <div class="addjob-card">
+    <h3>🗓️ Scheduler Jobs</h3>
+    <div class="sub">Add or edit a job here — it syncs to the Kit Scheduler calendar in Master List. Scheduling the actual Chassis/Finals dates happens over there.</div>
+    <div class="addjob-field">
+      <label>Job Nr</label>
+      <input type="text" id="sjNewJobNr" placeholder="e.g. 529">
+    </div>
+    <div class="addjob-field">
+      <label>Customer</label>
+      <input type="text" id="sjNewCustomer" placeholder="e.g. Itekeng">
+    </div>
+    <div class="addjob-field">
+      <label>Trailer Type</label>
+      <input type="text" id="sjNewTrailerType" placeholder="e.g. Ratel 3CR12">
+    </div>
+    <button class="addjob-save" id="sjAddJobBtn" style="width:100%; margin-bottom:12px;">+ Add / Update Job</button>
+    <div id="sjJobsList" style="max-height:320px; overflow-y:auto;"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="sjCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -8073,6 +8102,136 @@ checkForDraftOnLoad();
 // Runs after the sync module above is fully set up (queueTransaction needs
 // supabaseClient/getDeviceName to exist) — calling this any earlier throws,
 // since those are declared further up but not yet initialized at that point.
+/* ====================== SCHEDULER JOBS (add/edit side) ======================
+   Same job registry the Kit Scheduler calendar in Master List runs on,
+   synced through its own table (scheduler_jobs — a mutable record, not an
+   append-only delta, so it uses update not just insert). This device can
+   add a job or fix its customer/trailer type; setting Chassis/Finals
+   dates and picking an ambiguous BOM variant both stay Master-List-only,
+   since that's where the calendar itself lives.
+============================================================================== */
+const SCHEDULER_JOBS_KEY = 'leader-stores-scheduler-jobs-v1';
+let schedulerJobs = {};
+
+function loadSchedulerJobs(){
+  try{
+    const raw = localStorage.getItem(SCHEDULER_JOBS_KEY);
+    schedulerJobs = raw ? JSON.parse(raw) : {};
+  }catch(e){ schedulerJobs = {}; }
+}
+function saveSchedulerJobs(){
+  try{ localStorage.setItem(SCHEDULER_JOBS_KEY, JSON.stringify(schedulerJobs)); }catch(e){}
+}
+loadSchedulerJobs();
+
+async function queueSchedulerJob(job){
+  job.updatedAt = new Date().toISOString();
+  schedulerJobs[job.jobNr] = job;
+  saveSchedulerJobs();
+  if(!supabaseClient) return;
+  try{
+    await supabaseClient.from('scheduler_jobs').upsert({
+      job_nr: job.jobNr, customer: job.customer || null, trailer_type: job.trailerType || null,
+      variant_code: job.variantCode || null, chassis_date: job.chassisDate || null,
+      finals_date: job.finalsDate || null, completed: !!job.completed,
+      source_device: getDeviceName() || 'Unnamed device', updated_at: job.updatedAt
+    });
+  }catch(e){ console.error('Scheduler job sync push failed — will retry on next change', e); }
+}
+
+function applyRemoteSchedulerJob(row){
+  if(!row || !row.job_nr) return;
+  schedulerJobs[row.job_nr] = {
+    jobNr: row.job_nr, customer: row.customer, trailerType: row.trailer_type,
+    variantCode: row.variant_code, chassisDate: row.chassis_date, finalsDate: row.finals_date,
+    completed: !!row.completed, updatedAt: row.updated_at
+  };
+  saveSchedulerJobs();
+}
+
+async function pullSchedulerJobs(){
+  if(!supabaseClient) return;
+  try{
+    const { data, error } = await supabaseClient.from('scheduler_jobs').select('*');
+    if(error){ console.error('Scheduler jobs pull failed', error); return; }
+    (data || []).forEach(applyRemoteSchedulerJob);
+    renderSchedulerJobsList();
+  }catch(e){ console.error('Scheduler jobs pull failed — offline?', e); }
+}
+
+function startRealtimeSchedulerSync(){
+  if(!supabaseClient) return;
+  supabaseClient
+    .channel('scheduler_jobs_changes_terminal')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduler_jobs' }, payload => {
+      applyRemoteSchedulerJob(payload.new);
+      renderSchedulerJobsList();
+    })
+    .subscribe();
+}
+
+function renderSchedulerJobsList(){
+  const wrap = document.getElementById('sjJobsList');
+  if(!wrap) return;
+  const jobs = Object.values(schedulerJobs).filter(j=>!j.completed).sort((a,b)=> (a.jobNr||'').localeCompare(b.jobNr||'', undefined, {numeric:true}));
+  if(jobs.length === 0){ wrap.innerHTML = '<div style="color:var(--text-faint); font-size:12.5px;">No jobs in the scheduler yet.</div>'; return; }
+  wrap.innerHTML = jobs.map(j=>{
+    const status = (j.chassisDate && j.finalsDate) ? '🔒 fully scheduled' : (j.chassisDate ? 'Chassis set' : (j.finalsDate ? 'Finals set' : 'not scheduled yet'));
+    return `<div data-sj-edit="${j.jobNr}" style="display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid var(--panel-line); cursor:pointer;">
+      <span><b>${j.jobNr}</b> — ${j.customer||''} <span style="color:var(--text-faint);">(${j.trailerType||'—'})</span></span>
+      <span style="font-size:11px; color:var(--text-faint);">${status}</span>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-sj-edit]').forEach(row=>{
+    row.onclick = ()=> editSchedulerJob(row.dataset.sjEdit);
+  });
+}
+
+async function editSchedulerJob(jobNr){
+  const job = schedulerJobs[jobNr];
+  if(!job) return;
+  const customer = await showPromptModal(`Customer for Job ${jobNr}:`, job.customer || '');
+  if(customer === null) return;
+  const trailerType = await showPromptModal(`Trailer type for Job ${jobNr}:`, job.trailerType || '');
+  if(trailerType === null) return;
+  job.customer = customer.trim();
+  if(trailerType.trim() !== (job.trailerType||'')){
+    job.trailerType = trailerType.trim();
+    job.variantCode = null; // trailer type changed — Master List re-resolves (or re-flags) the variant
+  }
+  queueSchedulerJob(job);
+  renderSchedulerJobsList();
+}
+
+document.getElementById('schedulerJobsBtn').onclick = ()=>{
+  document.getElementById('schedulerJobsModal').classList.add('show');
+  document.getElementById('moreMenuModal').classList.remove('show');
+  renderSchedulerJobsList();
+};
+document.getElementById('sjCloseBtn').onclick = ()=> document.getElementById('schedulerJobsModal').classList.remove('show');
+document.getElementById('sjAddJobBtn').onclick = ()=>{
+  const jobNr = document.getElementById('sjNewJobNr').value.trim();
+  const customer = document.getElementById('sjNewCustomer').value.trim();
+  const trailerType = document.getElementById('sjNewTrailerType').value.trim();
+  if(!jobNr){ alert('Enter a job number.'); return; }
+  const existing = schedulerJobs[jobNr];
+  const job = existing || { jobNr, customer, trailerType, variantCode: null, chassisDate: null, finalsDate: null, completed: false };
+  if(existing){
+    job.customer = customer || existing.customer;
+    if(trailerType && trailerType !== existing.trailerType){ job.trailerType = trailerType; job.variantCode = null; }
+  }
+  queueSchedulerJob(job);
+  document.getElementById('sjNewJobNr').value = '';
+  document.getElementById('sjNewCustomer').value = '';
+  document.getElementById('sjNewTrailerType').value = '';
+  renderSchedulerJobsList();
+  alert(`Job ${jobNr} saved — syncs to the Kit Scheduler calendar in Master List.`);
+};
+
+if(supabaseClient){
+  pullSchedulerJobs().then(startRealtimeSchedulerSync);
+}
+
 seedNameplatePhysicalCountOnce();
 </script>
 </body>
