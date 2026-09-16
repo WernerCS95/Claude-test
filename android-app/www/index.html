@@ -7091,6 +7091,38 @@ async function flushSyncOutbox(){
 // Applies a transaction that ORIGINATED ON ANOTHER DEVICE to this
 // device's local Qty on Hand, using the exact same functions a local
 // action would use — so behavior is identical either way.
+// Mirrors another device's Parts Issued / delivery into THIS device's own
+// Today's Log / Goods Received History — not just its stock count. Only
+// ever called for a transaction this device didn't itself create (its own
+// actions are already excluded above via markApplied/syncAppliedIds), so
+// this never double-logs your own slips.
+function mirrorRemoteLogEntry(txn){
+  const meta = txn.meta || {};
+  const dateStr = meta.date || (txn.created_at || '').slice(0,10);
+  const timeStr = txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}) : '';
+  if(txn.type === 'issue'){
+    state.log.unshift({
+      _id: txn.id,
+      date: dateStr, time: timeStr,
+      worker: meta.worker || 'Unknown (other device)', clock: meta.clock || null,
+      customer: meta.customer || '', jobNo: meta.jobNo || '',
+      lines: [{ itemId: txn.item_id, name: meta.item_name || txn.item_id, qty: Math.abs(Number(txn.delta_qty)), isKit: false, components: null }],
+      synced: true
+    });
+    saveLog();
+    renderLog();
+  } else if(txn.type === 'delivery'){
+    goodsReceived.push({
+      sku: txn.item_id, name: meta.item_name || txn.item_id, cat: meta.item_cat || 'Misc',
+      qty: Number(txn.delta_qty), price: null, isNewItem: false,
+      grnNo: meta.grnNo || '', supplier: meta.supplier || '', deliveryTo: 'Stores',
+      date: dateStr, orderNo: meta.orderNo || '', invoiceNo: '', checker: null,
+      batchId: txn.id, synced: true, _id: txn.id
+    });
+    saveGoodsReceived();
+  }
+}
+
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
   if(txn.type === 'spot_check'){
@@ -7107,6 +7139,9 @@ function applyRemoteTransaction(txn){
     const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
     if(!supersededBySpotCheck){
       adjustQtyOnHand(txn.item_id, Number(txn.delta_qty));
+    }
+    if(txn.type === 'delivery' || txn.type === 'issue'){
+      mirrorRemoteLogEntry(txn);
     }
   }
   markApplied(txn.id);
