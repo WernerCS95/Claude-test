@@ -1533,7 +1533,15 @@ function showPromptModal(message, defaultValue, opts){
       if(e.key === 'Enter'){ e.preventDefault(); cleanup(input.value); }
       if(e.key === 'Escape') cleanup(null);
     });
-    overlay.addEventListener('click', e=>{ if(e.target === overlay) cleanup(null); });
+    // Touch devices fire a trailing "ghost click" a few ms after the real
+    // tap that opened this modal, at the same screen position. If a tile
+    // happened to sit outside where this centered box lands, that ghost
+    // click hits the overlay background — which used to read as "tap
+    // outside, cancel" and instantly close the modal (dropping the
+    // keyboard right after it appeared). Ignoring outside-taps for the
+    // first moment lets that trailing click pass through harmlessly.
+    const openedAt = Date.now();
+    overlay.addEventListener('click', e=>{ if(e.target === overlay && Date.now() - openedAt > 350) cleanup(null); });
     btnRow.appendChild(cancelBtn);
     btnRow.appendChild(okBtn);
     box.appendChild(msgEl);
