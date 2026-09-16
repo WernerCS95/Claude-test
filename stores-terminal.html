@@ -7019,11 +7019,6 @@ const SYNC_APPLIED_IDS_KEY = 'leader-stores-sync-applied-v1';
 const SYNC_LAST_PULL_KEY = 'leader-stores-sync-last-pull-v1';
 
 let supabaseClient = null;
-try{
-  if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-}catch(e){ console.error('Could not start Supabase client — sync disabled, local capture unaffected', e); }
 
 function newTxnId(){
   return (crypto.randomUUID ? crypto.randomUUID() : 'txn-' + Date.now() + '-' + Math.random().toString(36).slice(2,10));
@@ -7139,11 +7134,36 @@ function startRealtimeSync(){
     .subscribe();
 }
 
-if(supabaseClient){
-  pullMissedTransactions().then(startRealtimeSync);
-  window.addEventListener('online', flushSyncOutbox);
-  setInterval(flushSyncOutbox, 15000);
+// The Supabase library itself loads from an external CDN <script> tag in
+// <head> — on a fast connection it's ready before this code runs, but on a
+// slower/flaky one (a tablet on patchy wifi, say) it can still be loading
+// at this point. Checking window.supabase exactly once and giving up if it
+// isn't there yet used to leave sync permanently off for the whole session
+// with nothing telling you it happened — local capture kept working, so
+// nothing looked wrong, it just silently never reached the server. This
+// retries instead of checking once.
+function initSupabaseSync(attempt){
+  attempt = attempt || 0;
+  if(!supabaseClient){
+    try{
+      if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    }catch(e){ console.error('Could not start Supabase client', e); }
+  }
+  if(supabaseClient){
+    pullMissedTransactions().then(startRealtimeSync);
+    window.addEventListener('online', flushSyncOutbox);
+    setInterval(flushSyncOutbox, 15000);
+    return;
+  }
+  if(attempt < 20){
+    setTimeout(()=> initSupabaseSync(attempt + 1), 500);
+  } else {
+    console.error('Supabase library never became available after 10s — sync disabled for this session, local capture unaffected. Restart the app to try again.');
+  }
 }
+initSupabaseSync();
 </script>
 </body>
 </html>

@@ -3473,11 +3473,6 @@ const SYNC_APPLIED_IDS_KEY = 'leader-master-sync-applied-v1';
 const MASTER_SYNC_OUTBOX_KEY = 'leader-master-sync-outbox-v1';
 
 let supabaseClient = null;
-try{
-  if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-}catch(e){ console.error('Could not start Supabase client — sync disabled, rest of Master List unaffected', e); }
 
 let syncAppliedIds = (function(){
   try{ return new Set(JSON.parse(localStorage.getItem(SYNC_APPLIED_IDS_KEY)) || []); }catch(e){ return new Set(); }
@@ -3526,10 +3521,6 @@ async function flushMasterOutbox(){
     }
   }catch(e){ console.error('Master sync push failed — will retry', e); }
   masterFlushInFlight = false;
-}
-if(supabaseClient){
-  window.addEventListener('online', flushMasterOutbox);
-  setInterval(flushMasterOutbox, 15000);
 }
 
 // ---- PULL: transactions from other devices, applied here ----
@@ -3677,9 +3668,36 @@ function startRealtimeStockSync(){
     .subscribe();
 }
 
-if(supabaseClient){
-  pullMissedStockTransactions().then(startRealtimeStockSync);
+// The Supabase library itself loads from an external CDN <script> tag in
+// <head> — on a fast connection it's ready before this code runs, but on a
+// slower/flaky one it can still be loading at this point. Checking
+// window.supabase exactly once and giving up if it isn't there yet used to
+// leave sync permanently off for the whole session with nothing telling
+// you it happened — Master List kept working locally, so nothing looked
+// wrong, it just silently never reached the server. This retries instead
+// of checking once.
+function initSupabaseSync(attempt){
+  attempt = attempt || 0;
+  if(!supabaseClient){
+    try{
+      if(window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY){
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    }catch(e){ console.error('Could not start Supabase client', e); }
+  }
+  if(supabaseClient){
+    window.addEventListener('online', flushMasterOutbox);
+    setInterval(flushMasterOutbox, 15000);
+    pullMissedStockTransactions().then(startRealtimeStockSync);
+    return;
+  }
+  if(attempt < 20){
+    setTimeout(()=> initSupabaseSync(attempt + 1), 500);
+  } else {
+    console.error('Supabase library never became available after 10s — sync disabled for this session, rest of Master List unaffected. Restart the app to try again.');
+  }
 }
+initSupabaseSync();
 </script>
 </body>
 </html>
