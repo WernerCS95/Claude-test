@@ -5874,6 +5874,13 @@ function attachTileGestures(tile, item){
   }
   const qtyBadge = tile.querySelector('.tile-qty-badge');
   if(qtyBadge){
+    // stopPropagation on click alone isn't enough — the tile's own tap-to-add
+    // fires on pointerdown/pointerup, which happen before click and aren't
+    // stopped by it. Without also stopping those, tapping # silently adds 1
+    // via the tile's normal tap first, then the quantity modal adds whatever
+    // you type on top of that (e.g. typing 10 actually gives you 11).
+    qtyBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    qtyBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
     qtyBadge.onclick = (e)=>{ e.stopPropagation(); openQtyPickerModal(item); };
   }
   const editKitBadge = tile.querySelector('.tile-editkit-badge');
