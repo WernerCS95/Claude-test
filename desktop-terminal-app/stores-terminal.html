@@ -592,11 +592,16 @@
     <div style="display:flex; gap:10px; margin-bottom:14px;">
       <input type="text" id="itemSearch" class="jobno-input" style="flex:1; padding:12px 14px;" placeholder="Search this group's items…">
       <button class="clock-btn" id="sortAzBtn" style="border-color:var(--steel); color:var(--steel); white-space:nowrap;">A→Z</button>
+      <button class="clock-btn" id="countModeBtn" style="border-color:var(--gold); color:var(--gold); white-space:nowrap;">📋 Count Mode</button>
       <button class="clock-btn" id="makeKitBtn" style="border-color:var(--gold); color:var(--gold); white-space:nowrap;">🛠 Make My Own Kit</button>
     </div>
     <div class="edit-mode-banner" id="editModeBanner" style="display:none;">
       <span>Rearranging items — drag a tile to move it, tap the ✎ to rename.</span>
       <button id="editModeDoneBtn">Done</button>
+    </div>
+    <div class="edit-mode-banner" id="countModeBanner" style="display:none; border-color:var(--gold); background:rgba(184,134,46,0.12);">
+      <span>📋 Count Mode — tap a tile to enter what you see in front of you as its new count. Tap Done when you've finished this group.</span>
+      <button id="countModeDoneBtn">Done</button>
     </div>
     <div class="item-grid" id="itemGrid"></div>
     <button class="back-to-top-btn" id="backToTopBtn" title="Back to top">↑</button>
@@ -5763,6 +5768,52 @@ function exitEditMode(){
 }
 document.getElementById('editModeDoneBtn').onclick = exitEditMode;
 
+/* ====================== COUNT MODE ======================
+   Reuses the exact same group/tile navigation already built for issuing
+   stock, just with a different tap action — walking a shelf becomes
+   tap-group, tap-tile, type-the-number, next tile, instead of switching
+   to a separate screen and typing item names. Only applies to plain
+   ("simple") items; gas bottles, kits and bolts each already have their
+   own dedicated counting flow and are left alone here.
+========================================================================= */
+let countMode = false;
+
+function setCountMode(on){
+  countMode = on;
+  if(editMode && on) exitEditMode(); // the two modes' tile taps conflict — never both at once
+  document.getElementById('countModeBanner').style.display = on ? 'flex' : 'none';
+  document.getElementById('countModeBtn').style.opacity = on ? '0.5' : '1';
+  renderGrid();
+}
+document.getElementById('countModeBtn').onclick = ()=> setCountMode(!countMode);
+document.getElementById('countModeDoneBtn').onclick = ()=> setCountMode(false);
+
+async function handleCountModeTap(item, tileEl){
+  if(item.type !== 'simple'){
+    alert(`${displayName(item)} isn't counted this way — ${item.gasTracking ? 'use its Gas Bottle screen' : item.type==='kit' || item.type==='dynamic-kit' ? 'kits are made up of their own parts, count those instead' : 'use Spot Check'} for this one.`);
+    return;
+  }
+  const current = qtyOnHand[item.id] || 0;
+  const input = await showPromptModal(`Count for "${displayName(item)}" — what's actually on the shelf?`, String(current));
+  if(input === null) return;
+  const qty = Number(input);
+  if(input.trim() === '' || isNaN(qty) || qty < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
+  const now = new Date();
+  spotChecks.push({
+    _id: newSpotCheckId(),
+    sku: item.id, name: item.name, cat: item.cat,
+    countedQty: qty, isNewItem: false,
+    date: now.toISOString().slice(0,10),
+    time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    checker: state.worker ? state.worker.name : null
+  });
+  setQtyOnHand(item.id, qty);
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: item.id, type: 'spot_check', absolute_qty: qty, meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
+  saveSpotChecks();
+  if(tileEl){ tileEl.classList.add('flash'); setTimeout(()=>tileEl.classList.remove('flash'), 250); }
+  renderGrid();
+}
+
 /* ====================== RETIRED ITEMS ======================
    Soft-remove for a tile that's no longer stocked but shouldn't lose its
    history — a retired item drops out of groups and search everywhere, but
@@ -5913,7 +5964,7 @@ function renderGrid(){
     const tile = document.createElement('div');
     tile.className = 'item-tile' + (editMode ? ' wiggle' : '');
     tile.dataset.itemId = item.id;
-    const showQtyBadge = !editMode && item.type === 'simple' && !isBoltItem(item);
+    const showQtyBadge = !editMode && !countMode && item.type === 'simple' && !isBoltItem(item);
     const showEditKitBadge = editMode && item.type === 'kit';
     tile.innerHTML = `
       ${item.type==='kit' ? `<div class="kit-badge">⚡ ${item.components.length} parts</div>` : ''}
@@ -5981,6 +6032,7 @@ function attachTileGestures(tile, item){
       beginDrag(e);
       return;
     }
+    if(countMode) return; // no rearranging while counting — tap is the only gesture that matters here
     longPressTimer = setTimeout(()=>{
       if(moved) return;
       editMode = true;
@@ -6083,6 +6135,11 @@ function dragTileById(item, tile, startEvent){
 /* ====================== TILE TAP LOGIC ====================== */
 
 function handleTileTap(item, tileEl){
+  if(countMode){
+    handleCountModeTap(item, tileEl);
+    return;
+  }
+
   if(tileEl){
     tileEl.classList.add('flash');
     setTimeout(()=>tileEl.classList.remove('flash'), 250);
