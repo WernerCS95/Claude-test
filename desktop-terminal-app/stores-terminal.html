@@ -573,6 +573,16 @@
   <div class="jobspec-card" id="jobSpecCard"></div>
 </div>
 
+<!-- Quick Book Out — searches every item in the catalog, not just whatever
+     group happens to be open right now. Tapping a result runs it through
+     the exact same tap logic a tile uses (kit explosion, gas modal, bolt
+     expansion, or a plain add) — this is a shortcut to that, not a
+     different path. -->
+<div style="padding:0 20px; position:relative;">
+  <input type="text" id="quickBookOutSearch" class="jobno-input" style="width:100%; padding:12px 14px; box-sizing:border-box;" placeholder="🔍 Quick Book Out — search any item, any group…" autocomplete="off">
+  <div id="quickBookOutResults" style="display:none; position:absolute; left:20px; right:20px; top:100%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; margin-top:4px; max-height:320px; overflow-y:auto; z-index:50; box-shadow:0 6px 20px rgba(0,0,0,0.15);"></div>
+</div>
+
 <div class="main">
   <div class="grid-area">
     <div style="display:flex; gap:10px; margin-bottom:14px;">
@@ -593,7 +603,7 @@
       <h2>Current Slip</h2>
       <div class="sub">Tap items on the left to add them</div>
     </div>
-    <div id="editModeBanner" style="display:none; align-items:center; justify-content:space-between; gap:8px; background:var(--amber,#c96f0f); color:#fff; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12.5px;">
+    <div id="partsIssuedEditBanner" style="display:none; align-items:center; justify-content:space-between; gap:8px; background:var(--amber,#c96f0f); color:#fff; padding:8px 12px; border-radius:6px; margin-bottom:8px; font-size:12.5px;">
       <span>✏ Correcting a submitted slip — submitting saves into this same entry, not a new one.</span>
       <button id="cancelEditBtn" style="background:none; border:1px solid #fff; color:#fff; border-radius:4px; padding:3px 8px; cursor:pointer;">Cancel</button>
     </div>
@@ -5969,8 +5979,10 @@ function dragTileById(item, tile, startEvent){
 /* ====================== TILE TAP LOGIC ====================== */
 
 function handleTileTap(item, tileEl){
-  tileEl.classList.add('flash');
-  setTimeout(()=>tileEl.classList.remove('flash'), 250);
+  if(tileEl){
+    tileEl.classList.add('flash');
+    setTimeout(()=>tileEl.classList.remove('flash'), 250);
+  }
 
   if(item.type === 'kit'){
     showExplosion(item);
@@ -6253,8 +6265,8 @@ function showExplosion(item){
 
 /* ====================== RENDER: SLIP ====================== */
 
-function renderEditModeBanner(){
-  const banner = document.getElementById('editModeBanner');
+function renderPartsIssuedEditBanner(){
+  const banner = document.getElementById('partsIssuedEditBanner');
   if(!banner) return;
   banner.style.display = state.editingLogId ? 'flex' : 'none';
   const submitBtn = document.getElementById('submitBtn');
@@ -6277,7 +6289,7 @@ document.getElementById('cancelEditBtn').onclick = cancelEditingLogEntry;
 
 function renderSlip(){
   const wrap = document.getElementById('slipLines');
-  renderEditModeBanner();
+  renderPartsIssuedEditBanner();
   if(state.slip.length===0){
     wrap.innerHTML = `<div class="slip-empty">No items added yet.<br>Scan a clock number, pick a customer, then tap items.</div>`;
     updateSubmitState();
@@ -6732,6 +6744,62 @@ if(gridAreaEl && backToTopBtn){
   backToTopBtn.onclick = ()=> gridAreaEl.scrollTo({ top: 0, behavior: 'smooth' });
 }
 renderGroupGrid();
+
+/* ====================== QUICK BOOK OUT (global item search) ======================
+   Searches every item in the catalog, not just whichever group happens to
+   be open — lets a worker jump straight to booking something out without
+   drilling into a category first. Tapping a result runs the exact same
+   handleTileTap() logic a real tile tap uses, so kits still explode, gas
+   bottles still open their modal, bolts still expand — this is a shortcut
+   to that behavior, not a second copy of it.
+========================================================================== */
+(function(){
+  const input = document.getElementById('quickBookOutSearch');
+  const results = document.getElementById('quickBookOutResults');
+  if(!input || !results) return;
+
+  function renderResults(matches){
+    if(matches.length === 0){
+      results.style.display = 'none';
+      results.innerHTML = '';
+      return;
+    }
+    results.innerHTML = matches.map(item => `
+      <div data-qbo-item="${item.id}" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--panel-line); display:flex; justify-content:space-between; align-items:center;">
+        <span>${item.name}</span>
+        <span style="font-size:11px; color:var(--text-faint);">${item.cat}</span>
+      </div>
+    `).join('');
+    results.style.display = 'block';
+    results.querySelectorAll('[data-qbo-item]').forEach(row=>{
+      row.onclick = ()=>{
+        const item = ITEMS.find(i=>i.id===row.dataset.qboItem);
+        if(!item) return;
+        handleTileTap(item, null);
+        input.value = '';
+        results.style.display = 'none';
+        results.innerHTML = '';
+      };
+    });
+  }
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim().toLowerCase();
+    if(!q){ renderResults([]); return; }
+    const matches = ITEMS.filter(i => i.name && i.name.toLowerCase().includes(q)).slice(0, 20);
+    renderResults(matches);
+  });
+
+  // Clicking elsewhere closes the dropdown without needing to pick anything.
+  document.addEventListener('click', e=>{
+    if(e.target !== input && !results.contains(e.target)){
+      results.style.display = 'none';
+    }
+  });
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Escape'){ input.value=''; results.style.display='none'; results.innerHTML=''; }
+  });
+})();
 </script>
 </body>
 </html>
