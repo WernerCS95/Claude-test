@@ -511,6 +511,14 @@
     </div>
   </div>
   <div style="padding:20px; max-width:900px; margin:0 auto;">
+    <!-- Quick Book Out — searches every item in the catalog, right from the
+         home screen, before picking a group. Tapping a result opens that
+         item's real group (so the slip panel and Submit button are right
+         there) and adds it via the exact same tap logic a tile uses. -->
+    <div style="position:relative; margin-bottom:18px;">
+      <input type="text" id="quickBookOutSearch" class="jobno-input" style="width:100%; padding:16px 18px; box-sizing:border-box; font-size:19px;" placeholder="🔍 Quick Book Out — search any item, any group…" autocomplete="off">
+      <div id="quickBookOutResults" style="display:none; position:absolute; left:0; right:0; top:100%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; margin-top:4px; max-height:320px; overflow-y:auto; z-index:50; box-shadow:0 6px 20px rgba(0,0,0,0.15);"></div>
+    </div>
     <div class="log-header" style="margin-top:4px;">
       <h2 style="font-size:15px;">Groups</h2>
       <div class="log-stats">
@@ -571,16 +579,6 @@
 </div>
 <div style="padding:0 20px;">
   <div class="jobspec-card" id="jobSpecCard"></div>
-</div>
-
-<!-- Quick Book Out — searches every item in the catalog, not just whatever
-     group happens to be open right now. Tapping a result runs it through
-     the exact same tap logic a tile uses (kit explosion, gas modal, bolt
-     expansion, or a plain add) — this is a shortcut to that, not a
-     different path. -->
-<div style="padding:0 20px; position:relative;">
-  <input type="text" id="quickBookOutSearch" class="jobno-input" style="width:100%; padding:16px 18px; box-sizing:border-box; font-size:19px;" placeholder="🔍 Quick Book Out — search any item, any group…" autocomplete="off">
-  <div id="quickBookOutResults" style="display:none; position:absolute; left:20px; right:20px; top:100%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; margin-top:4px; max-height:320px; overflow-y:auto; z-index:50; box-shadow:0 6px 20px rgba(0,0,0,0.15);"></div>
 </div>
 
 <div class="main">
@@ -6775,6 +6773,12 @@ renderGroupGrid();
       row.onclick = ()=>{
         const item = ITEMS.find(i=>i.id===row.dataset.qboItem);
         if(!item) return;
+        // Jump straight to this item's real group first — that's where the
+        // slip panel and Submit button actually live, so tapping a search
+        // result from the home screen lands somewhere the worker can see
+        // what just happened and keep going, instead of adding it invisibly.
+        const catInfo = ASSIGNABLE_CATEGORIES.find(c=>c.key===item.cat);
+        openGroup(item.cat, catInfo ? catInfo.label : item.cat);
         handleTileTap(item, null);
         input.value = '';
         results.style.display = 'none';
