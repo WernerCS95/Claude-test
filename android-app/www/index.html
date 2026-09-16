@@ -201,6 +201,11 @@
     background:var(--success); color:#fff; display:flex; align-items:center; justify-content:center;
     font-size:12px; z-index:10; border:2px solid var(--void); cursor:pointer;
   }
+  .tile-retire-badge{
+    position:absolute; bottom:-7px; left:-7px; width:24px; height:24px; border-radius:50%;
+    background:var(--danger); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:11px; z-index:10; border:2px solid var(--void); cursor:pointer;
+  }
   .tile-new-tag{
     position:absolute; bottom:4px; right:4px; background:var(--success); color:#fff;
     font-size:8px; font-weight:700; padding:2px 5px; border-radius:4px; letter-spacing:0.5px;
@@ -984,7 +989,20 @@
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
+    <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
     <button class="clock-btn" id="restoreBackupBtn" style="width:100%; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
+  </div>
+</div>
+
+<!-- Retired Items — soft-removed from active use, restorable anytime, history never touched -->
+<div class="modal-bg" id="retiredItemsModal">
+  <div class="addjob-card">
+    <h3>🗑 Retired Items</h3>
+    <div class="sub">Removed from groups and search, but every past log entry for these stays exactly as it is. Restore any of them anytime.</div>
+    <div id="retiredItemsList" style="max-height:440px; overflow-y:auto;"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="retiredItemsCloseBtn">Close</button>
+    </div>
   </div>
 </div>
 
@@ -2312,7 +2330,7 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
   const wrap = document.getElementById('grnSearchResults');
   document.getElementById('grnNoMatch').style.display = 'none';
   if(term.length < 2){ wrap.innerHTML = ""; return; }
-  const matches = ITEMS.filter(i => i.name.toLowerCase().includes(term)).slice(0, 15);
+  const matches = ITEMS.filter(i => !isRetired(i.id) && i.name.toLowerCase().includes(term)).slice(0, 15);
 
   if(matches.length === 0){
     wrap.innerHTML = "";
@@ -2572,7 +2590,7 @@ document.getElementById('scCloseBtn').onclick = ()=> document.getElementById('sp
 const FULL_COUNT_PAGE_SIZE = 30;
 
 function getFullCountItems(){
-  const countable = ITEMS.filter(i => i.type === 'simple');
+  const countable = ITEMS.filter(i => i.type === 'simple' && !isRetired(i.id));
   return [...countable].sort((a,b)=> (a.cat||'').localeCompare(b.cat||'') || displayName(a).localeCompare(displayName(b)));
 }
 function paginateItems(items, pageSize){
@@ -2944,7 +2962,7 @@ document.getElementById('scSearch').addEventListener('input', e=>{
   const wrap = document.getElementById('scSearchResults');
   document.getElementById('scNoMatch').style.display = 'none';
   if(term.length < 2){ wrap.innerHTML = ""; return; }
-  const matches = ITEMS.filter(i => i.name.toLowerCase().includes(term)).slice(0, 15);
+  const matches = ITEMS.filter(i => !isRetired(i.id) && i.name.toLowerCase().includes(term)).slice(0, 15);
 
   if(matches.length === 0){
     wrap.innerHTML = "";
@@ -5745,6 +5763,55 @@ function exitEditMode(){
 }
 document.getElementById('editModeDoneBtn').onclick = exitEditMode;
 
+/* ====================== RETIRED ITEMS ======================
+   Soft-remove for a tile that's no longer stocked but shouldn't lose its
+   history — a retired item drops out of groups and search everywhere, but
+   every past issue, count, and delivery against it stays exactly as it
+   was. Restorable anytime from the Retired Items list, unlike an actual
+   delete which would leave old log entries pointing at nothing.
+========================================================================= */
+const RETIRED_ITEMS_KEY = 'leader-stores-retired-items-v1';
+let retiredItemIds = new Set();
+function loadRetiredItems(){
+  try{
+    const raw = localStorage.getItem(RETIRED_ITEMS_KEY);
+    retiredItemIds = raw ? new Set(JSON.parse(raw)) : new Set();
+  }catch(e){ retiredItemIds = new Set(); }
+}
+function saveRetiredItems(){
+  try{ localStorage.setItem(RETIRED_ITEMS_KEY, JSON.stringify([...retiredItemIds])); }catch(e){}
+}
+function isRetired(sku){ return retiredItemIds.has(sku); }
+function retireItem(sku){ retiredItemIds.add(sku); saveRetiredItems(); }
+function restoreRetiredItem(sku){ retiredItemIds.delete(sku); saveRetiredItems(); }
+
+function renderRetiredItemsList(){
+  const wrap = document.getElementById('retiredItemsList');
+  const retired = [...retiredItemIds].map(sku => ITEMS.find(i=>i.id===sku)).filter(Boolean);
+  if(retired.length === 0){
+    wrap.innerHTML = `<div style="color:var(--text-faint); font-size:12px; padding:12px 0;">Nothing retired right now.</div>`;
+    return;
+  }
+  wrap.innerHTML = retired.map(item => `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--panel-line);">
+      <span style="font-size:12.5px;">${displayName(item)} <span class="sub" style="margin:0;">${item.id}</span></span>
+      <button class="clock-btn" data-restore-sku="${item.id}" style="font-size:10px; padding:5px 10px; border-color:var(--success); color:var(--success);">↩ Restore</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-restore-sku]').forEach(btn=>{
+    btn.onclick = ()=>{
+      restoreRetiredItem(btn.dataset.restoreSku);
+      renderRetiredItemsList();
+      renderGrid();
+    };
+  });
+}
+document.getElementById('retiredItemsBtn').onclick = ()=>{
+  renderRetiredItemsList();
+  document.getElementById('retiredItemsModal').classList.add('show');
+};
+document.getElementById('retiredItemsCloseBtn').onclick = ()=> document.getElementById('retiredItemsModal').classList.remove('show');
+
 const ITEM_CATEGORY_KEY = 'leader-stores-item-category-v1';
 let itemCategoryOverrides = {}; // { itemId: newCat }
 function loadItemCategoryOverrides(){
@@ -5827,7 +5894,7 @@ function openDuplicateModal(item){
 function renderGrid(){
   const grid = document.getElementById('itemGrid');
   grid.innerHTML = "";
-  let filtered = ITEMS.filter(i => state.activeCat==="All" || i.cat===state.activeCat);
+  let filtered = ITEMS.filter(i => (state.activeCat==="All" || i.cat===state.activeCat) && !isRetired(i.id));
   if(searchTerm){
     filtered = filtered.filter(i => displayName(i).toLowerCase().includes(searchTerm));
   }
@@ -5852,6 +5919,7 @@ function renderGrid(){
       ${item.type==='kit' ? `<div class="kit-badge">⚡ ${item.components.length} parts</div>` : ''}
       ${editMode ? `<div class="tile-rename-badge">✎</div>` : ''}
       ${editMode ? `<div class="tile-copy-badge">⧉</div>` : ''}
+      ${editMode ? `<div class="tile-retire-badge" title="Remove from active use">🗑</div>` : ''}
       ${showQtyBadge ? `<div class="tile-qty-badge" title="Add a specific quantity">#</div>` : ''}
       ${showEditKitBadge ? `<div class="tile-editkit-badge" title="Edit this kit's parts">🔧</div>` : ''}
       <div class="item-label" style="margin-top:6px;">${displayName(item)}</div>
@@ -5871,6 +5939,17 @@ function attachTileGestures(tile, item){
   const copyBadge = tile.querySelector('.tile-copy-badge');
   if(copyBadge){
     copyBadge.onclick = (e)=>{ e.stopPropagation(); openDuplicateModal(item); };
+  }
+  const retireBadge = tile.querySelector('.tile-retire-badge');
+  if(retireBadge){
+    retireBadge.onclick = (e)=>{
+      e.stopPropagation();
+      if(confirm(`Remove "${displayName(item)}" from active use?\n\nIt won't show up in groups or search anymore, but every past issue, count, and delivery stays exactly as it is — nothing in the history changes. You can bring it back later from the Retired Items list.`)){
+        retireItem(item.id);
+        editMode = false;
+        renderGrid();
+      }
+    };
   }
   const qtyBadge = tile.querySelector('.tile-qty-badge');
   if(qtyBadge){
@@ -6753,6 +6832,7 @@ loadAddedJobs();
 loadSpotChecks();
 loadGoodsReceived();
 loadItemCustomizations();
+loadRetiredItems();
 loadCompletedJobs();
 loadNewItems();
 loadCustomKits();
@@ -6821,7 +6901,7 @@ renderGroupGrid();
   input.addEventListener('input', ()=>{
     const q = input.value.trim().toLowerCase();
     if(!q){ renderResults([]); return; }
-    const matches = ITEMS.filter(i => i.name && i.name.toLowerCase().includes(q)).slice(0, 20);
+    const matches = ITEMS.filter(i => i.name && !isRetired(i.id) && i.name.toLowerCase().includes(q)).slice(0, 20);
     renderResults(matches);
   });
 
