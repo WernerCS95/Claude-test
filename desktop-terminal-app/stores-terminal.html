@@ -2522,7 +2522,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
       batchId, synced: false, _id: batchId+'-'+i
     }));
     adjustQtyOnHand(l.sku, l.qty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { item_name: l.name, item_cat: l.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo } });
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { item_name: l.name, item_cat: l.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo } });
   });
   saveGoodsReceived();
   rememberGrnSupplier(supplier);
@@ -5651,7 +5651,7 @@ document.getElementById('dieselSubmitBtn').onclick = ()=>{
   renderLog();
 
   adjustQtyOnHand(entry.lines[0].itemId, -litres);
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: entry.lines[0].itemId, type: 'issue', delta_qty: -litres, meta: { item_name: entry.lines[0].name, item_cat: 'Diesel', date: entry.date, customer: entry.customer } });
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: entry.lines[0].itemId, type: 'issue', delta_qty: -litres, meta: { item_name: entry.lines[0].name, item_cat: 'Diesel', date: entry.date, customer: entry.customer, worker: entry.worker, clock: entry.clock } });
 
   rememberDieselMake(make);
   if(reg) rememberDieselReg(reg);
@@ -6546,11 +6546,11 @@ document.getElementById('submitBtn').onclick = ()=>{
     if(line.isKit && line.components){
       line.components.forEach(c=>{
         adjustQtyOnHand(c.sku, -(c.qty * line.qty));
-        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo } });
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock } });
       });
     } else {
       adjustQtyOnHand(line.itemId, -line.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo } });
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock } });
     }
   });
 
