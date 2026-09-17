@@ -7184,6 +7184,16 @@ async function flushSyncOutbox(){
       if(error){
         // Row already exists (retried after a success we didn't hear back from) — treat as sent, move on.
         if(error.code === '23505'){ outbox.shift(); saveSyncOutbox(outbox); continue; }
+        // 23514 = a CHECK constraint rejected this row outright (e.g. a
+        // transaction type the database schema doesn't know about yet) —
+        // retrying won't ever succeed, and leaving it queued would silently
+        // block every transaction behind it forever with nothing visible
+        // anywhere. Surface it loudly and drop it rather than let the
+        // whole outbox stall on one permanently-broken row.
+        if(error.code === '23514'){
+          console.error('Sync push permanently rejected by the database (schema mismatch?) — dropping this transaction, not retrying:', txn, error);
+          outbox.shift(); saveSyncOutbox(outbox); continue;
+        }
         break; // likely offline — stop and retry later, whatever's left stays queued
       }
       outbox.shift();
