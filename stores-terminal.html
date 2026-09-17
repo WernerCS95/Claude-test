@@ -1653,6 +1653,25 @@ const GAS_TRACKED_SKUS = new Set([
 ]);
 ITEMS.forEach(i=>{ if(GAS_TRACKED_SKUS.has(i.id)) i.gasTracking = true; });
 
+// A "box" item isn't a separate stock of its own — it's the same physical
+// stock as its real (granular, actually-issued) item, just read off in a
+// bigger unit. "Latex Gloves - Bokse" doesn't carry its own Qty on Hand at
+// all: it's always computed from "Latex Gloves - Pairs" ÷ 50, so the two
+// numbers can never drift apart the way two independently-counted SKUs
+// could. Counting or receiving via the box tile writes through to the real
+// item's quantity (converted by the factor); issuing only ever happens
+// through the real item, since the factory floor doesn't consume boxes.
+const BOX_UNIT_LINKS = {
+  '1-000-002': { realSku: 'NEW-MT0CCEV0', factor: 50 }   // Latex Gloves - Bokse -> Latex Gloves - Pairs
+};
+function getBoxUnitLink(sku){ return BOX_UNIT_LINKS[sku] || null; }
+function boxQtyFor(sku){
+  const link = getBoxUnitLink(sku);
+  if(!link) return undefined;
+  const realQty = qtyOnHand[link.realSku];
+  return realQty === undefined ? undefined : Math.floor(realQty / link.factor);
+}
+
 // Full/Empty/In Use state per gas SKU — tracked locally on this tablet the
 // same way the diesel tank levels are: it's a running estimate, correctable
 // by hand, and pushed to the master list through the normal sync payload.
@@ -2521,8 +2540,16 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
       sku: l.sku, name: l.name, cat: l.cat, qty: l.qty, price: l.price || null, isNewItem: l.isNewItem,
       batchId, synced: false, _id: batchId+'-'+i
     }));
-    adjustQtyOnHand(l.sku, l.qty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { item_name: l.name, item_cat: l.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, batchId } });
+    // A box-unit item (e.g. Latex Gloves - Bokse) has no stock of its own —
+    // the delivery history still shows what was physically received (boxes),
+    // but the actual quantity change applies to the real item it's counted
+    // through, converted by the box factor.
+    const boxLink = getBoxUnitLink(l.sku);
+    const targetSku = boxLink ? boxLink.realSku : l.sku;
+    const targetQty = boxLink ? l.qty * boxLink.factor : l.qty;
+    const targetItem = boxLink ? (ITEMS.find(i=>i.id===targetSku) || l) : l;
+    adjustQtyOnHand(targetSku, targetQty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: targetSku, type: 'delivery', delta_qty: targetQty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, batchId } });
   });
   saveGoodsReceived();
   rememberGrnSupplier(supplier);
@@ -3093,20 +3120,25 @@ document.getElementById('scPileUseTotal').onclick = ()=>{
 
 document.getElementById('scAddBtn').onclick = ()=>{
   if(!scSelected){ alert("Search for and select an item first."); return; }
-  const qty = document.getElementById('scQty').value;
-  if(qty === "" || isNaN(qty) || Number(qty) < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
+  const qtyInput = document.getElementById('scQty').value;
+  if(qtyInput === "" || isNaN(qtyInput) || Number(qtyInput) < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
   const when = scGetCountWhen();
+  // A box-unit item (e.g. Latex Gloves - Bokse) has no quantity of its own —
+  // counting it here converts to the real item's unit and writes there.
+  const boxLink = getBoxUnitLink(scSelected.id);
+  const targetItem = boxLink ? (ITEMS.find(i=>i.id===boxLink.realSku) || scSelected) : scSelected;
+  const qty = boxLink ? Number(qtyInput) * boxLink.factor : Number(qtyInput);
   spotChecks.push({
     _id: newSpotCheckId(),
-    sku: scSelected.id, name: scSelected.name, cat: scSelected.cat,
-    countedQty: Number(qty),
-    isNewItem: scSelected.id.startsWith('NEW-'),
+    sku: targetItem.id, name: targetItem.name, cat: targetItem.cat,
+    countedQty: qty,
+    isNewItem: targetItem.id.startsWith('NEW-'),
     date: when.date,
     time: when.time,
     checker: state.worker ? state.worker.name : null
   });
-  setQtyOnHand(scSelected.id, Number(qty));
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: scSelected.id, type: 'spot_check', absolute_qty: Number(qty), meta: { item_name: scSelected.name, item_cat: scSelected.cat, date: when.date } });
+  setQtyOnHand(targetItem.id, qty);
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: targetItem.id, type: 'spot_check', absolute_qty: qty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: when.date } });
   saveSpotChecks();
   renderGrid();
   scSelected = null;
@@ -4683,7 +4715,8 @@ function adjustQtyOnHand(sku, delta){  // GRN (+) or issue (-)
   saveQtyOnHand();
 }
 function qtyLabel(sku){
-  const q = qtyOnHand[sku];
+  const link = getBoxUnitLink(sku);
+  const q = link ? boxQtyFor(sku) : qtyOnHand[sku];
   return q === undefined ? 'Not yet counted' : `Qty on Hand : ${q}`;
 }
 
@@ -5797,26 +5830,33 @@ document.getElementById('countModeBtn').onclick = ()=> setCountMode(!countMode);
 document.getElementById('countModeDoneBtn').onclick = ()=> setCountMode(false);
 
 async function handleCountModeTap(item, tileEl){
-  if(item.type !== 'simple'){
+  const boxLink = getBoxUnitLink(item.id);
+  if(item.type !== 'simple' && !boxLink){
     alert(`${displayName(item)} isn't counted this way — ${item.gasTracking ? 'use its Gas Bottle screen' : item.type==='kit' || item.type==='dynamic-kit' ? 'kits are made up of their own parts, count those instead' : 'use Spot Check'} for this one.`);
     return;
   }
-  const current = qtyOnHand[item.id] || 0;
-  const input = await showPromptModal(`Count for "${displayName(item)}" — what's actually on the shelf?`, String(current));
+  // A box-unit item (e.g. Latex Gloves - Bokse) has no quantity of its own —
+  // counting it in boxes converts to the real item's unit and writes there,
+  // so the two can never end up telling different stories.
+  const targetId = boxLink ? boxLink.realSku : item.id;
+  const targetItem = boxLink ? (ITEMS.find(i=>i.id===targetId) || item) : item;
+  const current = boxLink ? boxQtyFor(item.id) : (qtyOnHand[item.id] || 0);
+  const input = await showPromptModal(`Count for "${displayName(item)}" — what's actually on the shelf?`, String(current === undefined ? 0 : current));
   if(input === null) return;
-  const qty = Number(input);
-  if(input.trim() === '' || isNaN(qty) || qty < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
+  const enteredQty = Number(input);
+  if(input.trim() === '' || isNaN(enteredQty) || enteredQty < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
+  const qty = boxLink ? enteredQty * boxLink.factor : enteredQty;
   const now = new Date();
   spotChecks.push({
     _id: newSpotCheckId(),
-    sku: item.id, name: item.name, cat: item.cat,
+    sku: targetId, name: targetItem.name, cat: targetItem.cat,
     countedQty: qty, isNewItem: false,
     date: now.toISOString().slice(0,10),
     time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
     checker: state.worker ? state.worker.name : null
   });
-  setQtyOnHand(item.id, qty);
-  if(typeof queueTransaction === 'function') queueTransaction({ item_id: item.id, type: 'spot_check', absolute_qty: qty, meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
+  setQtyOnHand(targetId, qty);
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: targetId, type: 'spot_check', absolute_qty: qty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: now.toISOString().slice(0,10) } });
   saveSpotChecks();
   if(tileEl){ tileEl.classList.add('flash'); setTimeout(()=>tileEl.classList.remove('flash'), 250); }
   renderGrid();
@@ -5972,7 +6012,7 @@ function renderGrid(){
     const tile = document.createElement('div');
     tile.className = 'item-tile' + (editMode ? ' wiggle' : '');
     tile.dataset.itemId = item.id;
-    const showQtyBadge = !editMode && !countMode && item.type === 'simple' && !isBoltItem(item);
+    const showQtyBadge = !editMode && !countMode && item.type === 'simple' && !isBoltItem(item) && !getBoxUnitLink(item.id);
     const showEditKitBadge = editMode && item.type === 'kit';
     tile.innerHTML = `
       ${item.type==='kit' ? `<div class="kit-badge">⚡ ${item.components.length} parts</div>` : ''}
@@ -6145,6 +6185,13 @@ function dragTileById(item, tile, startEvent){
 function handleTileTap(item, tileEl){
   if(countMode){
     handleCountModeTap(item, tileEl);
+    return;
+  }
+
+  const boxLink = getBoxUnitLink(item.id);
+  if(boxLink){
+    const realItem = ITEMS.find(i=>i.id===boxLink.realSku);
+    alert(`${displayName(item)} is just ${displayName(realItem||item)} counted in boxes of ${boxLink.factor} — nothing gets issued in boxes.\n\nIssue it from ${realItem ? displayName(realItem) : 'the real item'} instead. Its own Qty on Hand always reflects both.`);
     return;
   }
 
