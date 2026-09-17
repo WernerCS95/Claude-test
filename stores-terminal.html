@@ -5915,6 +5915,7 @@ function renderRetiredItemsList(){
   wrap.querySelectorAll('[data-restore-sku]').forEach(btn=>{
     btn.onclick = ()=>{
       restoreRetiredItem(btn.dataset.restoreSku);
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: btn.dataset.restoreSku, type: 'item_restore', meta: {} });
       renderRetiredItemsList();
       renderGrid();
     };
@@ -5954,11 +5955,13 @@ document.getElementById('renameSaveBtn').onclick = ()=>{
     itemNameOverrides[renameTargetId] = val;
   }
   saveItemNames();
+  if(typeof queueTransaction === 'function') queueTransaction({ item_id: renameTargetId, type: 'item_rename', meta: { name: itemNameOverrides[renameTargetId] || null } });
 
   const newCat = document.getElementById('renameGroupSelect').value;
   if(original && newCat && newCat !== original.cat){
     original.cat = newCat;
     saveItemCategoryOverride(renameTargetId, newCat);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: renameTargetId, type: 'item_category', meta: { cat: newCat } });
   }
 
   document.getElementById('renameModal').classList.remove('show');
@@ -6070,6 +6073,7 @@ function attachTileGestures(tile, item){
       e.stopPropagation();
       if(confirm(`Remove "${displayName(item)}" from active use?\n\nIt won't show up in groups or search anymore, but every past issue, count, and delivery stays exactly as it is — nothing in the history changes. You can bring it back later from the Retired Items list.`)){
         retireItem(item.id);
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: item.id, type: 'item_retire', meta: {} });
         editMode = false;
         renderGrid();
       }
@@ -7246,6 +7250,21 @@ function applyRemoteTransaction(txn){
     if(txn.type === 'delivery' || txn.type === 'issue'){
       mirrorRemoteLogEntry(txn);
     }
+  } else if(txn.type === 'item_rename'){
+    const name = txn.meta && txn.meta.name;
+    if(name){ itemNameOverrides[txn.item_id] = name; } else { delete itemNameOverrides[txn.item_id]; }
+    saveItemNames();
+  } else if(txn.type === 'item_category'){
+    const cat = txn.meta && txn.meta.cat;
+    if(cat){
+      const it = ITEMS.find(i=>i.id===txn.item_id);
+      if(it) it.cat = cat;
+      saveItemCategoryOverride(txn.item_id, cat);
+    }
+  } else if(txn.type === 'item_retire'){
+    retireItem(txn.item_id);
+  } else if(txn.type === 'item_restore'){
+    restoreRetiredItem(txn.item_id);
   }
   markApplied(txn.id);
   renderGrid();
