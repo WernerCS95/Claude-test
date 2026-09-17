@@ -2522,7 +2522,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
       batchId, synced: false, _id: batchId+'-'+i
     }));
     adjustQtyOnHand(l.sku, l.qty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { item_name: l.name, item_cat: l.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo } });
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: l.sku, type: 'delivery', delta_qty: l.qty, meta: { item_name: l.name, item_cat: l.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, batchId } });
   });
   saveGoodsReceived();
   rememberGrnSupplier(supplier);
@@ -6546,11 +6546,11 @@ document.getElementById('submitBtn').onclick = ()=>{
     if(line.isKit && line.components){
       line.components.forEach(c=>{
         adjustQtyOnHand(c.sku, -(c.qty * line.qty));
-        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock } });
+        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
       });
     } else {
       adjustQtyOnHand(line.itemId, -line.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock } });
+      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
     }
   });
 
@@ -7101,23 +7101,39 @@ function mirrorRemoteLogEntry(txn){
   const dateStr = meta.date || (txn.created_at || '').slice(0,10);
   const timeStr = txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}) : '';
   if(txn.type === 'issue'){
-    state.log.unshift({
-      _id: txn.id,
-      date: dateStr, time: timeStr,
-      worker: meta.worker || 'Unknown (other device)', clock: meta.clock || null,
-      customer: meta.customer || '', jobNo: meta.jobNo || '',
-      lines: [{ itemId: txn.item_id, name: meta.item_name || txn.item_id, qty: Math.abs(Number(txn.delta_qty)), isKit: false, components: null }],
-      synced: true
-    });
+    // Every line of a single slip queues as its own transaction (needed for
+    // the stock math), tagged with the same meta.slipId. Group them back
+    // into one card here instead of one card per line — older transactions
+    // synced before this existed have no slipId, so each falls back to its
+    // own txn.id and still gets its own card, same as before.
+    const groupId = meta.slipId || txn.id;
+    const newLine = { itemId: txn.item_id, name: meta.item_name || txn.item_id, qty: Math.abs(Number(txn.delta_qty)), isKit: false, components: null };
+    const existing = state.log.find(e => e._id === groupId);
+    if(existing){
+      existing.lines.push(newLine);
+    } else {
+      state.log.unshift({
+        _id: groupId,
+        date: dateStr, time: timeStr,
+        worker: meta.worker || 'Unknown (other device)', clock: meta.clock || null,
+        customer: meta.customer || '', jobNo: meta.jobNo || '',
+        lines: [newLine],
+        synced: true
+      });
+    }
     saveLog();
     renderLog();
   } else if(txn.type === 'delivery'){
+    // Same idea as above — every line of a delivery queues separately, but
+    // shares meta.batchId. renderGoodsReceivedHistory already groups this
+    // flat list back into one card per batchId, so no merge needed here,
+    // just make sure every line from the same delivery carries it.
     goodsReceived.push({
       sku: txn.item_id, name: meta.item_name || txn.item_id, cat: meta.item_cat || 'Misc',
       qty: Number(txn.delta_qty), price: null, isNewItem: false,
       grnNo: meta.grnNo || '', supplier: meta.supplier || '', deliveryTo: 'Stores',
       date: dateStr, orderNo: meta.orderNo || '', invoiceNo: '', checker: null,
-      batchId: txn.id, synced: true, _id: txn.id
+      batchId: meta.batchId || txn.id, synced: true, _id: txn.id
     });
     saveGoodsReceived();
   }
