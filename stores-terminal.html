@@ -6061,14 +6061,26 @@ function attachTileGestures(tile, item){
   }
   const renameBadge = tile.querySelector('.tile-rename-badge');
   if(renameBadge){
+    // In edit mode, the tile itself starts a drag (setPointerCapture) on
+    // the very first pointerdown, regardless of what's tapped inside it —
+    // without stopping that here, a real mouse click on desktop gets
+    // swallowed by the tile's own drag handling before it ever reaches
+    // this badge's click. Touch happens to not trigger this the same way,
+    // which is why this only ever showed up on the desktop app.
+    renameBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    renameBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
     renameBadge.onclick = (e)=>{ e.stopPropagation(); openRenameModal(item); };
   }
   const copyBadge = tile.querySelector('.tile-copy-badge');
   if(copyBadge){
+    copyBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    copyBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
     copyBadge.onclick = (e)=>{ e.stopPropagation(); openDuplicateModal(item); };
   }
   const retireBadge = tile.querySelector('.tile-retire-badge');
   if(retireBadge){
+    retireBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    retireBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
     retireBadge.onclick = (e)=>{
       e.stopPropagation();
       if(confirm(`Remove "${displayName(item)}" from active use?\n\nIt won't show up in groups or search anymore, but every past issue, count, and delivery stays exactly as it is — nothing in the history changes. You can bring it back later from the Retired Items list.`)){
@@ -6092,6 +6104,8 @@ function attachTileGestures(tile, item){
   }
   const editKitBadge = tile.querySelector('.tile-editkit-badge');
   if(editKitBadge){
+    editKitBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    editKitBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
     editKitBadge.onclick = (e)=>{ e.stopPropagation(); openKitBuilderModal(item); };
   }
 
