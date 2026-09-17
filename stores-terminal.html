@@ -243,6 +243,7 @@
     font-size:9px; font-weight:700; letter-spacing:0.03em;
     padding:3px 6px; border-radius:5px; text-transform:uppercase;
     display:flex; align-items:center; gap:3px;
+    cursor:pointer; z-index:9;
   }
   .placeholder-tile{
     border-style:dashed; opacity:0.5; cursor:default;
@@ -638,6 +639,20 @@
     </div>
     <div class="log-list" id="logList">
       <div class="log-empty">No transactions logged yet today.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Kit parts peek — a plain, readable list that stays open until closed,
+     unlike the explosion overlay which is deliberately quick since it's
+     mid-issue. Tap the ⚡ badge on any kit tile to open this instead. -->
+<div class="modal-bg" id="kitPeekModal">
+  <div class="addjob-card">
+    <h3 id="kitPeekTitle">Kit Parts</h3>
+    <div class="sub">Every part this kit deducts when issued — nothing is added to a slip from here.</div>
+    <div class="explode-list" id="kitPeekList" style="max-height:440px; overflow-y:auto;"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="kitPeekCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -6031,6 +6046,16 @@ function renderGrid(){
 }
 
 function attachTileGestures(tile, item){
+  const kitBadge = tile.querySelector('.kit-badge');
+  if(kitBadge){
+    // Same fix as the # quantity badge: stopping propagation on click alone
+    // isn't enough on a touch device — the tile's own tap-to-issue fires on
+    // pointerdown/pointerup, which happen before click. Without stopping
+    // those too, tapping this badge would issue the kit AND open the peek.
+    kitBadge.addEventListener('pointerdown', (e)=> e.stopPropagation());
+    kitBadge.addEventListener('pointerup', (e)=> e.stopPropagation());
+    kitBadge.onclick = (e)=>{ e.stopPropagation(); showKitPartsPeek(item); };
+  }
   const renameBadge = tile.querySelector('.tile-rename-badge');
   if(renameBadge){
     renameBadge.onclick = (e)=>{ e.stopPropagation(); openRenameModal(item); };
@@ -6457,6 +6482,21 @@ function addToSlip(item, qty){
   }
   renderSlip();
 }
+
+function showKitPartsPeek(item){
+  document.getElementById('kitPeekTitle').textContent = displayName(item);
+  const list = document.getElementById('kitPeekList');
+  list.innerHTML = "";
+  item.components.forEach((c,i)=>{
+    const row = document.createElement('div');
+    row.className = 'explode-row';
+    row.style.animationDelay = (i*0.04)+'s';
+    row.innerHTML = `<span>${c.name}</span><span class="q">−${c.qty}</span>`;
+    list.appendChild(row);
+  });
+  document.getElementById('kitPeekModal').classList.add('show');
+}
+document.getElementById('kitPeekCloseBtn').onclick = ()=> document.getElementById('kitPeekModal').classList.remove('show');
 
 function showExplosion(item){
   const overlay = document.getElementById('explodeOverlay');
