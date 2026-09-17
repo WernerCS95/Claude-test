@@ -7187,8 +7187,17 @@ function startRealtimeSync(){
   supabaseClient
     .channel('stock_transactions_changes')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'stock_transactions' }, payload => {
+      // Deliberately NOT advancing SYNC_LAST_PULL_KEY here. Live delivery
+      // order isn't guaranteed to match when things actually happened —
+      // if this device's own write echoes back before another device's
+      // slightly-earlier one arrives, the checkpoint would jump past it.
+      // If that other one then got dropped for any reason (a brief
+      // network blip is enough), the next catch-up query would never see
+      // it again — it's chronologically "before" a checkpoint that only
+      // ever reflected arrival order, not real order. pullMissedTransactions
+      // is the only thing allowed to move that checkpoint, since it's a
+      // single ordered query, immune to this.
       applyRemoteTransaction(payload.new);
-      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
     })
     .subscribe();
 }
@@ -7211,9 +7220,30 @@ function initSupabaseSync(attempt){
     }catch(e){ console.error('Could not start Supabase client', e); }
   }
   if(supabaseClient){
+    // One-time self-heal for the checkpoint bug fixed above: a device that
+    // ran the old code may already have a checkpoint pushed past a
+    // transaction it never actually received (its live delivery got
+    // dropped after a later one arrived first and moved the checkpoint).
+    // A normal pull re-uses that same bad checkpoint and would keep
+    // missing it forever. This forces exactly one full re-pull from the
+    // beginning, safe to do since already-applied transactions are
+    // skipped by id regardless of how far back the pull goes.
+    const PULL_CHECKPOINT_RESET_KEY = 'leader-stores-pull-checkpoint-reset-v1';
+    if(!localStorage.getItem(PULL_CHECKPOINT_RESET_KEY)){
+      try{
+        localStorage.removeItem(SYNC_LAST_PULL_KEY);
+        localStorage.setItem(PULL_CHECKPOINT_RESET_KEY, '1');
+      }catch(e){}
+    }
     pullMissedTransactions().then(startRealtimeSync);
     window.addEventListener('online', flushSyncOutbox);
     setInterval(flushSyncOutbox, 15000);
+    // Safety net alongside realtime, not a replacement for it — catches
+    // anything a dropped live message would otherwise hide forever behind
+    // an advanced checkpoint (see startRealtimeSync). Realtime still gives
+    // near-instant updates when it's working; this just guarantees nothing
+    // stays missing for more than a minute even when it isn't.
+    setInterval(pullMissedTransactions, 60000);
     return;
   }
   if(attempt < 20){
