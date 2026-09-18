@@ -3255,16 +3255,16 @@ function lookupJob(jobNo){
 /* ====================== ADD JOB MODAL ====================== */
 
 function allTrailerTypes(){
-  const set = new Set([...Object.keys(TRAILER_TYPE_BOM), ...Object.keys(TRAILER_TYPE_KINGPINS)]);
+  const set = new Set([...Object.keys(TRAILER_TYPE_BOM), ...Object.keys(TRAILER_TYPE_KINGPINS), ...Object.keys(TRAILER_TYPE_FAMILY)]);
   return [...set].sort();
 }
 
-function populateTrailerTypeSelect(){
-  const sel = document.getElementById('ajTrailerType');
+function populateTrailerTypeSelect(selectId){
+  const sel = document.getElementById(selectId || 'ajTrailerType');
   if(sel.dataset.populated) return;
   allTrailerTypes().forEach(tt=>{
     const opt = document.createElement('option');
-    opt.value = tt; opt.textContent = TRAILER_TYPE_BOM[tt] ? `${tt} (locked)` : tt;
+    opt.value = tt; opt.textContent = TRAILER_TYPE_FAMILY[tt] ? `${tt} (locked)` : tt;
     sel.insertBefore(opt, sel.querySelector('option[value="__other__"]'));
   });
   sel.dataset.populated = "1";
@@ -3278,6 +3278,7 @@ function openAddJobModal(){
   document.getElementById('ajStartSuffix').value = "1";
   document.getElementById('ajTrailerType').value = "";
   document.getElementById('ajOtherType').value = "";
+  document.getElementById('ajAxleSpec').value = "";
   document.getElementById('ajOtherTypeWrap').style.display = 'none';
   document.getElementById('ajRowsWrap').innerHTML = "";
   document.getElementById('ajSaveBtn').disabled = true;
@@ -3293,6 +3294,7 @@ document.getElementById('ajTrailerType').addEventListener('change', e=>{
   renderAddJobPreview();
 });
 document.getElementById('ajOtherType').addEventListener('input', renderAddJobPreview);
+document.getElementById('ajAxleSpec').addEventListener('input', renderAddJobPreview);
 
 function currentAjType(){
   const sel = document.getElementById('ajTrailerType').value;
@@ -3303,34 +3305,14 @@ function currentAjType(){
 function renderAddJobPreview(){
   const box = document.getElementById('ajPreview');
   const tt = currentAjType();
+  const axleSpec = document.getElementById('ajAxleSpec').value.trim();
 
   if(!tt){
-    box.innerHTML = `<div style="color:var(--text-faint);">Pick a trailer type to see its locked spec — applies to every trailer generated below.</div>`;
+    box.innerHTML = `<div style="color:var(--text-faint);">Pick a trailer type to see its kit — applies to every trailer generated below.</div>`;
     return;
   }
 
-  const bom = TRAILER_TYPE_BOM[tt];
-  const kingPins = bom ? bom.kingPins : TRAILER_TYPE_KINGPINS[tt];
-
-  if(bom){
-    box.innerHTML = `
-      <div class="locked">✓ Locked spec for ${tt} — per trailer</div>
-      <div class="addjob-preview-row"><span class="l">King Pins</span><span>${bom.kingPins ?? '—'}</span></div>
-      <div class="addjob-preview-row"><span class="l">Tarp Set</span><span>${bom.tarpSet || '—'}</span></div>
-      ${bom.tarpsPerSet ? `<div class="addjob-preview-row"><span class="l">Tarps</span><span>${bom.tarpsPerSet}</span></div>` : ''}
-      ${bom.strapsPerSet ? `<div class="addjob-preview-row"><span class="l">Straps</span><span>${bom.strapsPerSet}</span></div>` : ''}
-      <div class="addjob-preview-row"><span class="l">Hydraulic Kit</span><span>${bom.hydraulicKit || '—'}</span></div>
-    `;
-  } else if(kingPins !== undefined){
-    box.innerHTML = `
-      <div class="unlocked">⚠ No full spec locked for ${tt} yet — king pins only</div>
-      <div class="addjob-preview-row"><span class="l">King Pins</span><span>${kingPins} per trailer</span></div>
-    `;
-  } else if(tt === 'Drawbar'){
-    box.innerHTML = `<div class="unlocked">⚠ Drawbar doesn't use king pins — it couples via a Turntable + coupling + towing eye setup instead. None of those are tracked stock items yet, so Bumper Bolts will skip that line for these jobs.</div>`;
-  } else {
-    box.innerHTML = `<div class="unlocked">⚠ Brand new trailer type — no locked spec at all. King pins will need a manual count until this type is locked.</div>`;
-  }
+  box.innerHTML = renderKitPreview(tt, axleSpec);
 }
 
 let ajRows = [];
@@ -3387,8 +3369,8 @@ function renderAjRows(){
 
 document.getElementById('ajSaveBtn').onclick = ()=>{
   const tt = currentAjType();
-  const bom = TRAILER_TYPE_BOM[tt];
-  const kingPinsPerUnit = bom ? bom.kingPins : TRAILER_TYPE_KINGPINS[tt];
+  const axleSpec = document.getElementById('ajAxleSpec').value.trim();
+  const k = computeKitForType(tt, axleSpec);
 
   const seen = new Set();
   for(const r of ajRows){
@@ -3402,11 +3384,18 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
       customer: r.customer.trim(),
       trailerType: tt,
       needsClarification: false,
-      kingPins: kingPinsPerUnit ?? null,
-      tarpSet: bom ? bom.tarpSet : null,
-      tarpsPerSet: bom ? bom.tarpsPerSet : null,
-      strapsPerSet: bom ? bom.strapsPerSet : null,
-      hydraulicKit: bom ? bom.hydraulicKit : null,
+      axleSpec: axleSpec || null,
+      kingPins: k.kingPins,
+      knorrPart: k.brakeKit,
+      tarp: k.tarp,
+      tarpsPerSet: k.tarpsPerSet,
+      hydraulicKit: k.hydraulicKit,
+      fifthWheel: k.fifthWheel,
+      cylinders: k.cylinders,
+      landingLegs: k.landingLegs,
+      jostException: k.jostException,
+      extra: k.extra,
+      axleNote: k.axleNote,
     };
   });
   saveAddedJobs();
@@ -3417,6 +3406,82 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
   ajRows = [];
 };
 
+/* ====================== EDIT JOB (fix a job added on the tablet) ====================== */
+
+let ejCurrentJobNo = null;
+
+function currentEjType(){
+  const sel = document.getElementById('ejTrailerType').value;
+  if(sel === '__other__') return document.getElementById('ejOtherType').value.trim();
+  return sel;
+}
+
+function renderEditJobPreview(){
+  const box = document.getElementById('ejPreview');
+  const tt = currentEjType();
+  const axleSpec = document.getElementById('ejAxleSpec').value.trim();
+  box.innerHTML = tt
+    ? renderKitPreview(tt, axleSpec)
+    : `<div style="color:var(--text-faint);">Pick a trailer type to see its kit.</div>`;
+}
+
+function openEditJobModal(jobNo){
+  const job = state.addedJobs[jobNo];
+  if(!job){ alert("This job wasn't added on this device — nothing to edit here."); return; }
+  ejCurrentJobNo = jobNo;
+  populateTrailerTypeSelect('ejTrailerType');
+  document.getElementById('ejJobNoLabel').textContent = `#${jobNo}`;
+  document.getElementById('ejCustomer').value = job.customer || "";
+  const knownType = allTrailerTypes().includes(job.trailerType);
+  document.getElementById('ejTrailerType').value = knownType ? job.trailerType : '__other__';
+  document.getElementById('ejOtherType').value = knownType ? "" : (job.trailerType || "");
+  document.getElementById('ejOtherTypeWrap').style.display = knownType ? 'none' : 'block';
+  document.getElementById('ejAxleSpec').value = job.axleSpec || "";
+  renderEditJobPreview();
+  document.getElementById('editJobModal').classList.add('show');
+}
+
+document.getElementById('ejTrailerType').addEventListener('change', e=>{
+  document.getElementById('ejOtherTypeWrap').style.display = e.target.value === '__other__' ? 'block' : 'none';
+  renderEditJobPreview();
+});
+document.getElementById('ejOtherType').addEventListener('input', renderEditJobPreview);
+document.getElementById('ejAxleSpec').addEventListener('input', renderEditJobPreview);
+document.getElementById('ejCancelBtn').onclick = ()=> document.getElementById('editJobModal').classList.remove('show');
+
+document.getElementById('ejSaveBtn').onclick = ()=>{
+  if(!ejCurrentJobNo) return;
+  const customer = document.getElementById('ejCustomer').value.trim();
+  const tt = currentEjType();
+  const axleSpec = document.getElementById('ejAxleSpec').value.trim();
+  if(!customer){ alert("Customer can't be blank."); return; }
+  if(!tt){ alert("Pick or type a trailer type."); return; }
+
+  const k = computeKitForType(tt, axleSpec);
+  state.addedJobs[ejCurrentJobNo] = {
+    customer,
+    trailerType: tt,
+    needsClarification: false,
+    axleSpec: axleSpec || null,
+    kingPins: k.kingPins,
+    knorrPart: k.brakeKit,
+    tarp: k.tarp,
+    tarpsPerSet: k.tarpsPerSet,
+    hydraulicKit: k.hydraulicKit,
+    fifthWheel: k.fifthWheel,
+    cylinders: k.cylinders,
+    landingLegs: k.landingLegs,
+    jostException: k.jostException,
+    extra: k.extra,
+    axleNote: k.axleNote,
+  };
+  saveAddedJobs();
+  document.getElementById('editJobModal').classList.remove('show');
+  document.getElementById('mjSearch').dispatchEvent(new Event('input'));
+  if(state.jobNo === ejCurrentJobNo) renderJobSpec();
+  ejCurrentJobNo = null;
+};
+
 // Locked trailer-type specs — once a size is confirmed for a type it doesn't
 // change, so these are fixed rules rather than something looked up per job.
 // Only two confirmed so far; add more here as they're locked in.
@@ -3424,6 +3489,128 @@ const TRAILER_TYPE_BOM = {
   "Ratel": { tarpSet: "5.9m F-line tarp set", tarpsPerSet: 2, strapsPerSet: 10, hydraulicKit: "Ratel Hydraulic Kit" },
   "40m HWP": { tarpSet: "8.5m tarp set", tarpsPerSet: null, strapsPerSet: null, hydraulicKit: "Standard Hydraulic Kit" }
 };
+
+/* ====================== KIT / BOM SCHEDULER ENGINE ======================
+   Built group-by-group with Werner (Brake Kits, Tarps, Hydraulics, JOST,
+   Axles, Tyres) — captures what each real trailer type needs so an
+   upcoming job can get its kit worked out before the job card even
+   arrives, instead of only ever looking backward at JOB_SPECS history.
+
+   Two independent things drive the kit, never mixed within one category:
+   - Brake kit: driven ONLY by axle spec (brand + Disc/Drum/Mech + count),
+     never trailer type/size — a 6/12 Tautliner and a Tri-axle Flatdeck can
+     both run SAF Disc and need the exact same brake kit.
+   - Tarps/Hydraulics/JOST: driven by trailer type/size (family below).
+   Customer-level overrides (coupling type, tarp colour/print) sit on top
+   of both and aren't captured here — those stay manual per job.
+========================================================================= */
+
+// Maps a real trailer-type name (as already used in JOB_SPECS /
+// TRAILER_TYPE_KINGPINS) to the shared "family" it follows for
+// tarps/hydraulics/JOST. Anything not listed here has no family yet —
+// computeKitForType() flags it rather than guessing.
+const TRAILER_TYPE_FAMILY = {
+  'Ratel':'Ratel', 'Ratel 3CR12':'Ratel', 'Ratel Dinky HD':'Ratel', 'Ratel 3mm Hiace':'Ratel',
+  '20 Ratel HD STL':'Ratel', '25m Ratel':'Ratel',
+  '40m HWP':'Standard', '40m HD':'Standard', '45m HWP':'Standard', '45m Kort Vet':'Standard',
+  'Drawbar':'Drawbar',
+  '30m End Tipper HD':'EndTipper',
+  'Tip Tanker':'TipTanker',
+  '35m Quad':'Quad',
+  '6/12 Tautliner':'Tautliner', '6/12 Dropside':'Tautliner',
+  '6/12 Flatdeck':'Flatdeck', '6m Flatdeck (vervang)':'Flatdeck', 'FD Special':'Flatdeck', 'Tridem FD':'Flatdeck',
+  'Stepdeck':'Stepdeck', 'Stepdeck + Winch & Pedastal':'Stepdeck', 'Lowbed':'Stepdeck',
+  'Skeletal':'Skeletal', 'Skeletal Leader':'Skeletal', 'Tandem Skeletal':'Skeletal',
+  'Tandem Tandem Sceletal with Bins':'Skeletal', 'Tridem Skeletal 13,5':'Skeletal',
+  'Skeletal Roadtrain':'RoadTrain',
+  'Beeswa':'Skeletal'
+};
+
+// Shared attributes per family — confirmed with Werner, group by group.
+// King pins still come from the existing TRAILER_TYPE_KINGPINS table
+// (already curated per real type name) rather than being duplicated here.
+const FAMILY_KIT_RULES = {
+  'Ratel':     { tarp:'5.9m F-line tarp set', tarpsPerSet:2, hydraulicKit:'Ratel Hydraulic Kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'None unless asked' },
+  'Standard':  { tarp:'8.7m F-line tarp set (9.2m for 45m³)', tarpsPerSet:2, hydraulicKit:'Standard Hydraulic Kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set — rule of thumb on 40m³+, confirm per job' },
+  'Drawbar':   { tarp:'8.5m F-line tarp x1 + 7.6m F-line tarp x1', tarpsPerSet:2, hydraulicKit:'Drawbar Hydraulic Kit (has a middle section)', fifthWheel:null, cylinders:4, landingLegs:null,
+                 jostException:'No 2nd king pin / no fifth wheel — 1x King Pin, 4x Cylinders (JOST); then via BPW: 1x 50mm Coupling, 1x Turntable (30t), 1x 50mm removable towing eye set incl. weld-in block' },
+  'EndTipper': { tarp:'One tarp only (single bin) — 11.5m for 30m³, 15.6m for 38m³', tarpsPerSet:1, hydraulicKit:'Sloper/End Tipper Kit — 1 hose + a few fittings, still order, just smaller', fifthWheel:null, cylinders:1, cylinderNote:'Not the standard 100mm — different size entirely, single cylinder', landingLegs:null },
+  'TipTanker': { tarp:'4.3m F-line tarp', tarpsPerSet:2, hydraulicKit:'Tipper Tanker Kit (incl. Autoroof)', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set' },
+  'Quad':      { tarp:'7.4m Autoforce-spec tarp', tarpsPerSet:2, hydraulicKit:'4-Axle PBS/Quad Hydraulic Kit (2 fitting boxes + 1 hose bundle) — 3-axle version is the Duisend Poot (DP) kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set' },
+  'Tautliner': { tarp:'Per sales rep — buyout parts (tensioners LHS/RHS, roof capping, uprights, 39m rubber pelmet roll) via the tarp supplier; 10mm Clamps + Sikaflex via the hydraulics supplier', tarpsPerSet:null, hydraulicKit:'None — 24x 10mm Clamps (12 Leader / 12 Follower)', fifthWheel:'37CXW', cylinders:0, landingLegs:'1 Set' },
+  'Flatdeck':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None — 24x 10mm Clamps (12 Leader / 12 Follower)', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set' },
+  'Stepdeck':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None — 24x 10mm Clamps', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set (Mechanical, per real job cards)', axleNote:'3-axle rule same as Sloper/Flatdeck, but UNDERSLUNG — lower ride height' },
+  'Skeletal':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None at all', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set', extra:'Container locks x4/side, I-beam, 24x 10mm hydraulic Clamps (same supplier as hydraulics)' },
+  'RoadTrain': { tarp:'—', tarpsPerSet:null, hydraulicKit:'Standard Hydraulic Kit x2 (3 chassis = Leader+Leader+Follower)', fifthWheel:'36DV x2', cylinders:8, landingLegs:'Per chassis' }
+};
+
+// Brake kit is computed from the axle spec alone — never from trailer
+// type/size. Named exceptions (Drawbar, End Tipper, Lowbed/Stepdeck,
+// 6/12 Tautliner tandem mechanical) have their own fixed part number
+// regardless of what the axle spec text says.
+function brakeKitFromAxleSpec(trailerType, axleSpec){
+  const s = (axleSpec || '').toLowerCase();
+  const t = trailerType || '';
+  if(/drawbar/i.test(t)) return 'K311173 x1 (Drawbar 7-axle set)';
+  if(/end tipper/i.test(t)) return 'K173354 x1 (Tridem Air Susp — TEBS G2 — Tipper Dump Kit, EBS SAF/BPW/Henred Drum)';
+  if(/lowbed|stepdeck/i.test(t)) return 'K201006 x1 (3-axle Mechanical)';
+  if(/tautliner/i.test(t) && /tandem/.test(s) && /mech/.test(s)) return 'K192794 (Tandem Mechanical — 2 overslung follower / 2 underslung leader)';
+  if(!s) return null;
+  if(/lifting/.test(s)){
+    return '⚠ Lifting axle mentioned — add SAF K219626 / BPW K254487 / Henred K254488 as its own set(s) on top of the base kit below (2 sets per lifting axle position stated on the job card, e.g. "axle 1+3" = 2 sets, "axle 1+3+4+6" on a 3-axle PBS = 4 sets — brackets are per-supplier, 2x per axle).';
+  }
+  const disc = /disc/.test(s);
+  const drum = /drum|drom/.test(s);
+  if(disc) return 'K301877 x1 + K301884 x2 (disc fittings)';
+  if(drum) return 'K301877 x1 + K301883 x1 + K301884 x1 (drum fittings)';
+  return "⚠ Axle spec doesn't say Disc or Drum — read the job card, don't assume from brand (e.g. Henred is usually drum but MBS Disc exists).";
+}
+
+// The one function everything else calls — takes whatever's known about a
+// job (trailer type + axle spec text) and returns every kit line that can
+// be derived from tonight's rules. Anything not yet confirmed for that
+// type comes back null so the UI can flag it instead of inventing a value.
+function computeKitForType(trailerType, axleSpec){
+  const family = TRAILER_TYPE_FAMILY[trailerType];
+  const rules = family ? FAMILY_KIT_RULES[family] : null;
+  const kingPins = TRAILER_TYPE_KINGPINS[trailerType];
+  return {
+    family: family || null,
+    kingPins: kingPins !== undefined ? kingPins : null,
+    fifthWheel: rules ? rules.fifthWheel : null,
+    cylinders: rules ? rules.cylinders : null,
+    cylinderNote: rules ? rules.cylinderNote : null,
+    landingLegs: rules ? rules.landingLegs : null,
+    tarp: rules ? rules.tarp : null,
+    tarpsPerSet: rules ? rules.tarpsPerSet : null,
+    hydraulicKit: rules ? rules.hydraulicKit : null,
+    jostException: rules ? rules.jostException : null,
+    extra: rules ? rules.extra : null,
+    axleNote: rules ? rules.axleNote : null,
+    brakeKit: brakeKitFromAxleSpec(trailerType, axleSpec),
+    locked: !!rules
+  };
+}
+
+// Renders a computeKitForType() result as the same preview-row markup used
+// in both Add Job and Edit Job, so the two never drift apart.
+function renderKitPreview(trailerType, axleSpec){
+  if(!trailerType) return `<div style="color:var(--text-faint);">Pick a trailer type to see its kit.</div>`;
+  const k = computeKitForType(trailerType, axleSpec);
+  const rows = [];
+  rows.push(`<div class="${k.locked ? 'locked' : 'unlocked'}">${k.locked ? '✓' : '⚠'} ${k.locked ? 'Locked family: '+k.family : 'No tarp/hydraulic/JOST family confirmed yet for "'+trailerType+'"'}</div>`);
+  if(k.kingPins !== null) rows.push(`<div class="addjob-preview-row"><span class="l">King Pins</span><span>${k.kingPins}</span></div>`);
+  if(k.fifthWheel) rows.push(`<div class="addjob-preview-row"><span class="l">Fifth Wheel</span><span>${k.fifthWheel}</span></div>`);
+  if(k.cylinders !== null) rows.push(`<div class="addjob-preview-row"><span class="l">Cylinders</span><span>${k.cylinders}${k.cylinderNote ? ' — '+k.cylinderNote : ''}</span></div>`);
+  if(k.landingLegs) rows.push(`<div class="addjob-preview-row"><span class="l">Landing Legs</span><span>${k.landingLegs}</span></div>`);
+  if(k.tarp) rows.push(`<div class="addjob-preview-row"><span class="l">Tarp</span><span>${k.tarp}</span></div>`);
+  if(k.hydraulicKit) rows.push(`<div class="addjob-preview-row"><span class="l">Hydraulics</span><span>${k.hydraulicKit}</span></div>`);
+  if(k.jostException) rows.push(`<div class="addjob-preview-row"><span class="l">JOST Exception</span><span>${k.jostException}</span></div>`);
+  if(k.extra) rows.push(`<div class="addjob-preview-row"><span class="l">Extra</span><span>${k.extra}</span></div>`);
+  if(k.axleNote) rows.push(`<div class="addjob-preview-row"><span class="l">Axle Note</span><span>${k.axleNote}</span></div>`);
+  rows.push(`<div class="addjob-preview-row"><span class="l">Brake Kit</span><span>${k.brakeKit || '⚠ Enter axle spec to compute'}</span></div>`);
+  return rows.join('');
+}
 
 // Fastener auto-expand — tap a bolt, get 1 bolt + 1 matching Nyloc/Loc Nut +
 // 2 matching washers, keyed by diameter (length-independent) using the real
@@ -3924,17 +4111,22 @@ document.getElementById('mjSearch').addEventListener('input', e=>{
   ).slice(0, 20);
   wrap.innerHTML = matches.map(j=>{
     const done = !!completedJobs[j.jobNo];
+    const editable = !!state.addedJobs[j.jobNo];
     return `
       <div class="ajrow" style="background:var(--panel); border-radius:7px; padding:8px 10px;">
         <span style="flex:1; font-size:12px;">
           <b>${j.jobNo}</b> — ${j.customer || 'no customer'}
           ${done ? '<span style="color:var(--text-faint);"> (completed)</span>' : ''}
         </span>
+        ${editable ? `<button class="clock-btn" data-edit="${j.jobNo}" style="font-size:10px; padding:4px 10px; border-color:var(--steel); color:var(--steel); margin-right:6px;">✎ Edit</button>` : ''}
         <button class="clock-btn" data-toggle="${j.jobNo}" style="font-size:10px; padding:4px 10px; border-color:${done?'var(--gold)':'var(--text-muted)'}; color:${done?'var(--gold)':'var(--text-muted)'};">
           ${done ? 'Reactivate' : 'Mark Complete'}
         </button>
       </div>`;
   }).join('');
+  wrap.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.onclick = ()=> openEditJobModal(btn.dataset.edit);
+  });
   wrap.querySelectorAll('[data-toggle]').forEach(btn=>{
     btn.onclick = ()=>{
       const jobNo = btn.dataset.toggle;
@@ -4072,6 +4264,9 @@ function renderJobSpec(){
     ["Fifth Wheel", result.fifthWheel],
     ["Cylinders", result.cylinders],
     ["Landing Legs", result.landingLegs],
+    ["JOST Exception", result.jostException],
+    ["Extra", result.extra],
+    ["Axle Note", result.axleNote],
   ].filter(([,v]) => v !== null && v !== undefined && v !== "");
 
   const titlePrefix = result.completed ? "✅ COMPLETED — " : (result.addedByUser ? "📝 " : "");
