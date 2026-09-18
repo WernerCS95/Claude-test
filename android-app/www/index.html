@@ -4117,7 +4117,7 @@ function renderStaleCountModal(){
         <span style="color:var(--danger); font-weight:600;">${s.daysSince === null ? 'never counted' : s.daysSince+'d ago'}</span>
       </div>
       <div style="display:flex; gap:6px; margin-top:6px;">
-        <input type="number" min="0" placeholder="Count it now…" data-stale-count-input="${i}"
+        <input type="number" min="0" value="${s.currentQty ?? 0}" data-stale-count-input="${i}"
           style="flex:1; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 10px; font-size:12.5px;">
         <button class="clock-btn" data-stale-count-btn="${i}" style="border-color:var(--success); color:var(--success); padding:6px 12px;">✓ Save</button>
       </div>
@@ -4129,6 +4129,9 @@ function renderStaleCountModal(){
       const s = sorted[idx];
       const input = wrap.querySelector(`[data-stale-count-input="${idx}"]`);
       const qty = input.value;
+      // Box is pre-filled with the last confirmed qty (0 if never set), so
+      // tapping Save with no edits still confirms "still accurate today" —
+      // it should never require retyping a 0 that was already correct.
       if(qty === "" || isNaN(qty) || Number(qty) < 0){ alert("Enter a valid counted quantity (0 or more)."); return; }
       const areaMaps = staleCountAreaMaps(s.areaKey);
       if(!areaMaps) return;
@@ -4248,13 +4251,14 @@ function getStaleCountItems(){
   const checkArea = (qtyMap, items, areaLabel, areaKey) => {
     items.forEach(item=>{
       const entry = qtyMap[item.id];
+      const currentQty = entry ? entry.qty : 0;
       if(!entry || !entry.date){
-        stale.push({ sku: item.id, name: item.name, cat: item.cat, area: areaLabel, areaKey, daysSince: null });
+        stale.push({ sku: item.id, name: item.name, cat: item.cat, area: areaLabel, areaKey, daysSince: null, currentQty });
         return;
       }
       const daysSince = Math.floor((now - new Date(entry.date)) / (1000*60*60*24));
       if(daysSince >= STALE_DAYS_THRESHOLD){
-        stale.push({ sku: item.id, name: item.name, cat: item.cat, area: areaLabel, areaKey, daysSince });
+        stale.push({ sku: item.id, name: item.name, cat: item.cat, area: areaLabel, areaKey, daysSince, currentQty });
       }
     });
   };
