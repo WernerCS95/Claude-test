@@ -1462,6 +1462,10 @@
       <label>Trailer Type (new)</label>
       <input type="text" id="ajOtherType" placeholder="Type the trailer type name">
     </div>
+    <div class="addjob-field">
+      <label>Axle Spec <span style="color:var(--text-faint); font-weight:400;">(read it off the job card — brand + Disc/Drum/Mech, e.g. "SAF Disc" or "Henred MBS Drum")</span></label>
+      <input type="text" id="ajAxleSpec" placeholder="e.g. SAF Disc">
+    </div>
 
     <div class="addjob-preview" id="ajPreview"></div>
 
@@ -1493,6 +1497,41 @@
     <div class="addjob-actions">
       <button class="addjob-cancel" id="ajCancelBtn">Cancel</button>
       <button class="addjob-save" id="ajSaveBtn" disabled>Save Jobs</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Job modal (fix a job already added on the tablet) -->
+<div class="modal-bg" id="editJobModal">
+  <div class="addjob-card">
+    <h3>✎ Edit Job <span id="ejJobNoLabel"></span></h3>
+    <div class="sub">Only jobs you added yourself can be fixed here — locked historical jobs aren't editable.</div>
+
+    <div class="addjob-field">
+      <label>Customer</label>
+      <input type="text" id="ejCustomer" placeholder="Customer name">
+    </div>
+    <div class="addjob-field">
+      <label>Trailer Type</label>
+      <select id="ejTrailerType">
+        <option value="">— Select —</option>
+        <option value="__other__">Other / not listed (type below)</option>
+      </select>
+    </div>
+    <div class="addjob-field" id="ejOtherTypeWrap" style="display:none;">
+      <label>Trailer Type (new)</label>
+      <input type="text" id="ejOtherType" placeholder="Type the trailer type name">
+    </div>
+    <div class="addjob-field">
+      <label>Axle Spec <span style="color:var(--text-faint); font-weight:400;">(read it off the job card)</span></label>
+      <input type="text" id="ejAxleSpec" placeholder="e.g. SAF Disc">
+    </div>
+
+    <div class="addjob-preview" id="ejPreview"></div>
+
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="ejCancelBtn">Cancel</button>
+      <button class="addjob-save" id="ejSaveBtn">Save Changes</button>
     </div>
   </div>
 </div>
