@@ -1555,6 +1555,31 @@
 </div>
 
 <script>
+// A native alert() blocks the whole renderer until dismissed, and on
+// Windows Electron builds that can leave keyboard focus stuck on the
+// dialog's own OS-level frame instead of returning it to the app window —
+// the next click focuses an input visually (cursor blinks) but keypresses
+// go nowhere until the window is clicked again from the taskbar. Anywhere
+// a confirmation is purely informational (nothing to decide), this toast
+// replaces alert() so there's no native dialog to steal focus at all.
+function showToast(message, opts){
+  opts = opts || {};
+  const el = document.createElement('div');
+  el.textContent = message;
+  el.style.cssText = `
+    position:fixed; left:50%; bottom:32px; transform:translateX(-50%) translateY(0);
+    background:var(--panel-raised); color:var(--text); border:1px solid ${opts.color || 'var(--success)'};
+    border-radius:10px; padding:12px 20px; font-size:13px; max-width:min(480px,90vw);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4); z-index:99999; opacity:0; transition:opacity .2s ease;
+  `;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity = '1'; });
+  setTimeout(()=>{
+    el.style.opacity = '0';
+    setTimeout(()=>el.remove(), 250);
+  }, opts.duration || 3200);
+}
+
 function showPromptModal(message, defaultValue, opts){
   opts = opts || {};
   return new Promise(resolve=>{
@@ -2610,7 +2635,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
 
   document.getElementById('goodsReceivedModal').classList.remove('show');
   renderGrid();
-  alert(`Delivery logged — ${grnLines.length} line(s) from ${supplier}, queued for the next Upload to Master List.`);
+  showToast(`Delivery logged — ${grnLines.length} line(s) from ${supplier}, queued for the next Upload to Master List.`);
 };
 
 function openSpotCheckModal(){
@@ -5392,9 +5417,12 @@ function renderGoodsReceivedHistory(){
     `).join('');
     return `
       <div class="ajrow" data-batch-toggle="${batchId}" style="background:var(--panel); border-radius:8px; padding:10px 12px; flex-direction:column; align-items:stretch; gap:4px; margin-bottom:6px; cursor:pointer;">
-        <div style="display:flex; justify-content:space-between;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
           <b style="font-size:12.5px;">${isOpen?'▾':'▸'} ${meta.supplier}</b>
-          <span class="sub" style="font-size:10.5px;">${meta.date}</span>
+          <span style="display:flex; align-items:center; gap:8px;">
+            <button class="ajrow-remove" data-batch-edit="${batchId}" title="Fix a wrong date/qty/item on this delivery" style="font-size:10px; padding:3px 9px; border:1px solid var(--steel); color:var(--steel); background:none; border-radius:6px;">✎ Edit</button>
+            <span class="sub" style="font-size:10.5px;">${meta.date}</span>
+          </span>
         </div>
         <div style="font-size:11px; color:var(--text-muted);">
           ${lines.length} line${lines.length>1?'s':''}, ${totalQty} total
@@ -5413,6 +5441,55 @@ function renderGoodsReceivedHistory(){
       renderGoodsReceivedHistory();
     };
   });
+  wrap.querySelectorAll('[data-batch-edit]').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      editGoodsReceivedBatch(btn.dataset.batchEdit);
+    };
+  });
+}
+
+// Correcting a logged delivery (wrong date, wrong qty, wrong item) — same
+// idea as editLogEntry() for Parts Issued slips: unwind what this batch did
+// to stock, drop the old entries, then reopen Goods Received pre-filled so
+// the correction re-submits as a clean new delivery instead of leaving two
+// conflicting records around.
+function editGoodsReceivedBatch(batchId){
+  const lines = goodsReceived.filter(g => (g.batchId || g._id) === batchId);
+  if(lines.length === 0) return;
+  const meta = lines[0];
+
+  if(!confirm(`Correct this delivery?\n\n${meta.supplier} — ${meta.date}${meta.grnNo ? ' · GRN '+meta.grnNo : ''} (${lines.length} line${lines.length>1?'s':''})\n\nThis reverses what it added to stock and reloads it here so you can fix the date/qty/items, then re-log it. Nothing changes until you tap Log Delivery again.`)) return;
+
+  lines.forEach(l=>{
+    const boxLink = getBoxUnitLink(l.sku);
+    const targetSku = boxLink ? boxLink.realSku : l.sku;
+    const targetQty = boxLink ? l.qty * boxLink.factor : l.qty;
+    const targetItem = ITEMS.find(i=>i.id===targetSku) || l;
+    adjustQtyOnHand(targetSku, -targetQty);
+    if(typeof queueTransaction === 'function') queueTransaction({ item_id: targetSku, type: 'delivery', delta_qty: -targetQty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, correctionOf: batchId } });
+  });
+  goodsReceived = goodsReceived.filter(g => (g.batchId || g._id) !== batchId);
+  saveGoodsReceived();
+  renderGrid();
+
+  document.getElementById('goodsReceivedHistoryModal').classList.remove('show');
+  openGoodsReceivedModal();
+  document.getElementById('grnNoInput').value = meta.grnNo || "";
+  document.getElementById('grnDeliveryToInput').value = meta.deliveryTo || "Stores";
+  document.getElementById('grnDateInput').value = meta.date || new Date().toISOString().slice(0,10);
+  document.getElementById('grnOrderNoInput').value = meta.orderNo || "";
+  document.getElementById('grnInvoiceNoInput').value = meta.invoiceNo || "";
+  const supplierSelect = document.getElementById('grnSupplierSelect');
+  const hasSupplierOption = [...supplierSelect.options].some(o=>o.value===meta.supplier);
+  if(hasSupplierOption){
+    supplierSelect.value = meta.supplier;
+    document.getElementById('grnSupplierNewInput').style.display = 'none';
+  } else {
+    document.getElementById('grnSupplierNewInput').value = meta.supplier || "";
+  }
+  grnLines = lines.map(l=>({ sku: l.sku, name: l.name, cat: l.cat, qty: l.qty, price: l.price || null, isNewItem: l.isNewItem }));
+  renderGrnLines();
 }
 
 function renderDieselHistory(){
