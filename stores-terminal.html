@@ -121,7 +121,7 @@
   .jobno-input::placeholder{color:var(--text-faint);}
   #jobNoInput{width:230px;}
   #jobSearchResults{
-    position:absolute; top:100%; left:0; margin-top:4px; width:340px; max-height:260px; overflow-y:auto;
+    position:absolute; top:100%; left:0; margin-top:4px; width:420px; max-height:50vh; overflow-y:auto;
     background:var(--panel-raised); border:1px solid var(--panel-line); border-radius:9px;
     box-shadow:0 10px 24px rgba(0,0,0,0.4); z-index:40; display:none;
   }
@@ -328,7 +328,7 @@
   .log-stat{text-align:right;}
   .log-stat .n{font-size:18px; font-weight:700; color:var(--gold); font-family:'Oswald',sans-serif;}
   .log-stat .l{font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em;}
-  .log-list{display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto;}
+  .log-list{display:flex; flex-direction:column; gap:6px; max-height:55vh; overflow-y:auto;}
   .log-entry{
     background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:10px 14px;
   }
@@ -387,7 +387,7 @@
   /* ---------- Export / copy-code modal ---------- */
   .export-card{
     background:var(--panel-raised); border:1px solid var(--gold-dim); border-radius:16px;
-    padding:22px; width:min(440px,92vw);
+    padding:22px; width:min(560px,94vw); max-height:92vh; overflow-y:auto;
   }
   .export-card h3{font-size:15px; margin:0 0 4px; color:var(--amber);}
   .export-card .sub{font-size:11.5px; color:var(--text-muted); margin-bottom:14px;}
@@ -428,7 +428,7 @@
   /* ---------- Add Job modal ---------- */
   .addjob-card{
     background:var(--panel-raised); border:1px solid var(--gold-dim); border-radius:16px;
-    padding:22px; width:min(480px,92vw); max-height:88vh; overflow-y:auto;
+    padding:22px; width:min(640px,95vw); max-height:92vh; overflow-y:auto;
   }
   .addjob-card h3{font-size:15px; margin:0 0 4px; color:var(--gold);}
   .addjob-card .sub{font-size:11.5px; color:var(--text-muted); margin-bottom:16px;}
@@ -524,7 +524,7 @@
          there) and adds it via the exact same tap logic a tile uses. -->
     <div style="position:relative; margin-bottom:18px;">
       <input type="text" id="quickBookOutSearch" class="jobno-input" style="width:100%; padding:16px 18px; box-sizing:border-box; font-size:19px;" placeholder="🔍 Quick Book Out — search any item, any group…" autocomplete="off">
-      <div id="quickBookOutResults" style="display:none; position:absolute; left:0; right:0; top:100%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; margin-top:4px; max-height:320px; overflow-y:auto; z-index:50; box-shadow:0 6px 20px rgba(0,0,0,0.15);"></div>
+      <div id="quickBookOutResults" style="display:none; position:absolute; left:0; right:0; top:100%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; margin-top:4px; max-height:55vh; overflow-y:auto; z-index:50; box-shadow:0 6px 20px rgba(0,0,0,0.15);"></div>
     </div>
     <div class="log-header" style="margin-top:4px;">
       <h2 style="font-size:15px;">Groups</h2>
@@ -650,7 +650,7 @@
   <div class="addjob-card">
     <h3 id="kitPeekTitle">Kit Parts</h3>
     <div class="sub">Every part this kit deducts when issued — nothing is added to a slip from here.</div>
-    <div class="explode-list" id="kitPeekList" style="max-height:440px; overflow-y:auto;"></div>
+    <div class="explode-list" id="kitPeekList" style="max-height:70vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="kitPeekCloseBtn">Close</button>
     </div>
@@ -800,7 +800,7 @@
       <label>Add Parts</label>
       <input type="text" id="kbSearch" placeholder="Search by name or SKU…">
     </div>
-    <div id="kbSearchResults" style="max-height:150px; overflow-y:auto; margin-bottom:10px;"></div>
+    <div id="kbSearchResults" style="max-height:40vh; overflow-y:auto; margin-bottom:10px;"></div>
 
     <div id="kbSelectedWrap" style="display:none;">
       <div class="addjob-preview" style="margin-top:0;">
@@ -814,7 +814,7 @@
     </div>
 
     <div class="ajrows-label" style="margin-top:14px;">Parts in This Kit (<span id="kbPartCount">0</span>)</div>
-    <div id="kbPartsList" style="max-height:160px; overflow-y:auto;"></div>
+    <div id="kbPartsList" style="max-height:40vh; overflow-y:auto;"></div>
 
     <div class="addjob-actions">
       <button class="addjob-cancel" id="kbCancelBtn">Cancel</button>
@@ -851,7 +851,7 @@
   <div class="addjob-card">
     <h3>⚠ Not Counted in 7+ Days</h3>
     <div class="sub">Sitting stale in Mixing Room, Steel, or Tyres — get these counted today so the numbers stay honest.</div>
-    <div id="staleCountList" style="max-height:400px; overflow-y:auto;"></div>
+    <div id="staleCountList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="staleCountCloseBtn">Close</button>
     </div>
@@ -950,7 +950,7 @@
   <div class="addjob-card">
     <h3>📐 Steel Count</h3>
     <div class="sub">Grouped by Plates, Tubing, and Flatbar — tap a section to open it. Starts from the last count you confirmed. Add a new size/type with "+ Add Item" at the bottom of its section. Nothing goes out until you tap Confirm & Queue.</div>
-    <div id="steelList" style="max-height:420px; overflow-y:auto;"></div>
+    <div id="steelList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="steelCancelBtn">Cancel</button>
       <button class="addjob-save" id="steelConfirmBtn">Confirm & Queue for Upload</button>
@@ -963,7 +963,7 @@
   <div class="addjob-card">
     <h3>🛞 Tyres Count</h3>
     <div class="sub">One flat list of sizes — starts from the last count you confirmed. Add a new size with "+ Add Item" at the bottom. Nothing goes out until you tap Confirm & Queue.</div>
-    <div id="tyresList" style="max-height:400px; overflow-y:auto;"></div>
+    <div id="tyresList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-field" style="margin-top:10px;">
       <label>+ Add Item (new tyre size)</label>
       <div style="display:flex; gap:8px;">
@@ -982,7 +982,7 @@
   <div class="addjob-card">
     <h3>🧪 Mixing Room Count</h3>
     <div class="sub">Check the WhatsApp photo and adjust each row to match — starts from the last count you confirmed. Nothing goes out until you tap Confirm & Upload at the bottom.</div>
-    <div id="mrList" style="max-height:400px; overflow-y:auto;"></div>
+    <div id="mrList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="mrCancelBtn">Cancel</button>
       <button class="addjob-save" id="mrConfirmBtn">Confirm & Queue for Upload</button>
@@ -1019,7 +1019,7 @@
   <div class="addjob-card">
     <h3>🗑 Retired Items</h3>
     <div class="sub">Removed from groups and search, but every past log entry for these stays exactly as it is. Restore any of them anytime.</div>
-    <div id="retiredItemsList" style="max-height:440px; overflow-y:auto;"></div>
+    <div id="retiredItemsList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="retiredItemsCloseBtn">Close</button>
     </div>
@@ -1032,7 +1032,7 @@
     <h3>📜 Spot Check History</h3>
     <div class="sub">Every count ever logged on this tablet, newest first. This never clears on sync — it's the permanent record.</div>
     <input type="text" id="scHistorySearch" placeholder="Search by item name…" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); margin-bottom:12px;">
-    <div id="scHistoryList" style="max-height:420px; overflow-y:auto;"></div>
+    <div id="scHistoryList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="scHistoryCloseBtn">Close</button>
     </div>
@@ -1099,7 +1099,7 @@
   <div class="addjob-card">
     <h3>📋 Diesel Fill-Up History</h3>
     <div class="sub">In the order they happened, oldest first. A red flag means this fill-up's Start reading doesn't match the End of the one before it — worth checking for anything dispensed without being logged.</div>
-    <div id="dieselHistoryList" style="max-height:420px; overflow-y:auto;"></div>
+    <div id="dieselHistoryList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="dieselHistoryCloseBtn">Close</button>
     </div>
@@ -1230,7 +1230,7 @@
       <label>Search Jobs</label>
       <input type="text" id="mjSearch" placeholder="Job number or customer name…">
     </div>
-    <div id="mjResults" style="max-height:220px; overflow-y:auto; margin-bottom:14px;"></div>
+    <div id="mjResults" style="max-height:40vh; overflow-y:auto; margin-bottom:14px;"></div>
 
     <div class="ajrows-label">Bulk by Job Number Range</div>
     <div class="addjob-row2">
@@ -1246,7 +1246,7 @@
     <button class="clock-btn" id="mjRangeBtn" style="width:100%; margin-bottom:14px; border-color:var(--text-muted); color:var(--text-muted);">Mark Range Complete</button>
 
     <div class="ajrows-label">Completed Jobs (<span id="mjCompletedCount">0</span>) — tap to reactivate</div>
-    <div id="mjCompletedList" style="max-height:180px; overflow-y:auto;"></div>
+    <div id="mjCompletedList" style="max-height:30vh; overflow-y:auto;"></div>
 
     <div class="addjob-actions">
       <button class="addjob-cancel" id="mjCloseBtn">Close</button>
@@ -1260,7 +1260,7 @@
   <div class="addjob-card">
     <h3>📋 Goods Received History</h3>
     <div class="sub">Every delivery logged, newest first. Collapsed to the delivery — tap one to see its line items.</div>
-    <div id="goodsReceivedHistoryList" style="max-height:420px; overflow-y:auto;"></div>
+    <div id="goodsReceivedHistoryList" style="max-height:72vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="goodsReceivedHistoryCloseBtn">Close</button>
     </div>
@@ -1315,7 +1315,7 @@
         <label>Product</label>
         <input type="text" id="grnSearch" placeholder="Search by name…">
       </div>
-      <div id="grnSearchResults" style="max-height:150px; overflow-y:auto; margin-bottom:10px;"></div>
+      <div id="grnSearchResults" style="max-height:40vh; overflow-y:auto; margin-bottom:10px;"></div>
       <div id="grnNoMatch" style="display:none; margin-bottom:12px;">
         <button class="clock-btn" id="grnCreateNewBtn" style="width:100%; border-color:var(--steel); color:var(--steel);">+ Create New Item "<span id="grnNoMatchTerm"></span>"</button>
       </div>
@@ -1361,7 +1361,7 @@
     </div>
 
     <div class="ajrows-label" style="margin-top:16px;">This Delivery (<span id="grnLineCount">0</span> line(s))</div>
-    <div id="grnLinesList" style="max-height:160px; overflow-y:auto;"></div>
+    <div id="grnLinesList" style="max-height:35vh; overflow-y:auto;"></div>
 
     <div class="addjob-actions">
       <button class="addjob-cancel" id="grnCancelBtn">Cancel</button>
@@ -1401,7 +1401,7 @@
         <label>Find Item</label>
         <input type="text" id="scSearch" placeholder="Search by name…">
       </div>
-      <div id="scSearchResults" style="max-height:160px; overflow-y:auto; margin-bottom:12px;"></div>
+      <div id="scSearchResults" style="max-height:40vh; overflow-y:auto; margin-bottom:12px;"></div>
 
       <div id="scSelectedWrap" style="display:none;">
         <div class="addjob-preview" style="margin-top:0;">
@@ -1437,7 +1437,7 @@
     </div>
 
     <div class="ajrows-label" style="margin-top:16px;">Pending Spot Checks (go out with next Upload)</div>
-    <div id="scPendingList" style="max-height:160px; overflow-y:auto;"></div>
+    <div id="scPendingList" style="max-height:35vh; overflow-y:auto;"></div>
 
     <div class="addjob-actions">
       <button class="addjob-cancel" id="scCloseBtn">Close</button>
