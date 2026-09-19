@@ -1466,6 +1466,36 @@
       <label>Axle Spec <span style="color:var(--text-faint); font-weight:400;">(read it off the job card — brand + Disc/Drum/Mech, e.g. "SAF Disc" or "Henred MBS Drum")</span></label>
       <input type="text" id="ajAxleSpec" placeholder="e.g. SAF Disc">
     </div>
+    <div class="addjob-row2">
+      <div class="addjob-field">
+        <label>Axle Count <span style="color:var(--text-faint); font-weight:400;">(per chassis)</span></label>
+        <select id="ajAxleCount">
+          <option value="">— Select —</option>
+          <option value="2">2 (Tandem)</option>
+          <option value="3">3 (Tridem/PBS)</option>
+          <option value="4">4 (Quad/PBS)</option>
+        </select>
+      </div>
+      <div class="addjob-field">
+        <label>Axle Position</label>
+        <select id="ajAxlePosition">
+          <option value="">— Select —</option>
+          <option value="leader">Link — Leader (Underslung)</option>
+          <option value="follower">Link — Follower (Overslung)</option>
+          <option value="standalone-os">Standalone (all Overslung)</option>
+          <option value="standalone-us">Standalone (all Underslung)</option>
+          <option value="drawbar">Drawbar (fixed 3 OS + 4 US)</option>
+        </select>
+      </div>
+    </div>
+    <div class="addjob-field">
+      <label>Tyre Type</label>
+      <select id="ajTyreType">
+        <option value="">— Select —</option>
+        <option value="dual">Dual (4 per axle)</option>
+        <option value="single">Super Single (2 per axle)</option>
+      </select>
+    </div>
 
     <div class="addjob-preview" id="ajPreview"></div>
 
@@ -1525,6 +1555,36 @@
     <div class="addjob-field">
       <label>Axle Spec <span style="color:var(--text-faint); font-weight:400;">(read it off the job card)</span></label>
       <input type="text" id="ejAxleSpec" placeholder="e.g. SAF Disc">
+    </div>
+    <div class="addjob-row2">
+      <div class="addjob-field">
+        <label>Axle Count <span style="color:var(--text-faint); font-weight:400;">(per chassis)</span></label>
+        <select id="ejAxleCount">
+          <option value="">— Select —</option>
+          <option value="2">2 (Tandem)</option>
+          <option value="3">3 (Tridem/PBS)</option>
+          <option value="4">4 (Quad/PBS)</option>
+        </select>
+      </div>
+      <div class="addjob-field">
+        <label>Axle Position</label>
+        <select id="ejAxlePosition">
+          <option value="">— Select —</option>
+          <option value="leader">Link — Leader (Underslung)</option>
+          <option value="follower">Link — Follower (Overslung)</option>
+          <option value="standalone-os">Standalone (all Overslung)</option>
+          <option value="standalone-us">Standalone (all Underslung)</option>
+          <option value="drawbar">Drawbar (fixed 3 OS + 4 US)</option>
+        </select>
+      </div>
+    </div>
+    <div class="addjob-field">
+      <label>Tyre Type</label>
+      <select id="ejTyreType">
+        <option value="">— Select —</option>
+        <option value="dual">Dual (4 per axle)</option>
+        <option value="single">Super Single (2 per axle)</option>
+      </select>
     </div>
 
     <div class="addjob-preview" id="ejPreview"></div>
@@ -3304,6 +3364,9 @@ function openAddJobModal(){
   document.getElementById('ajTrailerType').value = "";
   document.getElementById('ajOtherType').value = "";
   document.getElementById('ajAxleSpec').value = "";
+  document.getElementById('ajAxleCount').value = "";
+  document.getElementById('ajAxlePosition').value = "";
+  document.getElementById('ajTyreType').value = "";
   document.getElementById('ajOtherTypeWrap').style.display = 'none';
   document.getElementById('ajRowsWrap').innerHTML = "";
   document.getElementById('ajSaveBtn').disabled = true;
@@ -3320,6 +3383,9 @@ document.getElementById('ajTrailerType').addEventListener('change', e=>{
 });
 document.getElementById('ajOtherType').addEventListener('input', renderAddJobPreview);
 document.getElementById('ajAxleSpec').addEventListener('input', renderAddJobPreview);
+document.getElementById('ajAxleCount').addEventListener('change', renderAddJobPreview);
+document.getElementById('ajAxlePosition').addEventListener('change', renderAddJobPreview);
+document.getElementById('ajTyreType').addEventListener('change', renderAddJobPreview);
 
 function currentAjType(){
   const sel = document.getElementById('ajTrailerType').value;
@@ -3331,13 +3397,16 @@ function renderAddJobPreview(){
   const box = document.getElementById('ajPreview');
   const tt = currentAjType();
   const axleSpec = document.getElementById('ajAxleSpec').value.trim();
+  const axleCount = document.getElementById('ajAxleCount').value;
+  const axlePosition = document.getElementById('ajAxlePosition').value;
+  const tyreType = document.getElementById('ajTyreType').value;
 
   if(!tt){
     box.innerHTML = `<div style="color:var(--text-faint);">Pick a trailer type to see its kit — applies to every trailer generated below.</div>`;
     return;
   }
 
-  box.innerHTML = renderKitPreview(tt, axleSpec);
+  box.innerHTML = renderKitPreview(tt, axleSpec, axleCount, axlePosition, tyreType);
 }
 
 let ajRows = [];
@@ -3395,7 +3464,10 @@ function renderAjRows(){
 document.getElementById('ajSaveBtn').onclick = ()=>{
   const tt = currentAjType();
   const axleSpec = document.getElementById('ajAxleSpec').value.trim();
-  const k = computeKitForType(tt, axleSpec);
+  const axleCount = document.getElementById('ajAxleCount').value;
+  const axlePosition = document.getElementById('ajAxlePosition').value;
+  const tyreType = document.getElementById('ajTyreType').value;
+  const k = computeKitForType(tt, axleSpec, axleCount, axlePosition, tyreType);
 
   const seen = new Set();
   for(const r of ajRows){
@@ -3410,6 +3482,9 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
       trailerType: tt,
       needsClarification: false,
       axleSpec: axleSpec || null,
+      axleCount: axleCount || null,
+      axlePosition: axlePosition || null,
+      tyreType: tyreType || null,
       kingPins: k.kingPins,
       knorrPart: k.brakeKit,
       tarp: k.tarp,
@@ -3421,6 +3496,9 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
       jostException: k.jostException,
       extra: k.extra,
       axleNote: k.axleNote,
+      axleLayout: k.axleLayout,
+      studNote: k.studNote,
+      tyreBreakdown: k.tyreBreakdown,
     };
   });
   saveAddedJobs();
@@ -3445,8 +3523,11 @@ function renderEditJobPreview(){
   const box = document.getElementById('ejPreview');
   const tt = currentEjType();
   const axleSpec = document.getElementById('ejAxleSpec').value.trim();
+  const axleCount = document.getElementById('ejAxleCount').value;
+  const axlePosition = document.getElementById('ejAxlePosition').value;
+  const tyreType = document.getElementById('ejTyreType').value;
   box.innerHTML = tt
-    ? renderKitPreview(tt, axleSpec)
+    ? renderKitPreview(tt, axleSpec, axleCount, axlePosition, tyreType)
     : `<div style="color:var(--text-faint);">Pick a trailer type to see its kit.</div>`;
 }
 
@@ -3462,6 +3543,9 @@ function openEditJobModal(jobNo){
   document.getElementById('ejOtherType').value = knownType ? "" : (job.trailerType || "");
   document.getElementById('ejOtherTypeWrap').style.display = knownType ? 'none' : 'block';
   document.getElementById('ejAxleSpec').value = job.axleSpec || "";
+  document.getElementById('ejAxleCount').value = job.axleCount || "";
+  document.getElementById('ejAxlePosition').value = job.axlePosition || "";
+  document.getElementById('ejTyreType').value = job.tyreType || "";
   renderEditJobPreview();
   document.getElementById('editJobModal').classList.add('show');
 }
@@ -3472,6 +3556,9 @@ document.getElementById('ejTrailerType').addEventListener('change', e=>{
 });
 document.getElementById('ejOtherType').addEventListener('input', renderEditJobPreview);
 document.getElementById('ejAxleSpec').addEventListener('input', renderEditJobPreview);
+document.getElementById('ejAxleCount').addEventListener('change', renderEditJobPreview);
+document.getElementById('ejAxlePosition').addEventListener('change', renderEditJobPreview);
+document.getElementById('ejTyreType').addEventListener('change', renderEditJobPreview);
 document.getElementById('ejCancelBtn').onclick = ()=> document.getElementById('editJobModal').classList.remove('show');
 
 document.getElementById('ejSaveBtn').onclick = ()=>{
@@ -3479,15 +3566,21 @@ document.getElementById('ejSaveBtn').onclick = ()=>{
   const customer = document.getElementById('ejCustomer').value.trim();
   const tt = currentEjType();
   const axleSpec = document.getElementById('ejAxleSpec').value.trim();
+  const axleCount = document.getElementById('ejAxleCount').value;
+  const axlePosition = document.getElementById('ejAxlePosition').value;
+  const tyreType = document.getElementById('ejTyreType').value;
   if(!customer){ alert("Customer can't be blank."); return; }
   if(!tt){ alert("Pick or type a trailer type."); return; }
 
-  const k = computeKitForType(tt, axleSpec);
+  const k = computeKitForType(tt, axleSpec, axleCount, axlePosition, tyreType);
   state.addedJobs[ejCurrentJobNo] = {
     customer,
     trailerType: tt,
     needsClarification: false,
     axleSpec: axleSpec || null,
+    axleCount: axleCount || null,
+    axlePosition: axlePosition || null,
+    tyreType: tyreType || null,
     kingPins: k.kingPins,
     knorrPart: k.brakeKit,
     tarp: k.tarp,
@@ -3499,6 +3592,9 @@ document.getElementById('ejSaveBtn').onclick = ()=>{
     jostException: k.jostException,
     extra: k.extra,
     axleNote: k.axleNote,
+    axleLayout: k.axleLayout,
+    studNote: k.studNote,
+    tyreBreakdown: k.tyreBreakdown,
   };
   saveAddedJobs();
   document.getElementById('editJobModal').classList.remove('show');
@@ -3591,11 +3687,54 @@ function brakeKitFromAxleSpec(trailerType, axleSpec){
   return "⚠ Axle spec doesn't say Disc or Drum — read the job card, don't assume from brand (e.g. Henred is usually drum but MBS Disc exists).";
 }
 
+// Henred/HF axles are the only brands that need Long vs Short studs called
+// out explicitly (SAF and BPW have a stud that works either way) — flags
+// it as unconfirmed unless the axle spec text already says so.
+function studNoteFromAxleSpec(axleSpec){
+  const s = axleSpec || '';
+  if(!s) return null;
+  if(!/henred|\bhf\b/i.test(s)) return null;
+  if(/stud/i.test(s)) return null;
+  return "⚠ Henred/HF axle — confirm Long or Short studs from the job card (SAF and BPW don't need this, theirs works either way).";
+}
+
+// Drawbar is a fixed, named exception (Leader 3x OS, Dolly+Follower 4x US)
+// regardless of what's picked above it. Everything else follows the
+// Leader-Underslung/Follower-Overslung rule, or is a standalone chassis
+// (Flatdeck/Sloper = all Overslung, Stepdeck = all Underslung despite the
+// same 3-axle rule, because it sits lower).
+function axleLayoutFor(trailerType, axlePosition, axleCount){
+  if(/drawbar/i.test(trailerType || '')) return 'Drawbar (fixed): Leader 3x Overslung — Dolly + Follower 4x Underslung';
+  if(!axlePosition) return null;
+  const n = axleCount ? parseInt(axleCount) : null;
+  const countTxt = n ? `${n}x ` : '';
+  const map = {
+    'leader': `${countTxt}Underslung (Link Leader)`,
+    'follower': `${countTxt}Overslung (Link Follower)`,
+    'standalone-os': `${countTxt}Overslung (standalone — e.g. Flatdeck/Sloper)`,
+    'standalone-us': `${countTxt}Underslung (standalone — e.g. Stepdeck, lower ride height)`,
+    'drawbar': 'Drawbar (fixed): Leader 3x Overslung — Dolly + Follower 4x Underslung'
+  };
+  return map[axlePosition] || null;
+}
+
+// Simple math per Werner's rule: axles × wheels-per-axle + 1 spare — but
+// this is the FALLBACK for when the job card isn't in hand yet. Whatever
+// the actual card says always wins over this formula.
+function tyreBreakdownFor(axleCount, tyreType){
+  if(!axleCount || !tyreType) return null;
+  const n = parseInt(axleCount);
+  const perAxle = tyreType === 'dual' ? 4 : 2;
+  const total = n * perAxle + 1;
+  return `${total} tyres per chassis (${n} axle${n>1?'s':''} × ${perAxle} + 1 spare, ${tyreType === 'dual' ? 'dual' : 'super single'}) — the job card's own qty always wins over this formula when you have it`;
+}
+
 // The one function everything else calls — takes whatever's known about a
-// job (trailer type + axle spec text) and returns every kit line that can
-// be derived from tonight's rules. Anything not yet confirmed for that
-// type comes back null so the UI can flag it instead of inventing a value.
-function computeKitForType(trailerType, axleSpec){
+// job (trailer type + axle spec text + axle count/position + tyre type)
+// and returns every kit line that can be derived from tonight's rules.
+// Anything not yet confirmed for that type comes back null so the UI can
+// flag it instead of inventing a value.
+function computeKitForType(trailerType, axleSpec, axleCount, axlePosition, tyreType){
   const family = TRAILER_TYPE_FAMILY[trailerType];
   const rules = family ? FAMILY_KIT_RULES[family] : null;
   const kingPins = TRAILER_TYPE_KINGPINS[trailerType];
@@ -3613,15 +3752,18 @@ function computeKitForType(trailerType, axleSpec){
     extra: rules ? rules.extra : null,
     axleNote: rules ? rules.axleNote : null,
     brakeKit: brakeKitFromAxleSpec(trailerType, axleSpec),
+    studNote: studNoteFromAxleSpec(axleSpec),
+    axleLayout: axleLayoutFor(trailerType, axlePosition, axleCount),
+    tyreBreakdown: tyreBreakdownFor(axleCount, tyreType),
     locked: !!rules
   };
 }
 
 // Renders a computeKitForType() result as the same preview-row markup used
 // in both Add Job and Edit Job, so the two never drift apart.
-function renderKitPreview(trailerType, axleSpec){
+function renderKitPreview(trailerType, axleSpec, axleCount, axlePosition, tyreType){
   if(!trailerType) return `<div style="color:var(--text-faint);">Pick a trailer type to see its kit.</div>`;
-  const k = computeKitForType(trailerType, axleSpec);
+  const k = computeKitForType(trailerType, axleSpec, axleCount, axlePosition, tyreType);
   const rows = [];
   rows.push(`<div class="${k.locked ? 'locked' : 'unlocked'}">${k.locked ? '✓' : '⚠'} ${k.locked ? 'Locked family: '+k.family : 'No tarp/hydraulic/JOST family confirmed yet for "'+trailerType+'"'}</div>`);
   if(k.kingPins !== null) rows.push(`<div class="addjob-preview-row"><span class="l">King Pins</span><span>${k.kingPins}</span></div>`);
@@ -3633,6 +3775,9 @@ function renderKitPreview(trailerType, axleSpec){
   if(k.jostException) rows.push(`<div class="addjob-preview-row"><span class="l">JOST Exception</span><span>${k.jostException}</span></div>`);
   if(k.extra) rows.push(`<div class="addjob-preview-row"><span class="l">Extra</span><span>${k.extra}</span></div>`);
   if(k.axleNote) rows.push(`<div class="addjob-preview-row"><span class="l">Axle Note</span><span>${k.axleNote}</span></div>`);
+  if(k.axleLayout) rows.push(`<div class="addjob-preview-row"><span class="l">Axle Layout</span><span>${k.axleLayout}</span></div>`);
+  if(k.studNote) rows.push(`<div class="addjob-preview-row"><span class="l">Studs</span><span>${k.studNote}</span></div>`);
+  if(k.tyreBreakdown) rows.push(`<div class="addjob-preview-row"><span class="l">Tyres</span><span>${k.tyreBreakdown}</span></div>`);
   rows.push(`<div class="addjob-preview-row"><span class="l">Brake Kit</span><span>${k.brakeKit || '⚠ Enter axle spec to compute'}</span></div>`);
   return rows.join('');
 }
@@ -4292,6 +4437,9 @@ function renderJobSpec(){
     ["JOST Exception", result.jostException],
     ["Extra", result.extra],
     ["Axle Note", result.axleNote],
+    ["Axle Layout", result.axleLayout],
+    ["Studs", result.studNote],
+    ["Tyres", result.tyreBreakdown],
   ].filter(([,v]) => v !== null && v !== undefined && v !== "");
 
   const titlePrefix = result.completed ? "✅ COMPLETED — " : (result.addedByUser ? "📝 " : "");
