@@ -1358,6 +1358,24 @@
           </div>
         </div>
         <div id="grnValueLine" style="display:none; background:var(--panel); border:1px solid var(--gold); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; color:var(--text);"></div>
+        <div id="grnInvoiceLinkWrap" style="display:none; background:var(--panel); border:1px solid var(--steel); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+          <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Invoiced in a different unit than you stock it — type it exactly as the invoice shows it</div>
+          <div class="addjob-row2" style="margin-bottom:8px;">
+            <div class="addjob-field" style="margin-bottom:0;">
+              <label id="grnInvoiceQtyLabel">Qty (invoice unit)</label>
+              <input type="number" id="grnInvoiceQty" min="0" step="any" placeholder="e.g. 4">
+            </div>
+            <div class="addjob-field" style="margin-bottom:0;">
+              <label>Total Price for This</label>
+              <input type="number" id="grnInvoiceTotal" min="0" step="0.01" placeholder="e.g. 2496.60">
+            </div>
+          </div>
+          <div class="addjob-field" style="margin-bottom:0;">
+            <label id="grnInvoiceFactorLabel">1 unit =</label>
+            <input type="number" id="grnInvoiceFactor" min="0" step="any">
+          </div>
+          <div id="grnInvoiceResult" style="margin-top:8px; font-size:12px; color:var(--text-muted);"></div>
+        </div>
         <div style="background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
           <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Came in packs or boxes? Calculate it</div>
           <div class="addjob-row2" style="margin-bottom:0;">
@@ -1828,6 +1846,49 @@ const BOX_UNIT_LINKS = {
   '1-000-002': { realSku: 'NEW-MT0CCEV0', factor: 50 }   // Latex Gloves - Bokse -> Latex Gloves - Pairs
 };
 function getBoxUnitLink(sku){ return BOX_UNIT_LINKS[sku] || null; }
+
+// Some items are invoiced in a unit that isn't the one they're actually
+// stocked/issued in — factor is "how many stock-units are in ONE of the
+// invoice unit," same formula direction whichever way the mismatch runs:
+//   Wire:  1 Box  = 15 kg    (buy small container, stock in the small unit)
+//   Oil:   1 Drum = 20 L     (same idea — drum size varies, factor is editable)
+//   Tape:  1 Meter = 1/50 roll (invoiced smaller than it's stocked — stock
+//          stays in whole rolls, never meters, per Werner: "how many rolls
+//          do we have, not how many meters")
+// stockQtyAdded = invoiceQty × factor; pricePerStockUnit = totalPrice / stockQtyAdded.
+const INVOICE_UNIT_LINKS = {
+  '6-000-999': { unitName: 'Box',   stockUnit: 'kg',   factor: 15 },     // 0.8mm Welding Wire
+  '9-001-001': { unitName: 'Drum',  stockUnit: 'L',    factor: 20 },     // Soluble Oil - Liters (drum size varies — factor editable per delivery)
+  '9-200-003': { unitName: 'Drum',  stockUnit: 'L',    factor: 20 },     // Soluble Oil MP - Liters (drum size varies — factor editable per delivery)
+  '8-800-017': { unitName: 'Meter', stockUnit: 'roll', factor: 1/50 },   // Reflective Tape - Rolls
+  '8-800-051': { unitName: 'Meter', stockUnit: 'roll', factor: 1/50 },   // Reflective Tape - Red
+  '8-800-027': { unitName: 'Meter', stockUnit: 'roll', factor: 1/25 },   // Spiral Bind - 12mm x 25m
+  '8-800-043': { unitName: 'Meter', stockUnit: 'roll', factor: 1/25 },   // Spiral Bind - 20mm x 25m
+};
+function getInvoiceUnitLink(sku){ return INVOICE_UNIT_LINKS[sku] || null; }
+
+function grnRecalcInvoiceLink(){
+  const link = grnSelected ? getInvoiceUnitLink(grnSelected.id) : null;
+  const resultEl = document.getElementById('grnInvoiceResult');
+  if(!link) return;
+  const invoiceQty = parseFloat(document.getElementById('grnInvoiceQty').value);
+  const factor = parseFloat(document.getElementById('grnInvoiceFactor').value) || link.factor;
+  const total = parseFloat(document.getElementById('grnInvoiceTotal').value);
+  if(!invoiceQty || invoiceQty <= 0){ resultEl.textContent = ""; return; }
+  const stockQty = invoiceQty * factor;
+  document.getElementById('grnQty').value = Math.round(stockQty * 1000) / 1000;
+  let html = `= <b style="color:var(--success);">${stockQty.toLocaleString(undefined,{maximumFractionDigits:2})} ${link.stockUnit}</b> — filled into Qty Received above`;
+  if(total && total > 0){
+    const perUnit = total / stockQty;
+    document.getElementById('grnPrice').value = Math.round(perUnit * 100) / 100;
+    html += `<br>R${perUnit.toLocaleString(undefined,{minimumFractionDigits:2})} per ${link.stockUnit} — filled into Price above`;
+  }
+  resultEl.innerHTML = html;
+  grnRecalcValue();
+}
+document.getElementById('grnInvoiceQty').addEventListener('input', grnRecalcInvoiceLink);
+document.getElementById('grnInvoiceTotal').addEventListener('input', grnRecalcInvoiceLink);
+document.getElementById('grnInvoiceFactor').addEventListener('input', grnRecalcInvoiceLink);
 function boxQtyFor(sku){
   const link = getBoxUnitLink(sku);
   if(!link) return undefined;
@@ -2498,6 +2559,7 @@ function openGoodsReceivedModal(){
   document.getElementById('grnSearchResults').innerHTML = "";
   document.getElementById('grnNoMatch').style.display = 'none';
   document.getElementById('grnSelectedWrap').style.display = 'none';
+  document.getElementById('grnInvoiceLinkWrap').style.display = 'none';
   document.getElementById('grnBulkText').value = "";
   document.getElementById('grnPrice').value = "";
   document.getElementById('grnPackCount').value = "";
@@ -2567,6 +2629,7 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
       document.getElementById('grnPackCount').value = "";
       document.getElementById('grnUnitsPerPack').value = "";
       document.getElementById('grnPackResult').textContent = "";
+      showGrnInvoiceLinkPanel(item);
       grnRecalcValue();
       document.getElementById('grnQty').focus();
       wrap.innerHTML = "";
@@ -2574,6 +2637,22 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
     };
   });
 });
+
+// Shows/hides the invoice-unit conversion panel and pre-fills its factor
+// with this item's stored default (still editable per delivery — drum
+// sizes especially vary).
+function showGrnInvoiceLinkPanel(item){
+  const link = getInvoiceUnitLink(item.id);
+  const wrap = document.getElementById('grnInvoiceLinkWrap');
+  if(!link){ wrap.style.display = 'none'; return; }
+  document.getElementById('grnInvoiceQtyLabel').textContent = `Qty (${link.unitName}s)`;
+  document.getElementById('grnInvoiceFactorLabel').textContent = `1 ${link.unitName} = ___ ${link.stockUnit}`;
+  document.getElementById('grnInvoiceQty').value = "";
+  document.getElementById('grnInvoiceTotal').value = "";
+  document.getElementById('grnInvoiceFactor').value = link.factor;
+  document.getElementById('grnInvoiceResult').textContent = "";
+  wrap.style.display = 'block';
+}
 
 document.getElementById('grnCreateNewBtn').onclick = ()=>{
   const name = document.getElementById('grnNoMatchTerm').textContent;
@@ -2587,6 +2666,7 @@ document.getElementById('grnCreateNewBtn').onclick = ()=>{
     document.getElementById('grnPackCount').value = "";
     document.getElementById('grnUnitsPerPack').value = "";
     document.getElementById('grnPackResult').textContent = "";
+    showGrnInvoiceLinkPanel(created);
     grnRecalcValue();
     document.getElementById('grnQty').focus();
     document.getElementById('grnSearch').value = created.name;
@@ -2618,8 +2698,11 @@ document.getElementById('grnPrice').addEventListener('input', grnRecalcValue);
 
 document.getElementById('grnAddPartBtn').onclick = ()=>{
   if(!grnSelected){ alert("Search for and select an item first."); return; }
-  const qty = parseInt(document.getElementById('grnQty').value);
-  if(!qty || qty < 1){ alert("Enter a quantity of 1 or more."); return; }
+  // parseFloat, not parseInt — an invoice-unit conversion (e.g. tape's
+  // meters/50) can land on a non-whole roll count, and truncating it would
+  // silently lose part of what was actually delivered.
+  const qty = parseFloat(document.getElementById('grnQty').value);
+  if(!qty || qty <= 0){ alert("Enter a quantity greater than 0."); return; }
   const priceRaw = document.getElementById('grnPrice').value;
   const price = priceRaw ? parseFloat(priceRaw) : null;
   const existing = grnLines.find(l=>l.sku===grnSelected.id);
@@ -2627,6 +2710,7 @@ document.getElementById('grnAddPartBtn').onclick = ()=>{
   else { grnLines.push({ sku: grnSelected.id, name: grnSelected.name, cat: grnSelected.cat, qty, price, isNewItem: grnSelected.id.startsWith('NEW-') }); }
   grnSelected = null;
   document.getElementById('grnSelectedWrap').style.display = 'none';
+  document.getElementById('grnInvoiceLinkWrap').style.display = 'none';
   document.getElementById('grnSearch').value = "";
   document.getElementById('grnPrice').value = "";
   document.getElementById('grnPackCount').value = "";
