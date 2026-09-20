@@ -542,7 +542,7 @@
         <button class="clear-btn" id="clearLogMain">Clear log</button>
       </div>
       <div class="log-list" id="logListMain">
-        <div class="log-empty">No transactions logged yet today.</div>
+        <div class="log-empty">Nothing logged yet.</div>
       </div>
     </div>
   </div>
@@ -638,7 +638,7 @@
       </div>
     </div>
     <div class="log-list" id="logList">
-      <div class="log-empty">No transactions logged yet today.</div>
+      <div class="log-empty">Nothing logged yet.</div>
     </div>
   </div>
 </div>
@@ -1006,11 +1006,35 @@
   <div class="addjob-card">
     <h3>⚙ More</h3>
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
+    <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
     <button class="clock-btn" id="restoreBackupBtn" style="width:100%; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
+  </div>
+</div>
+
+<!-- Weekly Report — notes + burn-rate/spike/kit flags, all pulled from the log,
+     which now keeps rolling instead of clearing daily -->
+<div class="modal-bg" id="weeklyReportModal">
+  <div class="addjob-card">
+    <h3>📊 Weekly Report</h3>
+    <div class="sub">Built from the log — this looks back over the current period, doesn't need anything cleared or reset to work.</div>
+
+    <div class="ajrows-label">Notes — short lines, not essays</div>
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <input type="text" id="reportNoteInput" placeholder="e.g. Line down 30min — double-draw on 10mm P-Clamps" style="flex:1; padding:9px 12px; border-radius:8px; border:1px solid var(--panel-line); background:var(--void); color:var(--text); font-size:12.5px;">
+      <button class="clock-btn" id="reportNoteAddBtn" style="border-color:var(--success); color:var(--success); padding:9px 14px;">Add</button>
+    </div>
+    <div id="reportNotesList" style="margin-bottom:16px;"></div>
+
+    <div id="reportBody"></div>
+
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="weeklyReportCloseBtn">Close</button>
+      <button class="addjob-save" id="weeklyReportPrintBtn">🖨 Print</button>
+    </div>
   </div>
 </div>
 
@@ -7147,7 +7171,7 @@ function renderLog(){
   const statKits = document.getElementById('statKits');
 
   if(state.log.length===0){
-    wraps.forEach(w=> w.innerHTML = `<div class="log-empty">No transactions logged yet today.</div>`);
+    wraps.forEach(w=> w.innerHTML = `<div class="log-empty">Nothing logged yet.</div>`);
     statSlipsEls.forEach(el=>el.textContent="0"); statLinesEls.forEach(el=>el.textContent="0");
     if(statKits) statKits.textContent = "0";
     return;
@@ -7239,8 +7263,250 @@ function renderLog(){
   if(statKits) statKits.textContent = totalKits;
 }
 
+/* ====================== WEEKLY REPORT ======================
+   Built straight from state.log, which now keeps rolling instead of
+   being cleared every day — the report just reads whatever's actually
+   in there, nothing needs to be "reset" for it to work. Three things,
+   straight from real stories Werner described:
+   - Spike: the same item drawn on two separate slips a few hours apart
+     (Repairs took 40, then 30 min later Aftermarket took more) — no
+     quantity threshold, two distinct draws close together IS the signal.
+   - Burn rate: a monthly-usage trend, shown as a soft nudge ("worth a
+     look") rather than a hard rule — needs real history to mean
+     anything, so it needs at least 2 months of logged usage per item.
+   - Notes: short manual bullet lines, not a novel, printed at the top.
+========================================================================= */
+const REPORT_NOTES_KEY = 'leader-stores-report-notes-v1';
+let reportNotes = []; // [{ _id, text, date }]
+function loadReportNotes(){
+  try{
+    const raw = localStorage.getItem(REPORT_NOTES_KEY);
+    reportNotes = raw ? JSON.parse(raw) : [];
+  }catch(e){ reportNotes = []; }
+}
+function saveReportNotes(){
+  try{ localStorage.setItem(REPORT_NOTES_KEY, JSON.stringify(reportNotes)); }catch(e){}
+}
+
+const REPORT_WINDOW_DAYS = 7;
+const REPORT_SPIKE_WINDOW_HOURS = 4;
+
+function reportWindowStartStr(){
+  const d = new Date();
+  d.setDate(d.getDate() - REPORT_WINDOW_DAYS);
+  return d.toISOString().slice(0,10);
+}
+
+// Flattens every log entry in the report window into one usage event per
+// real item — kit components included, since a kit's own parts are still
+// real stock movement even though the kit itself isn't a trackable item.
+function reportUsageEvents(){
+  const startStr = reportWindowStartStr();
+  const events = [];
+  state.log.forEach(entry=>{
+    if(!entry.date || entry.date < startStr) return;
+    const when = new Date(`${entry.date}T${(entry.time||'00:00')}:00`);
+    entry.lines.forEach(line=>{
+      if(line.isKit && line.components){
+        line.components.forEach(c=>{
+          events.push({ sku:c.sku, name:c.name, qty:c.qty*line.qty, when, entryId:entry._id, worker:entry.worker, customer:entry.customer, jobNo:entry.jobNo });
+        });
+      } else if(!line.isKit){
+        events.push({ sku:line.itemId, name:line.name, qty:line.qty, when, entryId:entry._id, worker:entry.worker, customer:entry.customer, jobNo:entry.jobNo });
+      }
+    });
+  });
+  return events;
+}
+
+function reportSpikes(){
+  const events = reportUsageEvents();
+  const bySku = {};
+  events.forEach(e=>{
+    if(!bySku[e.sku]) bySku[e.sku] = { name: e.name, events: [] };
+    bySku[e.sku].events.push(e);
+  });
+  const spikes = [];
+  Object.values(bySku).forEach(group=>{
+    const sorted = group.events.slice().sort((a,b)=>a.when-b.when);
+    const usedEntryIds = new Set();
+    for(let i=0; i<sorted.length; i++){
+      if(usedEntryIds.has(sorted[i].entryId)) continue;
+      const cluster = [sorted[i]];
+      for(let j=i+1; j<sorted.length; j++){
+        const hoursApart = (sorted[j].when - sorted[i].when) / (1000*60*60);
+        if(hoursApart <= REPORT_SPIKE_WINDOW_HOURS) cluster.push(sorted[j]);
+        else break;
+      }
+      const distinctEntries = [...new Set(cluster.map(c=>c.entryId))];
+      if(distinctEntries.length >= 2){
+        distinctEntries.forEach(id=>usedEntryIds.add(id));
+        spikes.push({
+          name: group.name,
+          totalQty: cluster.reduce((s,c)=>s+c.qty,0),
+          lines: cluster.map(c=>`${c.qty} to ${c.customer}${c.jobNo?' (Job '+c.jobNo+')':''} — ${c.worker} @ ${c.when.toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'})}`)
+        });
+      }
+    }
+  });
+  return spikes;
+}
+
+// Monthly usage per item across the FULL log history (not just the report
+// window) — a burn-rate trend needs more than a week to mean anything.
+// Suggests a soft band (low month, doubled) rather than a hard rule.
+function reportBurnRate(){
+  const byItem = {};
+  state.log.forEach(entry=>{
+    const month = (entry.date||'').slice(0,7);
+    if(!month) return;
+    entry.lines.forEach(line=>{
+      if(line.isKit && line.components){
+        line.components.forEach(c=>{
+          if(!byItem[c.sku]) byItem[c.sku] = { name:c.name, months:{} };
+          byItem[c.sku].months[month] = (byItem[c.sku].months[month]||0) + c.qty*line.qty;
+        });
+      } else if(!line.isKit){
+        if(!byItem[line.itemId]) byItem[line.itemId] = { name:line.name, months:{} };
+        byItem[line.itemId].months[month] = (byItem[line.itemId].months[month]||0) + line.qty;
+      }
+    });
+  });
+
+  const results = [];
+  Object.entries(byItem).forEach(([sku, data])=>{
+    const monthKeys = Object.keys(data.months).sort();
+    if(monthKeys.length < 2) return; // not enough history to trend yet
+    const values = monthKeys.map(m=>data.months[m]);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const suggestedMin = min;
+    const suggestedMax = min * 2;
+    const onHand = qtyOnHand[sku];
+    results.push({
+      sku, name: data.name, months: monthKeys.length, min, max,
+      suggestedMin, suggestedMax, onHand: (onHand === undefined) ? null : onHand,
+      note: (onHand !== undefined && onHand !== null && onHand < suggestedMin)
+        ? `On hand (${onHand}) is under the low month seen (${min}) — worth a look, not urgent.`
+        : null
+    });
+  });
+  return results.sort((a,b)=> (a.note?0:1) - (b.note?0:1));
+}
+
+function renderReportNotes(){
+  const wrap = document.getElementById('reportNotesList');
+  if(reportNotes.length === 0){
+    wrap.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No notes yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = reportNotes.map(n=>`
+    <div class="ajrow" style="background:var(--panel); border-radius:7px; padding:7px 10px; margin-bottom:5px;">
+      <span style="flex:1; font-size:12px;">• ${n.text} <span class="sub" style="margin:0;">(${n.date})</span></span>
+      <button class="ajrow-remove" data-remove-note="${n._id}">✕</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-remove-note]').forEach(btn=>{
+    btn.onclick = ()=>{
+      reportNotes = reportNotes.filter(n=>n._id!==btn.dataset.removeNote);
+      saveReportNotes();
+      renderReportNotes();
+    };
+  });
+}
+
+document.getElementById('reportNoteAddBtn').onclick = ()=>{
+  const input = document.getElementById('reportNoteInput');
+  const text = input.value.trim();
+  if(!text) return;
+  reportNotes.unshift({ _id: 'rn'+Date.now(), text, date: new Date().toISOString().slice(0,10) });
+  saveReportNotes();
+  input.value = "";
+  renderReportNotes();
+};
+
+function renderReportBody(){
+  const body = document.getElementById('reportBody');
+  const spikes = reportSpikes();
+  const burnRate = reportBurnRate();
+  const flagged = burnRate.filter(b=>b.note);
+
+  const spikesHtml = spikes.length === 0
+    ? `<div style="color:var(--text-faint); font-size:11.5px;">Nothing hit twice in a short window this week.</div>`
+    : spikes.map(s=>`
+        <div style="background:var(--panel); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+          <b style="font-size:12.5px;">${s.name}</b> <span class="sub">— ${s.totalQty} total, ${s.lines.length} draws close together</span>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">${s.lines.join('<br>')}</div>
+        </div>
+      `).join('');
+
+  const burnHtml = burnRate.length === 0
+    ? `<div style="color:var(--text-faint); font-size:11.5px;">Not enough history yet — needs at least 2 months of logged usage per item to trend. This fills in on its own now that the log isn't cleared daily.</div>`
+    : burnRate.slice(0, 40).map(b=>`
+        <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--panel-line); font-size:11.5px;">
+          <span>${b.name}${b.note ? ' <span style="color:var(--amber);">⚠</span>' : ''}</span>
+          <span class="sub" style="margin:0;">on hand ${b.onHand ?? '—'} · typical ${b.suggestedMin}–${b.suggestedMax}/mo</span>
+        </div>
+      `).join('');
+
+  body.innerHTML = `
+    <div class="ajrows-label">Same item, two+ draws close together (last ${REPORT_WINDOW_DAYS} days)</div>
+    ${spikesHtml}
+    <div class="ajrows-label" style="margin-top:14px;">Burn rate — a nudge, not a rule ${flagged.length ? `(${flagged.length} worth a look)` : ''}</div>
+    ${burnHtml}
+  `;
+}
+
+function openWeeklyReportModal(){
+  renderReportNotes();
+  renderReportBody();
+  document.getElementById('weeklyReportModal').classList.add('show');
+}
+document.getElementById('weeklyReportBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  openWeeklyReportModal();
+};
+document.getElementById('weeklyReportCloseBtn').onclick = ()=> document.getElementById('weeklyReportModal').classList.remove('show');
+
+document.getElementById('weeklyReportPrintBtn').onclick = ()=>{
+  const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const notesHtml = reportNotes.length
+    ? `<ul>${reportNotes.map(n=>`<li>${n.text} <span style="color:#8A9099; font-size:10px;">(${n.date})</span></li>`).join('')}</ul>`
+    : `<div style="color:#8A9099;">No notes this period.</div>`;
+  const bodyHtml = document.getElementById('reportBody').innerHTML;
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Weekly Report — ${dateStr}</title>
+      <style>
+        body{ font-family:Arial, sans-serif; color:#1A1D21; padding:24px; }
+        h1{ font-size:18px; margin:0 0 4px; }
+        .sub{ color:#5A6270; font-size:11px; margin-bottom:16px; }
+        h2{ font-size:13px; margin:18px 0 6px; color:#1F4E78; text-transform:uppercase; letter-spacing:0.05em; }
+        ul{ margin:0; padding-left:18px; font-size:12px; }
+        li{ margin-bottom:4px; }
+      </style>
+    </head>
+    <body>
+      <h1>Leader Trailer Bodies — Weekly Report</h1>
+      <div class="sub">Generated ${dateStr}</div>
+      <h2>Notes</h2>
+      ${notesHtml}
+      <h2>Report</h2>
+      ${bodyHtml}
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+  printWin.focus();
+  printWin.print();
+};
+
 function clearLog(){
-  if(confirm("Clear today's log? This can't be undone.")){
+  if(confirm("Clear the whole log? This can't be undone — and the Weekly Report's burn-rate and spike checks read straight from this history, so clearing it wipes what they can see too. There's no need to do this daily anymore; it's safe to just leave it running.")){
     state.log = [];
     saveLog();
     renderLog();
@@ -7466,6 +7732,7 @@ loadSpotChecks();
 loadGoodsReceived();
 loadItemCustomizations();
 loadRetiredItems();
+loadReportNotes();
 loadCompletedJobs();
 loadNewItems();
 loadCustomKits();
