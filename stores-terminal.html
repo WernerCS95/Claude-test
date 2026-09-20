@@ -7203,7 +7203,6 @@ function renderLog(){
         <div class="log-entry-top">
           <span class="log-who">${entry.worker}</span>
           <span class="log-job">${entry.customer}${entry.jobNo ? ' · Job '+entry.jobNo : ''}</span>
-          ${!entry.synced ? '<span class="log-job" style="color:var(--amber); background:rgba(232,135,30,0.15);">Not uploaded</span>' : '<span class="log-job" style="color:var(--success); background:rgba(76,175,109,0.15);">Uploaded</span>'}
           <span class="log-time num">${entry.time}</span>
         </div>
         <div class="log-items">${itemsHtml}</div>
