@@ -3540,7 +3540,7 @@ function mostRecentSpotCheckDateFor(sku){
 // Rebuilds the "Parts Issued" / "Goods Received" history views from
 // synced transactions, so a delivery/issue made on the terminal shows up
 // here too, not just the quantity change.
-function addHistoryFromRemoteTransaction(txn, itemName){
+function addHistoryFromRemoteTransaction(txn, itemName, beforeQty){
   if(txn.source_device === 'Master List') return; // this device's own action — already in the ledger view when it was made
   const meta = txn.meta || {};
   // The real date this happened, not when it synced — a delivery/issue
@@ -3564,6 +3564,16 @@ function addHistoryFromRemoteTransaction(txn, itemName){
       qty: Number(txn.delta_qty), date: dateStr,
       supplier: meta.supplier || '', grnNo: meta.grnNo || '', orderNo: meta.orderNo || ''
     });
+  } else if(txn.type === 'spot_check'){
+    // Previously never recorded here at all — a live spot check from the
+    // terminal updated the qty but left no trace in the Spot Check Log,
+    // so it looked like nothing had synced even when it had.
+    spotLedger.push({
+      _id: txn.id, sku: txn.item_id, name: itemName,
+      before: beforeQty, after: Number(txn.absolute_qty),
+      date: dateStr, time: timeStr,
+      checker: meta.checker || ''
+    });
   }
 }
 
@@ -3579,6 +3589,7 @@ function applyRemoteStockTransaction(txn){
     };
     stock.push(item);
   }
+  const beforeQty = item.qty;
   if(txn.type === 'spot_check'){
     item.qty = Number(txn.absolute_qty);
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
@@ -3589,7 +3600,7 @@ function applyRemoteStockTransaction(txn){
       item.qty = Math.max(0, (item.qty || 0) + Number(txn.delta_qty));
     }
   }
-  addHistoryFromRemoteTransaction(txn, item.name);
+  addHistoryFromRemoteTransaction(txn, item.name, beforeQty);
   markSyncApplied(txn.id);
 }
 
@@ -3610,6 +3621,7 @@ async function pullMissedStockTransactions(){
       render();
       renderLedger();
       renderGoodsReceivedLedger();
+      renderSpotCheckLedger();
       try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
     }
   }catch(e){ console.error('Sync pull failed — offline?', e); }
@@ -3659,11 +3671,18 @@ function startRealtimeStockSync(){
       render();
       renderLedger();
       renderGoodsReceivedLedger();
+      renderSpotCheckLedger();
       if(txn.source_device !== 'Master List'){
         showSyncToast(txn, (item && item.name) || txn.item_id);
         flashStockRow(txn.item_id);
       }
-      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, payload.new.created_at); }catch(e){}
+      // Deliberately NOT advancing SYNC_LAST_PULL_KEY here. Live delivery
+      // order isn't guaranteed to match when things actually happened —
+      // if a dropped message gets skipped and a later one advances this
+      // checkpoint past it, the next catch-up query would never see it
+      // again. pullMissedStockTransactions is the only thing allowed to
+      // move this checkpoint, since it's a single ordered query, immune
+      // to this (same bug + same fix as the terminal's).
     })
     .subscribe();
 }
@@ -3686,9 +3705,25 @@ function initSupabaseSync(attempt){
     }catch(e){ console.error('Could not start Supabase client', e); }
   }
   if(supabaseClient){
+    // One-time self-heal for any device that already has a checkpoint
+    // advanced past a transaction it never actually applied, from before
+    // this fix existed — safe to force a full re-pull since already-
+    // applied transactions are skipped by id regardless of how far back
+    // the pull goes.
+    const PULL_CHECKPOINT_RESET_KEY = 'leader-masterlist-pull-checkpoint-reset-v1';
+    if(!localStorage.getItem(PULL_CHECKPOINT_RESET_KEY)){
+      try{
+        localStorage.removeItem(SYNC_LAST_PULL_KEY);
+        localStorage.setItem(PULL_CHECKPOINT_RESET_KEY, '1');
+      }catch(e){}
+    }
     window.addEventListener('online', flushMasterOutbox);
     setInterval(flushMasterOutbox, 15000);
     pullMissedStockTransactions().then(startRealtimeStockSync);
+    // Safety net alongside realtime, not a replacement for it — catches
+    // anything a dropped live message would otherwise hide forever behind
+    // an advanced checkpoint (see startRealtimeStockSync).
+    setInterval(pullMissedStockTransactions, 60000);
     return;
   }
   if(attempt < 20){
