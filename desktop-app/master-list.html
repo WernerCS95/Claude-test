@@ -2870,11 +2870,18 @@ function processImportPayload(payload){
     );
     return;
   }
+  // Checked and marked against BOTH this device's manual-import history
+  // AND its live-sync history — a slip/delivery now carries the SAME id
+  // through either path (see stores-terminal.html's queueTransaction call
+  // sites), so whichever one saw it first is enough to block the other
+  // from double-counting the same real event.
   const importedLineIds = loadImportedLineIds();
+  const alreadyApplied = id => importedLineIds.has(id) || syncAppliedIds.has(id);
+  const markApplied = id => { importedLineIds.add(id); markSyncApplied(id); };
   let matched = 0, unmatched = [], rowsSkippedDup = 0;
   const importedAt = new Date().toLocaleString('en-ZA');
   rows.forEach(r=>{
-    if(r._id && importedLineIds.has(r._id)){ rowsSkippedDup++; return; } // already imported in an earlier (unconfirmed) export
+    if(r._id && alreadyApplied(r._id)){ rowsSkippedDup++; return; } // already imported in an earlier (unconfirmed) export, or already arrived via live sync
     const item = stock.find(s=>s.sku===r.sku);
     if(item){
       item.qty -= r.qty;
@@ -2883,12 +2890,12 @@ function processImportPayload(payload){
       unmatched.push(r.sku);
     }
     ledger.push(Object.assign({}, r, {_importedAt: importedAt, _id: 'l'+Date.now()+Math.random().toString(36).slice(2,7)}));
-    if(r._id) importedLineIds.add(r._id);
+    if(r._id) markApplied(r._id);
   });
 
   let scMatched = 0, scCreated = 0, scUnmatched = [], scSkippedDup = 0;
   checks.forEach(c=>{
-    if(c._id && importedLineIds.has(c._id)){ scSkippedDup++; return; }
+    if(c._id && alreadyApplied(c._id)){ scSkippedDup++; return; }
     let item = stock.find(s=>s.sku===c.sku);
     if(!item && c.isNewItem){
       // Genuinely new variant created on the tablet (not a typo) — add it
@@ -2924,7 +2931,7 @@ function processImportPayload(payload){
       item.qty = afterQty;
       spotLedger.push(Object.assign({}, c, { before, after: afterQty, diff: afterQty - before, _importedAt: importedAt, _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7) }));
       scMatched++;
-      if(c._id) importedLineIds.add(c._id);
+      if(c._id) markApplied(c._id);
     } else {
       scUnmatched.push(c.sku);
     }
@@ -2932,7 +2939,7 @@ function processImportPayload(payload){
 
   let grMatched = 0, grCreated = 0, grSkippedDup = 0;
   deliveries.forEach(g=>{
-    if(g._id && importedLineIds.has(g._id)){ grSkippedDup++; return; }
+    if(g._id && alreadyApplied(g._id)){ grSkippedDup++; return; }
     let item = stock.find(s=>s.sku===g.sku);
     if(!item){
       // New item arriving that isn't in stock yet at all — create it so
@@ -2947,7 +2954,7 @@ function processImportPayload(payload){
     if(g.price && g.price > 0) item.price = g.price; // latest delivery price becomes the item's price on record
     goodsReceivedLedger.push(Object.assign({}, g, { _importedAt: importedAt, _id: 'gr'+Date.now()+Math.random().toString(36).slice(2,7) }));
     grMatched++;
-    if(g._id) importedLineIds.add(g._id);
+    if(g._id) markApplied(g._id);
   });
 
   saveState();
@@ -3578,7 +3585,12 @@ function addHistoryFromRemoteTransaction(txn, itemName, beforeQty){
 }
 
 function applyRemoteStockTransaction(txn){
-  if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
+  // Same id space as a manually-pasted export row now (see
+  // stores-terminal.html's queueTransaction call sites) — checking the
+  // manual-import registry here too means a delivery/slip already brought
+  // in by paste-import can't get counted a second time when live sync
+  // catches up and finds the same transaction in Supabase.
+  if(!txn || !txn.id || syncAppliedIds.has(txn.id) || loadImportedLineIds().has(txn.id)) return;
   let item = stock.find(s=>s.sku===txn.item_id);
   if(!item){
     item = {

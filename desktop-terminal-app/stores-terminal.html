@@ -2798,9 +2798,15 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
 
   const batchId = 'grn'+Date.now();
   grnLines.forEach((l,i)=>{
+    // Same id used for the local ledger line AND the synced transaction —
+    // previously these were two unrelated ids (a local "batchId-i" here,
+    // a separate server-generated one for sync), so the same delivery
+    // could be counted once via manual paste-export and again via live
+    // sync with nothing able to recognize they were the same event.
+    const txnId = newTxnId();
     goodsReceived.push(Object.assign({}, meta, {
       sku: l.sku, name: l.name, cat: l.cat, qty: l.qty, price: l.price || null, isNewItem: l.isNewItem,
-      batchId, synced: false, _id: batchId+'-'+i
+      batchId, synced: false, _id: txnId
     }));
     // A box-unit item (e.g. Latex Gloves - Bokse) has no stock of its own —
     // the delivery history still shows what was physically received (boxes),
@@ -2811,7 +2817,7 @@ document.getElementById('grnSubmitBtn').onclick = ()=>{
     const targetQty = boxLink ? l.qty * boxLink.factor : l.qty;
     const targetItem = boxLink ? (ITEMS.find(i=>i.id===targetSku) || l) : l;
     adjustQtyOnHand(targetSku, targetQty);
-    if(typeof queueTransaction === 'function') queueTransaction({ item_id: targetSku, type: 'delivery', delta_qty: targetQty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, batchId } });
+    if(typeof queueTransaction === 'function') queueTransaction({ id: txnId, item_id: targetSku, type: 'delivery', delta_qty: targetQty, meta: { item_name: targetItem.name, item_cat: targetItem.cat, date: meta.date, supplier: meta.supplier, grnNo: meta.grnNo, orderNo: meta.orderNo, batchId } });
   });
   saveGoodsReceived();
   rememberGrnSupplier(supplier);
@@ -4086,12 +4092,12 @@ function buildExportRows(){
       if(line.isKit && line.components){
         line.components.forEach((c,ci)=>{
           rows.push({
-            // Stable composite ID, built from the parent entry's own _id
-            // (assigned once, when the slip was logged) plus this line's
-            // position — not regenerated at export time, so the master
-            // list can tell "already imported this" from "genuinely new"
-            // no matter how many times an unconfirmed batch gets re-sent.
-            _id: entry._id + '-' + li + '-' + ci,
+            // Same id used for this component's synced transaction (set
+            // when the slip was submitted) — falls back to the old
+            // composite scheme only for entries logged before that existed,
+            // so a live-synced line and its manually-exported copy are now
+            // recognized as the same event by either import path.
+            _id: c._txnId || (entry._id + '-' + li + '-' + ci),
             date: entry.date, time: entry.time, clock: entry.clock, worker: entry.worker,
             customer: entry.customer, jobNo: entry.jobNo,
             sku: c.sku || c.name, name: c.name, qty: c.qty * line.qty
@@ -4099,7 +4105,7 @@ function buildExportRows(){
         });
       } else {
         rows.push({
-          _id: entry._id + '-' + li,
+          _id: line._txnId || (entry._id + '-' + li),
           date: entry.date, time: entry.time, clock: entry.clock, worker: entry.worker,
           customer: entry.customer, jobNo: entry.jobNo,
           sku: line.itemId, name: line.name, qty: line.qty
@@ -7258,18 +7264,27 @@ document.getElementById('submitBtn').onclick = ()=>{
 
   // deduct every issued line from the running on-hand ledger — kits deduct
   // each real component (qty per kit × number of kits on this line), simple
-  // items deduct their own qty directly.
+  // items deduct their own qty directly. Each line/component gets its own
+  // _txnId, used both for the synced transaction and the manual export row
+  // for this same line — previously these were two unrelated ids (a
+  // synced-generated one here, a composite "entry-line-index" one at
+  // export time), so the same slip could get counted once via manual
+  // paste-export and again via live sync with nothing able to tell they
+  // were the same event.
   entry.lines.forEach(line=>{
     if(line.isKit && line.components){
       line.components.forEach(c=>{
         adjustQtyOnHand(c.sku, -(c.qty * line.qty));
-        if(typeof queueTransaction === 'function') queueTransaction({ item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
+        c._txnId = c._txnId || newTxnId();
+        if(typeof queueTransaction === 'function') queueTransaction({ id: c._txnId, item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: { item_name: c.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
       });
     } else {
       adjustQtyOnHand(line.itemId, -line.qty);
-      if(typeof queueTransaction === 'function') queueTransaction({ item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
+      line._txnId = line._txnId || newTxnId();
+      if(typeof queueTransaction === 'function') queueTransaction({ id: line._txnId, item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: { item_name: line.name, date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id } });
     }
   });
+  saveLog();
 
   // reset slip + worker for the next person at the counter; keep customer selected
   // since consecutive slips are often for the same job.
