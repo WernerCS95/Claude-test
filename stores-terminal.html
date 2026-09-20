@@ -1254,6 +1254,7 @@
       <label>Search Jobs</label>
       <input type="text" id="mjSearch" placeholder="Job number or customer name…">
     </div>
+    <button class="clock-btn" id="mjShowTabletJobsBtn" style="width:100%; margin-bottom:10px; border-color:var(--steel); color:var(--steel);">📱 Jobs Added On This Tablet</button>
     <div id="mjResults" style="max-height:40vh; overflow-y:auto; margin-bottom:14px;"></div>
 
     <div class="ajrows-label">Bulk by Job Number Range</div>
@@ -4394,13 +4395,14 @@ function openManageJobsModal(){
 document.getElementById('manageJobsBtn').onclick = openManageJobsModal;
 document.getElementById('mjCloseBtn').onclick = ()=> document.getElementById('manageJobsModal').classList.remove('show');
 
-document.getElementById('mjSearch').addEventListener('input', e=>{
-  const term = e.target.value.trim().toLowerCase();
+// Shared renderer — used by both the search box and "Jobs Added On This
+// Tablet", so there's one place that knows how to draw a job row.
+function renderMjRows(matches){
   const wrap = document.getElementById('mjResults');
-  if(term.length < 1){ wrap.innerHTML = ""; return; }
-  const matches = allKnownJobs().filter(j =>
-    j.jobNo.toLowerCase().startsWith(term) || (j.customer && j.customer.toLowerCase().includes(term))
-  ).slice(0, 20);
+  if(matches.length === 0){
+    wrap.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px; padding:8px 0;">Nothing here.</div>`;
+    return;
+  }
   wrap.innerHTML = matches.map(j=>{
     const done = !!completedJobs[j.jobNo];
     const editable = !!state.addedJobs[j.jobNo];
@@ -4424,11 +4426,36 @@ document.getElementById('mjSearch').addEventListener('input', e=>{
       const jobNo = btn.dataset.toggle;
       if(completedJobs[jobNo]) delete completedJobs[jobNo]; else completedJobs[jobNo] = true;
       saveCompletedJobs();
-      document.getElementById('mjSearch').dispatchEvent(new Event('input'));
+      // Re-render whichever view is currently showing (search or tablet list)
+      if(document.getElementById('mjSearch').value.trim()){
+        document.getElementById('mjSearch').dispatchEvent(new Event('input'));
+      } else {
+        document.getElementById('mjShowTabletJobsBtn').click();
+      }
       renderCompletedList();
     };
   });
+}
+
+document.getElementById('mjSearch').addEventListener('input', e=>{
+  const term = e.target.value.trim().toLowerCase();
+  if(term.length < 1){ document.getElementById('mjResults').innerHTML = ""; return; }
+  const matches = allKnownJobs().filter(j =>
+    j.jobNo.toLowerCase().startsWith(term) || (j.customer && j.customer.toLowerCase().includes(term))
+  ).slice(0, 20);
+  renderMjRows(matches);
 });
+
+// "No means to see current jobs already on the tablet" — jobs added via
+// + Add Job are local to this device until synced, so this is the one
+// place they can actually be reviewed without knowing a job number to
+// search for first.
+document.getElementById('mjShowTabletJobsBtn').onclick = ()=>{
+  document.getElementById('mjSearch').value = "";
+  const jobNos = Object.keys(state.addedJobs).sort((a,b)=> parseInt(a)-parseInt(b) || a.localeCompare(b));
+  const matches = jobNos.map(jobNo => ({ jobNo, ...state.addedJobs[jobNo] }));
+  renderMjRows(matches);
+};
 
 document.getElementById('mjRangeBtn').onclick = ()=>{
   const from = parseInt(document.getElementById('mjRangeFrom').value);
