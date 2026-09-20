@@ -2473,6 +2473,19 @@ function rememberGrnSupplier(supplier){
   try{ localStorage.setItem(GRN_SUPPLIERS_KEY, JSON.stringify(suppliers.slice(0,40))); }catch(e){}
 }
 
+// Most items are bought at the same price delivery after delivery — this
+// finds the last one actually paid so the price field starts pre-filled
+// instead of needing to be retyped every single time. Still fully
+// editable when the price genuinely changed.
+function lastKnownPriceFor(sku){
+  let best = null;
+  goodsReceived.forEach(g=>{
+    if(g.sku !== sku || !g.price) return;
+    if(!best || (g.date||'') >= (best.date||'')) best = g;
+  });
+  return best ? best.price : null;
+}
+
 function openGoodsReceivedModal(){
   grnLines = [];
   grnSelected = null;
@@ -2549,7 +2562,8 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
       document.getElementById('grnSelectedName').textContent = item.name;
       document.getElementById('grnSelectedWrap').style.display = 'block';
       document.getElementById('grnQty').value = "";
-      document.getElementById('grnPrice').value = "";
+      const lastPrice = lastKnownPriceFor(item.id);
+      document.getElementById('grnPrice').value = lastPrice != null ? lastPrice : "";
       document.getElementById('grnPackCount').value = "";
       document.getElementById('grnUnitsPerPack').value = "";
       document.getElementById('grnPackResult').textContent = "";
