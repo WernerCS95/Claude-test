@@ -1008,6 +1008,7 @@
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
+    <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🗓 Kit Scheduler (Demo)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
@@ -1049,6 +1050,18 @@
     <div class="addjob-actions">
       <button class="addjob-cancel" id="monthlyReportCloseBtn">Close</button>
       <button class="addjob-save" id="monthlyReportPrintBtn">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kit Scheduler (Demo) — extras only for now, nets upcoming Finals-date demand against stock -->
+<div class="modal-bg" id="kitSchedulerModal">
+  <div class="addjob-card">
+    <h3>🗓 Kit Scheduler (Demo)</h3>
+    <div class="sub">Extra items only for now — looks at jobs with a Finals Date in the next <span id="kitSchedLeadLabel">4</span> days and checks stock against them.</div>
+    <div id="kitSchedulerBody"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="kitSchedulerCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -1556,6 +1569,20 @@
         <option value="dual">Dual (4 per axle)</option>
         <option value="single">Super Single (2 per axle)</option>
       </select>
+    </div>
+    <div class="addjob-row2">
+      <div class="addjob-field">
+        <label>Chassis Date <span style="color:var(--text-faint); font-weight:400;">(axles/brake kit fitted)</span></label>
+        <input type="date" id="ajChassisDate">
+      </div>
+      <div class="addjob-field">
+        <label>Finals Date <span style="color:var(--text-faint); font-weight:400;">(JOST/hydraulics/tarps/tyres/extras)</span></label>
+        <input type="date" id="ajFinalsDate">
+      </div>
+    </div>
+    <div class="addjob-field">
+      <label>Extra Items <span style="color:var(--text-faint); font-weight:400;">(one-off items this job needs beyond the standard kit — one per line, "item name, qty")</span></label>
+      <textarea id="ajExtraItems" rows="2" placeholder="10L Water Bottle, 1" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px; font-size:12.5px; font-family:monospace; resize:vertical;"></textarea>
     </div>
 
     <div class="addjob-preview" id="ajPreview"></div>
@@ -3559,6 +3586,9 @@ function openAddJobModal(){
   document.getElementById('ajAxleCount').value = "";
   document.getElementById('ajAxlePosition').value = "";
   document.getElementById('ajTyreType').value = "";
+  document.getElementById('ajChassisDate').value = "";
+  document.getElementById('ajFinalsDate').value = "";
+  document.getElementById('ajExtraItems').value = "";
   document.getElementById('ajOtherTypeWrap').style.display = 'none';
   document.getElementById('ajRowsWrap').innerHTML = "";
   document.getElementById('ajSaveBtn').disabled = true;
@@ -3660,6 +3690,9 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
   const axlePosition = document.getElementById('ajAxlePosition').value;
   const tyreType = document.getElementById('ajTyreType').value;
   const k = computeKitForType(tt, axleSpec, axleCount, axlePosition, tyreType);
+  const chassisDate = document.getElementById('ajChassisDate').value || null;
+  const finalsDate = document.getElementById('ajFinalsDate').value || null;
+  const extraItems = parseExtraItemsText(document.getElementById('ajExtraItems').value);
 
   const seen = new Set();
   for(const r of ajRows){
@@ -3691,6 +3724,9 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
       axleLayout: k.axleLayout,
       studNote: k.studNote,
       tyreBreakdown: k.tyreBreakdown,
+      chassisDate: chassisDate,
+      finalsDate: finalsDate,
+      extraItems: extraItems,
     };
   });
   saveAddedJobs();
@@ -3935,6 +3971,15 @@ function tyreBreakdownFor(axleCount, tyreType, axlePosition){
 // and returns every kit line that can be derived from tonight's rules.
 // Anything not yet confirmed for that type comes back null so the UI can
 // flag it instead of inventing a value.
+function parseExtraItemsText(text){
+  return (text || "").split("\n").map(line=>line.trim()).filter(Boolean).map(line=>{
+    const parts = line.split(",");
+    const qty = parts.length > 1 ? parseFloat(parts.pop()) : 1;
+    const name = parts.join(",").trim();
+    return { name, qty: isNaN(qty) ? 1 : qty };
+  }).filter(e=>e.name);
+}
+
 function computeKitForType(trailerType, axleSpec, axleCount, axlePosition, tyreType){
   const family = TRAILER_TYPE_FAMILY[trailerType];
   const rules = family ? FAMILY_KIT_RULES[family] : null;
@@ -7766,6 +7811,76 @@ document.getElementById('monthlyReportPrintBtn').onclick = ()=>{
   printWin.focus();
   printWin.print();
 };
+
+/* ====================== KIT SCHEDULER (Demo) — extras only, nets Finals-date demand against stock ====================== */
+
+const KIT_SCHED_LEAD_DAYS = 4;
+
+function daysFromToday(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.round((d - today) / 86400000);
+}
+
+function findRealItemByName(name){
+  const n = (name || "").trim().toLowerCase();
+  if(!n) return null;
+  return REAL_ITEMS.find(i => i.name.trim().toLowerCase() === n) || null;
+}
+
+function computeKitSchedulerDemand(){
+  const rows = [];
+  Object.entries(state.addedJobs || {}).forEach(([jobNo, job])=>{
+    if(!job.finalsDate) return;
+    const daysOut = daysFromToday(job.finalsDate);
+    if(daysOut === null || daysOut < 0 || daysOut > KIT_SCHED_LEAD_DAYS) return;
+    (job.extraItems || []).forEach(ex=>{
+      rows.push({ jobNo, customer: job.customer, finalsDate: job.finalsDate, daysOut, name: ex.name, qty: ex.qty });
+    });
+  });
+
+  const byItem = {};
+  rows.forEach(r=>{
+    if(!byItem[r.name]) byItem[r.name] = { name: r.name, needed: 0, jobs: [] };
+    byItem[r.name].needed += r.qty;
+    byItem[r.name].jobs.push(r);
+  });
+
+  return Object.values(byItem).map(b=>{
+    const match = findRealItemByName(b.name);
+    const onHand = match ? (qtyOnHand[match.id] ?? 0) : null;
+    const shortfall = onHand === null ? null : Math.max(0, b.needed - onHand);
+    return { ...b, onHand, shortfall, matched: !!match, jobs: b.jobs.sort((a,c)=>a.daysOut - c.daysOut) };
+  }).sort((a,b)=> (b.shortfall || 0) - (a.shortfall || 0));
+}
+
+function renderKitSchedulerBody(){
+  document.getElementById('kitSchedLeadLabel').textContent = KIT_SCHED_LEAD_DAYS;
+  const body = document.getElementById('kitSchedulerBody');
+  const demand = computeKitSchedulerDemand();
+  if(demand.length === 0){
+    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No jobs with a Finals Date + Extra Items due in the next ${KIT_SCHED_LEAD_DAYS} days.</div>`;
+    return;
+  }
+  body.innerHTML = demand.map(d=>`
+    <div style="padding:8px 0; border-top:1px solid var(--panel-line);">
+      <div style="display:flex; justify-content:space-between; font-size:12.5px; font-weight:600;">
+        <span>${d.name}${!d.matched ? ' <span style="color:var(--text-faint); font-weight:400;">(not in stock catalog — can’t check on-hand)</span>' : ''}</span>
+        ${d.shortfall > 0 ? `<span style="color:var(--danger);">⚠ order ${d.shortfall}</span>` : (d.matched ? `<span style="color:var(--steel);">OK</span>` : '')}
+      </div>
+      <div class="sub" style="margin:2px 0 0;">needed ${d.needed}${d.onHand !== null ? ` · on hand ${d.onHand}` : ''}</div>
+      ${d.jobs.map(j=>`<div class="sub" style="margin:2px 0 0 8px;">${j.qty} → ${j.customer} (Job ${j.jobNo}) — Finals ${j.finalsDate} (${j.daysOut===0?'today':j.daysOut+'d'})</div>`).join('')}
+    </div>
+  `).join('');
+}
+
+document.getElementById('kitSchedulerBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  renderKitSchedulerBody();
+  document.getElementById('kitSchedulerModal').classList.add('show');
+};
+document.getElementById('kitSchedulerCloseBtn').onclick = ()=> document.getElementById('kitSchedulerModal').classList.remove('show');
 
 document.getElementById('weeklyReportPrintBtn').onclick = ()=>{
   const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
