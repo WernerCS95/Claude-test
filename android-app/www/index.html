@@ -7577,13 +7577,19 @@ function reportFastMovers(topN){
     const b = bySku[e.sku];
     b.totalQty += e.qty;
     b.entryIds.add(e.entryId);
-    const who = e.customer + (e.jobNo ? ` (Job ${e.jobNo})` : '');
+    // Keyed by destination AND worker — two different workers issuing to
+    // the same customer/job show as separate lines, so "who asked for so
+    // many" is answered directly instead of just "where it went".
+    const who = `${e.customer}${e.jobNo ? ' (Job '+e.jobNo+')' : ''}__${e.worker || 'unknown'}`;
     b.byWho[who] = (b.byWho[who] || 0) + e.qty;
   });
   const list = Object.entries(bySku).map(([sku, b])=>({
     sku, name: b.name, totalQty: b.totalQty, draws: b.entryIds.size,
     onHand: qtyOnHand[sku] === undefined ? null : qtyOnHand[sku],
-    breakdown: Object.entries(b.byWho).sort((a,b)=>b[1]-a[1]).map(([who,qty])=>`${qty} → ${who}`)
+    breakdown: Object.entries(b.byWho).sort((a,b)=>b[1]-a[1]).map(([who,qty])=>{
+      const [dest, worker] = who.split('__');
+      return `${qty} → ${dest} — asked by ${worker}`;
+    })
   }));
   return list.sort((a,b)=> (b.totalQty - a.totalQty) || (b.draws - a.draws)).slice(0, topN || 10);
 }
