@@ -1682,6 +1682,10 @@
         <option value="single">Super Single (2 per axle)</option>
       </select>
     </div>
+    <div class="addjob-field">
+      <label>Extra Items <span style="color:var(--text-faint); font-weight:400;">(one-off items this job needs beyond the standard kit — one per line, "item name, qty")</span></label>
+      <textarea id="ejExtraItems" rows="2" placeholder="10L Water Bottle, 1" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px; font-size:12.5px; font-family:monospace; resize:vertical;"></textarea>
+    </div>
 
     <div class="addjob-preview" id="ejPreview"></div>
 
@@ -3799,6 +3803,7 @@ function openEditJobModal(jobNo){
   document.getElementById('ejAxleCount').value = job.axleCount || "";
   document.getElementById('ejAxlePosition').value = job.axlePosition || "";
   document.getElementById('ejTyreType').value = job.tyreType || "";
+  document.getElementById('ejExtraItems').value = (job.extraItems || []).map(ex=>`${ex.name}, ${ex.qty}`).join('\n');
   renderEditJobPreview();
   document.getElementById('editJobModal').classList.add('show');
 }
@@ -3822,6 +3827,7 @@ document.getElementById('ejSaveBtn').onclick = ()=>{
   const axleCount = document.getElementById('ejAxleCount').value;
   const axlePosition = document.getElementById('ejAxlePosition').value;
   const tyreType = document.getElementById('ejTyreType').value;
+  const extraItems = parseExtraItemsText(document.getElementById('ejExtraItems').value);
   if(!customer){ alert("Customer can't be blank."); return; }
   if(!tt){ alert("Pick or type a trailer type."); return; }
 
@@ -3848,6 +3854,7 @@ document.getElementById('ejSaveBtn').onclick = ()=>{
     axleLayout: k.axleLayout,
     studNote: k.studNote,
     tyreBreakdown: k.tyreBreakdown,
+    extraItems: extraItems,
   };
   saveAddedJobs();
   document.getElementById('editJobModal').classList.remove('show');
