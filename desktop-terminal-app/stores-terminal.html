@@ -1520,11 +1520,10 @@
         </select>
       </div>
       <div class="addjob-field">
-        <label>Axle Position</label>
+        <label>Axle Position <span style="color:var(--text-faint); font-weight:400;">(a Link is one job — leader + follower together)</span></label>
         <select id="ajAxlePosition">
           <option value="">— Select —</option>
-          <option value="leader">Link — Leader (Underslung)</option>
-          <option value="follower">Link — Follower (Overslung)</option>
+          <option value="link">Link (Leader Underslung + Follower Overslung)</option>
           <option value="standalone-os">Standalone (all Overslung)</option>
           <option value="standalone-us">Standalone (all Underslung)</option>
           <option value="drawbar">Drawbar (fixed 3 OS + 4 US)</option>
@@ -1610,11 +1609,10 @@
         </select>
       </div>
       <div class="addjob-field">
-        <label>Axle Position</label>
+        <label>Axle Position <span style="color:var(--text-faint); font-weight:400;">(a Link is one job — leader + follower together)</span></label>
         <select id="ejAxlePosition">
           <option value="">— Select —</option>
-          <option value="leader">Link — Leader (Underslung)</option>
-          <option value="follower">Link — Follower (Overslung)</option>
+          <option value="link">Link (Leader Underslung + Follower Overslung)</option>
           <option value="standalone-os">Standalone (all Overslung)</option>
           <option value="standalone-us">Standalone (all Underslung)</option>
           <option value="drawbar">Drawbar (fixed 3 OS + 4 US)</option>
@@ -3832,14 +3830,19 @@ function studNoteFromAxleSpec(axleSpec){
 // Leader-Underslung/Follower-Overslung rule, or is a standalone chassis
 // (Flatdeck/Sloper = all Overslung, Stepdeck = all Underslung despite the
 // same 3-axle rule, because it sits lower).
+// A Link is counted as ONE job/unit — leader and follower together — not
+// two separate things to fill in one at a time. Axle Count is still per
+// chassis (that's the real spec, e.g. "Tandem" = 2 per chassis), but the
+// layout and the tyre count below both need the WHOLE link's total.
 function axleLayoutFor(trailerType, axlePosition, axleCount){
   if(/drawbar/i.test(trailerType || '')) return 'Drawbar (fixed): Leader 3x Overslung — Dolly + Follower 4x Underslung';
   if(!axlePosition) return null;
   const n = axleCount ? parseInt(axleCount) : null;
+  if(axlePosition === 'link'){
+    return n ? `Link total ${n*2} axles — Leader ${n}x Underslung + Follower ${n}x Overslung` : 'Link — Leader Underslung + Follower Overslung';
+  }
   const countTxt = n ? `${n}x ` : '';
   const map = {
-    'leader': `${countTxt}Underslung (Link Leader)`,
-    'follower': `${countTxt}Overslung (Link Follower)`,
     'standalone-os': `${countTxt}Overslung (standalone — e.g. Flatdeck/Sloper)`,
     'standalone-us': `${countTxt}Underslung (standalone — e.g. Stepdeck, lower ride height)`,
     'drawbar': 'Drawbar (fixed): Leader 3x Overslung — Dolly + Follower 4x Underslung'
@@ -3847,15 +3850,19 @@ function axleLayoutFor(trailerType, axlePosition, axleCount){
   return map[axlePosition] || null;
 }
 
-// Simple math per Werner's rule: axles × wheels-per-axle + 1 spare — but
-// this is the FALLBACK for when the job card isn't in hand yet. Whatever
-// the actual card says always wins over this formula.
-function tyreBreakdownFor(axleCount, tyreType){
+// Simple math per Werner's rule: total axles × wheels-per-axle + ONE spare
+// — for a Link that's BOTH chassis' axles combined with a single spare for
+// the whole job (his own Ratel example: 2 chassis x 2 axles x 2 (super
+// single) + 1 spare = 9, not 5 per chassis). This is the FALLBACK for when
+// the job card isn't in hand yet — whatever the card says always wins.
+function tyreBreakdownFor(axleCount, tyreType, axlePosition){
   if(!axleCount || !tyreType) return null;
-  const n = parseInt(axleCount);
+  const perChassis = parseInt(axleCount);
+  const totalAxles = axlePosition === 'link' ? perChassis * 2 : perChassis;
   const perAxle = tyreType === 'dual' ? 4 : 2;
-  const total = n * perAxle + 1;
-  return `${total} tyres per chassis (${n} axle${n>1?'s':''} × ${perAxle} + 1 spare, ${tyreType === 'dual' ? 'dual' : 'super single'}) — the job card's own qty always wins over this formula when you have it`;
+  const total = totalAxles * perAxle + 1;
+  const scopeTxt = axlePosition === 'link' ? `${totalAxles} axles total across both chassis` : `${totalAxles} axle${totalAxles>1?'s':''}`;
+  return `${total} tyres for this job (${scopeTxt} × ${perAxle} + 1 spare, ${tyreType === 'dual' ? 'dual' : 'super single'}) — the job card's own qty always wins over this formula when you have it`;
 }
 
 // The one function everything else calls — takes whatever's known about a
@@ -3883,7 +3890,7 @@ function computeKitForType(trailerType, axleSpec, axleCount, axlePosition, tyreT
     brakeKit: brakeKitFromAxleSpec(trailerType, axleSpec),
     studNote: studNoteFromAxleSpec(axleSpec),
     axleLayout: axleLayoutFor(trailerType, axlePosition, axleCount),
-    tyreBreakdown: tyreBreakdownFor(axleCount, tyreType),
+    tyreBreakdown: tyreBreakdownFor(axleCount, tyreType, axlePosition),
     locked: !!rules
   };
 }
