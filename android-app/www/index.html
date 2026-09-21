@@ -1008,7 +1008,7 @@
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
-    <button class="clock-btn" id="chassisQueueBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🔢 Chassis Queue</button>
+    <button class="clock-btn" id="chassisCalendarBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📆 Chassis Calendar</button>
     <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🗓 Kit Scheduler (Demo)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
@@ -1055,23 +1055,29 @@
   </div>
 </div>
 
-<!-- Chassis Queue — the one order you set. Chassis builds it top-down; Finals is fed by the same pipe. -->
-<div class="modal-bg" id="chassisQueueModal">
-  <div class="addjob-card">
-    <h3>🔢 Chassis Queue</h3>
-    <div class="sub">This is the build order — Chassis works it top-down, and Finals is fed by the same order behind it. Reorder here and the Kit Scheduler adjusts on its own.</div>
-    <div id="chassisQueueBody" style="max-height:60vh; overflow-y:auto;"></div>
+<!-- Chassis Calendar — the one schedule you set. Pick an unscheduled job, click a day to place it. Chassis works it in date order; Finals is fed by the same pipe behind it. -->
+<div class="modal-bg" id="chassisCalendarModal">
+  <div class="addjob-card" style="max-width:640px;">
+    <h3>📆 Chassis Calendar</h3>
+    <div class="sub">Tap a job below, then tap the day it should build — that's the schedule. Chassis works in date order; Finals is fed by the same pipe behind it.</div>
+    <div id="calUnscheduledWrap" style="margin-bottom:10px;"></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <button id="calPrevMonthBtn" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:4px 10px; cursor:pointer;">‹</button>
+      <div id="calMonthLabel" style="font-size:13px; font-weight:600;"></div>
+      <button id="calNextMonthBtn" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:4px 10px; cursor:pointer;">›</button>
+    </div>
+    <div id="calGrid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:3px; max-height:52vh; overflow-y:auto;"></div>
     <div class="addjob-actions">
-      <button class="addjob-cancel" id="chassisQueueCloseBtn">Close</button>
+      <button class="addjob-cancel" id="chassisCalendarCloseBtn">Close</button>
     </div>
   </div>
 </div>
 
-<!-- Kit Scheduler (Demo) — extras only for now, nets the next jobs in the Chassis Queue against stock -->
+<!-- Kit Scheduler (Demo) — extras only for now, nets Chassis Calendar demand against stock -->
 <div class="modal-bg" id="kitSchedulerModal">
   <div class="addjob-card">
     <h3>🗓 Kit Scheduler (Demo)</h3>
-    <div class="sub">Extra items only for now — looks at the next <span id="kitSchedLeadLabel">5</span> jobs in the Chassis Queue and checks stock against them. Reorder the queue and this reflows automatically.</div>
+    <div class="sub">Extra items only for now — looks at jobs on the Chassis Calendar due in the next <span id="kitSchedLeadLabel">7</span> days and checks stock against them. Move a job on the calendar and this reflows automatically.</div>
     <div id="kitSchedulerBody"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="kitSchedulerCloseBtn">Close</button>
@@ -3550,34 +3556,26 @@ function saveCompletedJobs(){
   try{ localStorage.setItem(COMPLETED_JOBS_KEY, JSON.stringify(completedJobs)); }catch(e){}
 }
 
-/* Chassis Queue — the one order you set. Chassis runs it top-down; Finals
-   is fed by the same pipe (same order), just further down the line. */
-const CHASSIS_QUEUE_KEY = 'leader-stores-chassis-queue-v1';
-let chassisQueue = []; // [jobNo, jobNo, ...] — position IS the schedule
-function loadChassisQueue(){
+/* Chassis Calendar — the one schedule you set, by date. Chassis runs it in
+   date order; Finals is fed by the same pipe, further down the line. */
+const CHASSIS_CALENDAR_KEY = 'leader-stores-chassis-calendar-v1';
+let chassisCalendar = {}; // { jobNo: "YYYY-MM-DD" } — absent/unset = unscheduled
+function loadChassisCalendar(){
   try{
-    const raw = localStorage.getItem(CHASSIS_QUEUE_KEY);
-    if(raw) chassisQueue = JSON.parse(raw);
-  }catch(e){ chassisQueue = []; }
+    const raw = localStorage.getItem(CHASSIS_CALENDAR_KEY);
+    if(raw) chassisCalendar = JSON.parse(raw);
+  }catch(e){ chassisCalendar = {}; }
 }
-function saveChassisQueue(){
-  try{ localStorage.setItem(CHASSIS_QUEUE_KEY, JSON.stringify(chassisQueue)); }catch(e){}
+function saveChassisCalendar(){
+  try{ localStorage.setItem(CHASSIS_CALENDAR_KEY, JSON.stringify(chassisCalendar)); }catch(e){}
 }
-function addJobToChassisQueue(jobNo){
-  if(!chassisQueue.includes(jobNo)) chassisQueue.push(jobNo);
-  saveChassisQueue();
+function placeJobOnCalendar(jobNo, dateStr){
+  chassisCalendar[jobNo] = dateStr;
+  saveChassisCalendar();
 }
-function moveInChassisQueue(jobNo, delta){
-  const i = chassisQueue.indexOf(jobNo);
-  if(i === -1) return;
-  const j = i + delta;
-  if(j < 0 || j >= chassisQueue.length) return;
-  [chassisQueue[i], chassisQueue[j]] = [chassisQueue[j], chassisQueue[i]];
-  saveChassisQueue();
-}
-function removeFromChassisQueue(jobNo){
-  chassisQueue = chassisQueue.filter(j => j !== jobNo);
-  saveChassisQueue();
+function unscheduleJob(jobNo){
+  delete chassisCalendar[jobNo];
+  saveChassisCalendar();
 }
 
 function lookupJob(jobNo){
@@ -3757,7 +3755,6 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
     };
   });
   saveAddedJobs();
-  ajRows.forEach(r=> addJobToChassisQueue(r.jobNo.trim()));
   document.getElementById('addJobModal').classList.remove('show');
 
   if(state.addedJobs[state.jobNo]) renderJobSpec();
@@ -7840,22 +7837,11 @@ document.getElementById('monthlyReportPrintBtn').onclick = ()=>{
   printWin.print();
 };
 
-/* ====================== CHASSIS QUEUE + KIT SCHEDULER (Demo) ======================
-   One order, set by hand. Chassis works the queue top-down; Finals is fed by the
-   same pipe further down the line — no separate dates to type or keep in sync.
-   Reordering here is the whole mechanism: the scheduler just reads current position. */
+/* ====================== CHASSIS CALENDAR + KIT SCHEDULER (Demo) ======================
+   One schedule, set by hand on a real calendar. Tap a job, tap a day — that's its
+   date. Chassis works it in date order; Finals is fed by the same pipe behind it. */
 
-const KIT_SCHED_LEAD_JOBS = 5; // how far down the queue the scheduler looks
-
-function reconcileChassisQueue(){
-  // pick up any job that exists but never made it into the queue (e.g. saved before this feature), append at the back
-  Object.keys(state.addedJobs || {}).forEach(jobNo=>{
-    if(!completedJobs[jobNo] && !chassisQueue.includes(jobNo)) chassisQueue.push(jobNo);
-  });
-  // drop anything completed or deleted
-  chassisQueue = chassisQueue.filter(jobNo => state.addedJobs[jobNo] && !completedJobs[jobNo]);
-  saveChassisQueue();
-}
+const KIT_SCHED_LEAD_DAYS = 7; // how many days ahead the scheduler looks
 
 function findRealItemByName(name){
   const n = (name || "").trim().toLowerCase();
@@ -7863,48 +7849,130 @@ function findRealItemByName(name){
   return REAL_ITEMS.find(i => i.name.trim().toLowerCase() === n) || null;
 }
 
-function renderChassisQueueBody(){
-  reconcileChassisQueue();
-  const body = document.getElementById('chassisQueueBody');
-  if(chassisQueue.length === 0){
-    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No jobs in the queue yet — jobs join the back of the line when added.</div>`;
+function reconcileChassisCalendar(){
+  // drop anything completed or deleted from the calendar
+  Object.keys(chassisCalendar).forEach(jobNo=>{
+    if(!state.addedJobs[jobNo] || completedJobs[jobNo]) delete chassisCalendar[jobNo];
+  });
+  saveChassisCalendar();
+}
+
+function unscheduledJobNos(){
+  return Object.keys(state.addedJobs || {}).filter(jobNo => !completedJobs[jobNo] && !chassisCalendar[jobNo]);
+}
+
+let calSelectedJob = null; // job number currently picked, waiting for a day tap
+let calViewMonth = (()=>{ const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })();
+
+function ymd(d){ return d.toISOString().slice(0,10); }
+
+function renderCalUnscheduled(){
+  const wrap = document.getElementById('calUnscheduledWrap');
+  const jobs = unscheduledJobNos();
+  if(jobs.length === 0){
+    wrap.innerHTML = `<div style="color:var(--text-faint); font-size:11px;">Every job is on the calendar.</div>`;
     return;
   }
-  body.innerHTML = chassisQueue.map((jobNo, i)=>{
-    const job = state.addedJobs[jobNo];
-    return `
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--panel-line);">
-        <span style="color:var(--text-faint); font-size:11px; width:22px;">${i+1}</span>
-        <span style="flex:1; font-size:12.5px;">Job ${jobNo} — ${job ? job.customer : '?'}</span>
-        <button data-queue-up="${jobNo}" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:2px 8px; cursor:pointer;" ${i===0?'disabled':''}>▲</button>
-        <button data-queue-down="${jobNo}" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:2px 8px; cursor:pointer;" ${i===chassisQueue.length-1?'disabled':''}>▼</button>
-      </div>
-    `;
-  }).join('');
-  body.querySelectorAll('[data-queue-up]').forEach(btn=>{
-    btn.onclick = ()=>{ moveInChassisQueue(btn.dataset.queueUp, -1); renderChassisQueueBody(); };
-  });
-  body.querySelectorAll('[data-queue-down]').forEach(btn=>{
-    btn.onclick = ()=>{ moveInChassisQueue(btn.dataset.queueDown, 1); renderChassisQueueBody(); };
+  wrap.innerHTML = `
+    <div class="ajrows-label">Unscheduled — tap one, then tap a day</div>
+    <div style="display:flex; flex-wrap:wrap; gap:6px;">
+      ${jobs.map(jobNo=>{
+        const job = state.addedJobs[jobNo];
+        const selected = calSelectedJob === jobNo;
+        return `<button data-cal-pick="${jobNo}" style="background:${selected ? 'var(--gold)' : 'none'}; color:${selected ? 'var(--void)' : 'var(--text)'}; border:1px solid var(--gold); border-radius:6px; padding:4px 10px; font-size:11.5px; cursor:pointer;">Job ${jobNo} — ${job.customer}</button>`;
+      }).join('')}
+    </div>
+  `;
+  wrap.querySelectorAll('[data-cal-pick]').forEach(btn=>{
+    btn.onclick = ()=>{
+      calSelectedJob = calSelectedJob === btn.dataset.calPick ? null : btn.dataset.calPick;
+      renderChassisCalendarBody();
+    };
   });
 }
 
-document.getElementById('chassisQueueBtn').onclick = ()=>{
+function renderCalGrid(){
+  document.getElementById('calMonthLabel').textContent = calViewMonth.toLocaleDateString('en-ZA', { month:'long', year:'numeric' });
+  const grid = document.getElementById('calGrid');
+  const year = calViewMonth.getFullYear(), month = calViewMonth.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const byDate = {};
+  Object.entries(chassisCalendar).forEach(([jobNo, dateStr])=>{
+    if(!byDate[dateStr]) byDate[dateStr] = [];
+    byDate[dateStr].push(jobNo);
+  });
+
+  let cells = '';
+  ['S','M','T','W','T','F','S'].forEach(d=>{
+    cells += `<div style="text-align:center; font-size:10px; color:var(--text-faint); padding:2px 0;">${d}</div>`;
+  });
+  for(let i=0;i<startOffset;i++) cells += `<div></div>`;
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const dateStr = ymd(d);
+    const isToday = d.getTime() === today.getTime();
+    const jobsHere = byDate[dateStr] || [];
+    cells += `
+      <div data-cal-day="${dateStr}" style="min-height:52px; border:1px solid ${isToday ? 'var(--gold)' : 'var(--panel-line)'}; border-radius:6px; padding:3px; cursor:pointer; font-size:9.5px;">
+        <div style="color:var(--text-faint); font-size:10px;">${day}</div>
+        ${jobsHere.map(jobNo=>{
+          const job = state.addedJobs[jobNo];
+          return `<div data-cal-chip="${jobNo}" style="background:var(--panel-line); border-radius:4px; padding:1px 3px; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${jobNo} ${job ? job.customer : ''}</div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+  grid.innerHTML = cells;
+
+  grid.querySelectorAll('[data-cal-day]').forEach(cell=>{
+    cell.onclick = (e)=>{
+      if(e.target.closest('[data-cal-chip]')) return; // handled below
+      if(!calSelectedJob) return;
+      placeJobOnCalendar(calSelectedJob, cell.dataset.calDay);
+      calSelectedJob = null;
+      renderChassisCalendarBody();
+    };
+  });
+  grid.querySelectorAll('[data-cal-chip]').forEach(chip=>{
+    chip.onclick = ()=>{
+      if(!confirm(`Take Job ${chip.dataset.calChip} off the calendar?`)) return;
+      unscheduleJob(chip.dataset.calChip);
+      renderChassisCalendarBody();
+    };
+  });
+}
+
+function renderChassisCalendarBody(){
+  reconcileChassisCalendar();
+  renderCalUnscheduled();
+  renderCalGrid();
+}
+
+document.getElementById('chassisCalendarBtn').onclick = ()=>{
   document.getElementById('moreMenuModal').classList.remove('show');
-  renderChassisQueueBody();
-  document.getElementById('chassisQueueModal').classList.add('show');
+  calSelectedJob = null;
+  renderChassisCalendarBody();
+  document.getElementById('chassisCalendarModal').classList.add('show');
 };
-document.getElementById('chassisQueueCloseBtn').onclick = ()=> document.getElementById('chassisQueueModal').classList.remove('show');
+document.getElementById('chassisCalendarCloseBtn').onclick = ()=> document.getElementById('chassisCalendarModal').classList.remove('show');
+document.getElementById('calPrevMonthBtn').onclick = ()=>{ calViewMonth.setMonth(calViewMonth.getMonth()-1); renderCalGrid(); };
+document.getElementById('calNextMonthBtn').onclick = ()=>{ calViewMonth.setMonth(calViewMonth.getMonth()+1); renderCalGrid(); };
 
 function computeKitSchedulerDemand(){
-  reconcileChassisQueue();
-  const nextUp = chassisQueue.slice(0, KIT_SCHED_LEAD_JOBS);
+  reconcileChassisCalendar();
+  const today = new Date(); today.setHours(0,0,0,0);
   const rows = [];
-  nextUp.forEach((jobNo, position)=>{
+  Object.entries(chassisCalendar).forEach(([jobNo, dateStr])=>{
     const job = state.addedJobs[jobNo];
     if(!job) return;
+    const daysOut = Math.round((new Date(dateStr + 'T00:00:00') - today) / 86400000);
+    if(daysOut < 0 || daysOut > KIT_SCHED_LEAD_DAYS) return;
     (job.extraItems || []).forEach(ex=>{
-      rows.push({ jobNo, position, customer: job.customer, name: ex.name, qty: ex.qty });
+      rows.push({ jobNo, daysOut, dateStr, customer: job.customer, name: ex.name, qty: ex.qty });
     });
   });
 
@@ -7919,16 +7987,16 @@ function computeKitSchedulerDemand(){
     const match = findRealItemByName(b.name);
     const onHand = match ? (qtyOnHand[match.id] ?? 0) : null;
     const shortfall = onHand === null ? null : Math.max(0, b.needed - onHand);
-    return { ...b, onHand, shortfall, matched: !!match, jobs: b.jobs.sort((a,c)=>a.position - c.position) };
+    return { ...b, onHand, shortfall, matched: !!match, jobs: b.jobs.sort((a,c)=>a.daysOut - c.daysOut) };
   }).sort((a,b)=> (b.shortfall || 0) - (a.shortfall || 0));
 }
 
 function renderKitSchedulerBody(){
-  document.getElementById('kitSchedLeadLabel').textContent = KIT_SCHED_LEAD_JOBS;
+  document.getElementById('kitSchedLeadLabel').textContent = KIT_SCHED_LEAD_DAYS;
   const body = document.getElementById('kitSchedulerBody');
   const demand = computeKitSchedulerDemand();
   if(demand.length === 0){
-    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No Extra Items on the next ${KIT_SCHED_LEAD_JOBS} jobs in the Chassis Queue.</div>`;
+    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No Extra Items on jobs scheduled in the next ${KIT_SCHED_LEAD_DAYS} days.</div>`;
     return;
   }
   body.innerHTML = demand.map(d=>`
@@ -7938,7 +8006,7 @@ function renderKitSchedulerBody(){
         ${d.shortfall > 0 ? `<span style="color:var(--danger);">⚠ order ${d.shortfall}</span>` : (d.matched ? `<span style="color:var(--steel);">OK</span>` : '')}
       </div>
       <div class="sub" style="margin:2px 0 0;">needed ${d.needed}${d.onHand !== null ? ` · on hand ${d.onHand}` : ''}</div>
-      ${d.jobs.map(j=>`<div class="sub" style="margin:2px 0 0 8px;">${j.qty} → ${j.customer} (Job ${j.jobNo}) — #${j.position+1} in queue</div>`).join('')}
+      ${d.jobs.map(j=>`<div class="sub" style="margin:2px 0 0 8px;">${j.qty} → ${j.customer} (Job ${j.jobNo}) — ${j.dateStr} (${j.daysOut===0?'today':j.daysOut+'d'})</div>`).join('')}
     </div>
   `).join('');
 }
@@ -8216,7 +8284,7 @@ loadItemCustomizations();
 loadRetiredItems();
 loadReportNotes();
 loadCompletedJobs();
-loadChassisQueue();
+loadChassisCalendar();
 loadNewItems();
 loadCustomKits();
 loadBuiltinKitOverrides();
