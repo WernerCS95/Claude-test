@@ -1367,7 +1367,7 @@
               <input type="number" id="grnInvoiceQty" min="0" step="any" placeholder="e.g. 4">
             </div>
             <div class="addjob-field" style="margin-bottom:0;">
-              <label>Total Price for This</label>
+              <label>Total Invoice Price <span style="color:var(--text-faint); font-weight:400;">(for all of it, not per unit)</span></label>
               <input type="number" id="grnInvoiceTotal" min="0" step="0.01" placeholder="e.g. 2496.60">
             </div>
           </div>
@@ -1377,7 +1377,7 @@
           </div>
           <div id="grnInvoiceResult" style="margin-top:8px; font-size:12px; color:var(--text-muted);"></div>
         </div>
-        <div style="background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
+        <div id="grnPackCalcWrap" style="background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
           <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Came in packs or boxes? Calculate it</div>
           <div class="addjob-row2" style="margin-bottom:0;">
             <div class="addjob-field" style="margin-bottom:0;">
@@ -2559,6 +2559,9 @@ function openGoodsReceivedModal(){
   document.getElementById('grnNoMatch').style.display = 'none';
   document.getElementById('grnSelectedWrap').style.display = 'none';
   document.getElementById('grnInvoiceLinkWrap').style.display = 'none';
+  document.getElementById('grnPackCalcWrap').style.display = 'block';
+  document.getElementById('grnQty').readOnly = false; document.getElementById('grnQty').style.opacity = '';
+  document.getElementById('grnPrice').readOnly = false; document.getElementById('grnPrice').style.opacity = '';
   document.getElementById('grnBulkText').value = "";
   document.getElementById('grnPrice').value = "";
   document.getElementById('grnPackCount').value = "";
@@ -2643,7 +2646,16 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
 function showGrnInvoiceLinkPanel(item){
   const link = getInvoiceUnitLink(item.id);
   const wrap = document.getElementById('grnInvoiceLinkWrap');
-  if(!link){ wrap.style.display = 'none'; return; }
+  const packWrap = document.getElementById('grnPackCalcWrap');
+  const qtyInput = document.getElementById('grnQty');
+  const priceInput = document.getElementById('grnPrice');
+  if(!link){
+    wrap.style.display = 'none';
+    packWrap.style.display = 'block';
+    qtyInput.readOnly = false; qtyInput.style.opacity = '';
+    priceInput.readOnly = false; priceInput.style.opacity = '';
+    return;
+  }
   document.getElementById('grnInvoiceQtyLabel').textContent = `Qty (${link.unitName}s)`;
   document.getElementById('grnInvoiceFactorLabel').textContent = `1 ${link.unitName} = ___ ${link.stockUnit}`;
   document.getElementById('grnInvoiceQty').value = "";
@@ -2651,6 +2663,14 @@ function showGrnInvoiceLinkPanel(item){
   document.getElementById('grnInvoiceFactor').value = link.factor;
   document.getElementById('grnInvoiceResult').textContent = "";
   wrap.style.display = 'block';
+  // Only one calculator on screen at a time for this item — the old pack
+  // calculator did the same job (converting a purchased count into a
+  // stock qty) and having both visible at once for the same item was
+  // confusing. The main Qty/Price fields become read-only results filled
+  // in FROM this panel, not a second place to type different numbers.
+  packWrap.style.display = 'none';
+  qtyInput.readOnly = true; qtyInput.style.opacity = '0.6';
+  priceInput.readOnly = true; priceInput.style.opacity = '0.6';
 }
 
 document.getElementById('grnCreateNewBtn').onclick = ()=>{
