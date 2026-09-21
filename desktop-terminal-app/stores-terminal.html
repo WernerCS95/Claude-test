@@ -1008,6 +1008,7 @@
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
+    <button class="clock-btn" id="chassisQueueBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🔢 Chassis Queue</button>
     <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🗓 Kit Scheduler (Demo)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
@@ -1054,11 +1055,23 @@
   </div>
 </div>
 
-<!-- Kit Scheduler (Demo) — extras only for now, nets upcoming Finals-date demand against stock -->
+<!-- Chassis Queue — the one order you set. Chassis builds it top-down; Finals is fed by the same pipe. -->
+<div class="modal-bg" id="chassisQueueModal">
+  <div class="addjob-card">
+    <h3>🔢 Chassis Queue</h3>
+    <div class="sub">This is the build order — Chassis works it top-down, and Finals is fed by the same order behind it. Reorder here and the Kit Scheduler adjusts on its own.</div>
+    <div id="chassisQueueBody" style="max-height:60vh; overflow-y:auto;"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="chassisQueueCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Kit Scheduler (Demo) — extras only for now, nets the next jobs in the Chassis Queue against stock -->
 <div class="modal-bg" id="kitSchedulerModal">
   <div class="addjob-card">
     <h3>🗓 Kit Scheduler (Demo)</h3>
-    <div class="sub">Extra items only for now — looks at jobs with a Finals Date in the next <span id="kitSchedLeadLabel">4</span> days and checks stock against them.</div>
+    <div class="sub">Extra items only for now — looks at the next <span id="kitSchedLeadLabel">5</span> jobs in the Chassis Queue and checks stock against them. Reorder the queue and this reflows automatically.</div>
     <div id="kitSchedulerBody"></div>
     <div class="addjob-actions">
       <button class="addjob-cancel" id="kitSchedulerCloseBtn">Close</button>
@@ -1569,16 +1582,6 @@
         <option value="dual">Dual (4 per axle)</option>
         <option value="single">Super Single (2 per axle)</option>
       </select>
-    </div>
-    <div class="addjob-row2">
-      <div class="addjob-field">
-        <label>Chassis Date <span style="color:var(--text-faint); font-weight:400;">(axles/brake kit fitted)</span></label>
-        <input type="date" id="ajChassisDate">
-      </div>
-      <div class="addjob-field">
-        <label>Finals Date <span style="color:var(--text-faint); font-weight:400;">(JOST/hydraulics/tarps/tyres/extras)</span></label>
-        <input type="date" id="ajFinalsDate">
-      </div>
     </div>
     <div class="addjob-field">
       <label>Extra Items <span style="color:var(--text-faint); font-weight:400;">(one-off items this job needs beyond the standard kit — one per line, "item name, qty")</span></label>
@@ -3547,6 +3550,36 @@ function saveCompletedJobs(){
   try{ localStorage.setItem(COMPLETED_JOBS_KEY, JSON.stringify(completedJobs)); }catch(e){}
 }
 
+/* Chassis Queue — the one order you set. Chassis runs it top-down; Finals
+   is fed by the same pipe (same order), just further down the line. */
+const CHASSIS_QUEUE_KEY = 'leader-stores-chassis-queue-v1';
+let chassisQueue = []; // [jobNo, jobNo, ...] — position IS the schedule
+function loadChassisQueue(){
+  try{
+    const raw = localStorage.getItem(CHASSIS_QUEUE_KEY);
+    if(raw) chassisQueue = JSON.parse(raw);
+  }catch(e){ chassisQueue = []; }
+}
+function saveChassisQueue(){
+  try{ localStorage.setItem(CHASSIS_QUEUE_KEY, JSON.stringify(chassisQueue)); }catch(e){}
+}
+function addJobToChassisQueue(jobNo){
+  if(!chassisQueue.includes(jobNo)) chassisQueue.push(jobNo);
+  saveChassisQueue();
+}
+function moveInChassisQueue(jobNo, delta){
+  const i = chassisQueue.indexOf(jobNo);
+  if(i === -1) return;
+  const j = i + delta;
+  if(j < 0 || j >= chassisQueue.length) return;
+  [chassisQueue[i], chassisQueue[j]] = [chassisQueue[j], chassisQueue[i]];
+  saveChassisQueue();
+}
+function removeFromChassisQueue(jobNo){
+  chassisQueue = chassisQueue.filter(j => j !== jobNo);
+  saveChassisQueue();
+}
+
 function lookupJob(jobNo){
   const key = String(jobNo).trim();
   if(!key) return null;
@@ -3586,8 +3619,6 @@ function openAddJobModal(){
   document.getElementById('ajAxleCount').value = "";
   document.getElementById('ajAxlePosition').value = "";
   document.getElementById('ajTyreType').value = "";
-  document.getElementById('ajChassisDate').value = "";
-  document.getElementById('ajFinalsDate').value = "";
   document.getElementById('ajExtraItems').value = "";
   document.getElementById('ajOtherTypeWrap').style.display = 'none';
   document.getElementById('ajRowsWrap').innerHTML = "";
@@ -3690,8 +3721,6 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
   const axlePosition = document.getElementById('ajAxlePosition').value;
   const tyreType = document.getElementById('ajTyreType').value;
   const k = computeKitForType(tt, axleSpec, axleCount, axlePosition, tyreType);
-  const chassisDate = document.getElementById('ajChassisDate').value || null;
-  const finalsDate = document.getElementById('ajFinalsDate').value || null;
   const extraItems = parseExtraItemsText(document.getElementById('ajExtraItems').value);
 
   const seen = new Set();
@@ -3724,12 +3753,11 @@ document.getElementById('ajSaveBtn').onclick = ()=>{
       axleLayout: k.axleLayout,
       studNote: k.studNote,
       tyreBreakdown: k.tyreBreakdown,
-      chassisDate: chassisDate,
-      finalsDate: finalsDate,
       extraItems: extraItems,
     };
   });
   saveAddedJobs();
+  ajRows.forEach(r=> addJobToChassisQueue(r.jobNo.trim()));
   document.getElementById('addJobModal').classList.remove('show');
 
   if(state.addedJobs[state.jobNo]) renderJobSpec();
@@ -7812,15 +7840,21 @@ document.getElementById('monthlyReportPrintBtn').onclick = ()=>{
   printWin.print();
 };
 
-/* ====================== KIT SCHEDULER (Demo) — extras only, nets Finals-date demand against stock ====================== */
+/* ====================== CHASSIS QUEUE + KIT SCHEDULER (Demo) ======================
+   One order, set by hand. Chassis works the queue top-down; Finals is fed by the
+   same pipe further down the line — no separate dates to type or keep in sync.
+   Reordering here is the whole mechanism: the scheduler just reads current position. */
 
-const KIT_SCHED_LEAD_DAYS = 4;
+const KIT_SCHED_LEAD_JOBS = 5; // how far down the queue the scheduler looks
 
-function daysFromToday(dateStr){
-  if(!dateStr) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d = new Date(dateStr + 'T00:00:00');
-  return Math.round((d - today) / 86400000);
+function reconcileChassisQueue(){
+  // pick up any job that exists but never made it into the queue (e.g. saved before this feature), append at the back
+  Object.keys(state.addedJobs || {}).forEach(jobNo=>{
+    if(!completedJobs[jobNo] && !chassisQueue.includes(jobNo)) chassisQueue.push(jobNo);
+  });
+  // drop anything completed or deleted
+  chassisQueue = chassisQueue.filter(jobNo => state.addedJobs[jobNo] && !completedJobs[jobNo]);
+  saveChassisQueue();
 }
 
 function findRealItemByName(name){
@@ -7829,14 +7863,48 @@ function findRealItemByName(name){
   return REAL_ITEMS.find(i => i.name.trim().toLowerCase() === n) || null;
 }
 
+function renderChassisQueueBody(){
+  reconcileChassisQueue();
+  const body = document.getElementById('chassisQueueBody');
+  if(chassisQueue.length === 0){
+    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No jobs in the queue yet — jobs join the back of the line when added.</div>`;
+    return;
+  }
+  body.innerHTML = chassisQueue.map((jobNo, i)=>{
+    const job = state.addedJobs[jobNo];
+    return `
+      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--panel-line);">
+        <span style="color:var(--text-faint); font-size:11px; width:22px;">${i+1}</span>
+        <span style="flex:1; font-size:12.5px;">Job ${jobNo} — ${job ? job.customer : '?'}</span>
+        <button data-queue-up="${jobNo}" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:2px 8px; cursor:pointer;" ${i===0?'disabled':''}>▲</button>
+        <button data-queue-down="${jobNo}" style="background:none; border:1px solid var(--panel-line); border-radius:6px; color:var(--text); padding:2px 8px; cursor:pointer;" ${i===chassisQueue.length-1?'disabled':''}>▼</button>
+      </div>
+    `;
+  }).join('');
+  body.querySelectorAll('[data-queue-up]').forEach(btn=>{
+    btn.onclick = ()=>{ moveInChassisQueue(btn.dataset.queueUp, -1); renderChassisQueueBody(); };
+  });
+  body.querySelectorAll('[data-queue-down]').forEach(btn=>{
+    btn.onclick = ()=>{ moveInChassisQueue(btn.dataset.queueDown, 1); renderChassisQueueBody(); };
+  });
+}
+
+document.getElementById('chassisQueueBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  renderChassisQueueBody();
+  document.getElementById('chassisQueueModal').classList.add('show');
+};
+document.getElementById('chassisQueueCloseBtn').onclick = ()=> document.getElementById('chassisQueueModal').classList.remove('show');
+
 function computeKitSchedulerDemand(){
+  reconcileChassisQueue();
+  const nextUp = chassisQueue.slice(0, KIT_SCHED_LEAD_JOBS);
   const rows = [];
-  Object.entries(state.addedJobs || {}).forEach(([jobNo, job])=>{
-    if(!job.finalsDate) return;
-    const daysOut = daysFromToday(job.finalsDate);
-    if(daysOut === null || daysOut < 0 || daysOut > KIT_SCHED_LEAD_DAYS) return;
+  nextUp.forEach((jobNo, position)=>{
+    const job = state.addedJobs[jobNo];
+    if(!job) return;
     (job.extraItems || []).forEach(ex=>{
-      rows.push({ jobNo, customer: job.customer, finalsDate: job.finalsDate, daysOut, name: ex.name, qty: ex.qty });
+      rows.push({ jobNo, position, customer: job.customer, name: ex.name, qty: ex.qty });
     });
   });
 
@@ -7851,16 +7919,16 @@ function computeKitSchedulerDemand(){
     const match = findRealItemByName(b.name);
     const onHand = match ? (qtyOnHand[match.id] ?? 0) : null;
     const shortfall = onHand === null ? null : Math.max(0, b.needed - onHand);
-    return { ...b, onHand, shortfall, matched: !!match, jobs: b.jobs.sort((a,c)=>a.daysOut - c.daysOut) };
+    return { ...b, onHand, shortfall, matched: !!match, jobs: b.jobs.sort((a,c)=>a.position - c.position) };
   }).sort((a,b)=> (b.shortfall || 0) - (a.shortfall || 0));
 }
 
 function renderKitSchedulerBody(){
-  document.getElementById('kitSchedLeadLabel').textContent = KIT_SCHED_LEAD_DAYS;
+  document.getElementById('kitSchedLeadLabel').textContent = KIT_SCHED_LEAD_JOBS;
   const body = document.getElementById('kitSchedulerBody');
   const demand = computeKitSchedulerDemand();
   if(demand.length === 0){
-    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No jobs with a Finals Date + Extra Items due in the next ${KIT_SCHED_LEAD_DAYS} days.</div>`;
+    body.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px;">No Extra Items on the next ${KIT_SCHED_LEAD_JOBS} jobs in the Chassis Queue.</div>`;
     return;
   }
   body.innerHTML = demand.map(d=>`
@@ -7870,7 +7938,7 @@ function renderKitSchedulerBody(){
         ${d.shortfall > 0 ? `<span style="color:var(--danger);">⚠ order ${d.shortfall}</span>` : (d.matched ? `<span style="color:var(--steel);">OK</span>` : '')}
       </div>
       <div class="sub" style="margin:2px 0 0;">needed ${d.needed}${d.onHand !== null ? ` · on hand ${d.onHand}` : ''}</div>
-      ${d.jobs.map(j=>`<div class="sub" style="margin:2px 0 0 8px;">${j.qty} → ${j.customer} (Job ${j.jobNo}) — Finals ${j.finalsDate} (${j.daysOut===0?'today':j.daysOut+'d'})</div>`).join('')}
+      ${d.jobs.map(j=>`<div class="sub" style="margin:2px 0 0 8px;">${j.qty} → ${j.customer} (Job ${j.jobNo}) — #${j.position+1} in queue</div>`).join('')}
     </div>
   `).join('');
 }
@@ -8148,6 +8216,7 @@ loadItemCustomizations();
 loadRetiredItems();
 loadReportNotes();
 loadCompletedJobs();
+loadChassisQueue();
 loadNewItems();
 loadCustomKits();
 loadBuiltinKitOverrides();
