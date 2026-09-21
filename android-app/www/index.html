@@ -1007,6 +1007,7 @@
     <h3>⚙ More</h3>
     <button class="clock-btn" id="manageJobsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">⚙ Manage Jobs</button>
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
+    <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
@@ -1034,6 +1035,20 @@
     <div class="addjob-actions">
       <button class="addjob-cancel" id="weeklyReportCloseBtn">Close</button>
       <button class="addjob-save" id="weeklyReportPrintBtn">🖨 Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Monthly Report — the burn-rate trend, split out from Weekly since it
+     needs a month-scale view to say anything meaningful -->
+<div class="modal-bg" id="monthlyReportModal">
+  <div class="addjob-card">
+    <h3>📅 Monthly Report</h3>
+    <div class="sub">Usage trend by month, straight from the log — needs at least 2 months of history per item to say anything.</div>
+    <div id="monthlyReportBody"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="monthlyReportCloseBtn">Close</button>
+      <button class="addjob-save" id="monthlyReportPrintBtn">🖨 Print</button>
     </div>
   </div>
 </div>
@@ -7548,6 +7563,31 @@ function reportSpikes(){
   return spikes;
 }
 
+// Answers "why did 70 of 200 go out this week, where did they go" directly
+// — ranked by both total qty moved AND how many separate draws it took,
+// with a per-customer/job breakdown so the destination is right there
+// instead of a bare number. onHand is shown alongside so comparing
+// "issued this week" against "what's actually left" is a glance, not a
+// separate lookup.
+function reportFastMovers(topN){
+  const events = reportUsageEvents();
+  const bySku = {};
+  events.forEach(e=>{
+    if(!bySku[e.sku]) bySku[e.sku] = { name: e.name, totalQty: 0, entryIds: new Set(), byWho: {} };
+    const b = bySku[e.sku];
+    b.totalQty += e.qty;
+    b.entryIds.add(e.entryId);
+    const who = e.customer + (e.jobNo ? ` (Job ${e.jobNo})` : '');
+    b.byWho[who] = (b.byWho[who] || 0) + e.qty;
+  });
+  const list = Object.entries(bySku).map(([sku, b])=>({
+    sku, name: b.name, totalQty: b.totalQty, draws: b.entryIds.size,
+    onHand: qtyOnHand[sku] === undefined ? null : qtyOnHand[sku],
+    breakdown: Object.entries(b.byWho).sort((a,b)=>b[1]-a[1]).map(([who,qty])=>`${qty} → ${who}`)
+  }));
+  return list.sort((a,b)=> (b.totalQty - a.totalQty) || (b.draws - a.draws)).slice(0, topN || 10);
+}
+
 // Monthly usage per item across the FULL log history (not just the report
 // window) — a burn-rate trend needs more than a week to mean anything.
 // Suggests a soft band (low month, doubled) rather than a hard rule.
@@ -7623,9 +7663,21 @@ document.getElementById('reportNoteAddBtn').onclick = ()=>{
 
 function renderReportBody(){
   const body = document.getElementById('reportBody');
+  const movers = reportFastMovers(10);
   const spikes = reportSpikes();
-  const burnRate = reportBurnRate();
-  const flagged = burnRate.filter(b=>b.note);
+
+  const moversHtml = movers.length === 0
+    ? `<div style="color:var(--text-faint); font-size:11.5px;">Nothing logged in this window yet.</div>`
+    : movers.map(m=>`
+        <div style="background:var(--panel); border-radius:8px; padding:8px 10px; margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline;">
+            <b style="font-size:12.5px;">${m.name}</b>
+            <span class="sub" style="margin:0;">on hand now: ${m.onHand ?? '—'}</span>
+          </div>
+          <div class="sub" style="margin:2px 0 4px;">${m.totalQty} issued this week, ${m.draws} draw${m.draws===1?'':'s'} — where it went:</div>
+          <div style="font-size:11px; color:var(--text-muted);">${m.breakdown.join('<br>')}</div>
+        </div>
+      `).join('');
 
   const spikesHtml = spikes.length === 0
     ? `<div style="color:var(--text-faint); font-size:11.5px;">Nothing hit twice in a short window this week.</div>`
@@ -7636,20 +7688,11 @@ function renderReportBody(){
         </div>
       `).join('');
 
-  const burnHtml = burnRate.length === 0
-    ? `<div style="color:var(--text-faint); font-size:11.5px;">Not enough history yet — needs at least 2 months of logged usage per item to trend. This fills in on its own now that the log isn't cleared daily.</div>`
-    : burnRate.slice(0, 40).map(b=>`
-        <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--panel-line); font-size:11.5px;">
-          <span>${b.name}${b.note ? ' <span style="color:var(--amber);">⚠</span>' : ''}</span>
-          <span class="sub" style="margin:0;">on hand ${b.onHand ?? '—'} · typical ${b.suggestedMin}–${b.suggestedMax}/mo</span>
-        </div>
-      `).join('');
-
   body.innerHTML = `
-    <div class="ajrows-label">Same item, two+ draws close together (last ${REPORT_WINDOW_DAYS} days)</div>
+    <div class="ajrows-label">Fast movers this week — by qty and by draws, with where it went</div>
+    ${moversHtml}
+    <div class="ajrows-label" style="margin-top:14px;">Same item, two+ draws close together (last ${REPORT_WINDOW_DAYS} days)</div>
     ${spikesHtml}
-    <div class="ajrows-label" style="margin-top:14px;">Burn rate — a nudge, not a rule ${flagged.length ? `(${flagged.length} worth a look)` : ''}</div>
-    ${burnHtml}
   `;
 }
 
@@ -7663,6 +7706,60 @@ document.getElementById('weeklyReportBtn').onclick = ()=>{
   openWeeklyReportModal();
 };
 document.getElementById('weeklyReportCloseBtn').onclick = ()=> document.getElementById('weeklyReportModal').classList.remove('show');
+
+function renderMonthlyReportBody(){
+  const body = document.getElementById('monthlyReportBody');
+  const burnRate = reportBurnRate();
+  const flagged = burnRate.filter(b=>b.note);
+  body.innerHTML = burnRate.length === 0
+    ? `<div style="color:var(--text-faint); font-size:11.5px;">Not enough history yet — needs at least 2 months of logged usage per item to trend. This fills in on its own now that the log isn't cleared daily.</div>`
+    : `
+      <div class="ajrows-label">Burn rate — a nudge, not a rule ${flagged.length ? `(${flagged.length} worth a look)` : ''}</div>
+      ${burnRate.slice(0, 60).map(b=>`
+        <div style="display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid var(--panel-line); font-size:11.5px;">
+          <span>${b.name}${b.note ? ' <span style="color:var(--amber);">⚠</span>' : ''}</span>
+          <span class="sub" style="margin:0;">on hand ${b.onHand ?? '—'} · typical ${b.suggestedMin}–${b.suggestedMax}/mo</span>
+        </div>
+      `).join('')}
+    `;
+}
+function openMonthlyReportModal(){
+  renderMonthlyReportBody();
+  document.getElementById('monthlyReportModal').classList.add('show');
+}
+document.getElementById('monthlyReportBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  openMonthlyReportModal();
+};
+document.getElementById('monthlyReportCloseBtn').onclick = ()=> document.getElementById('monthlyReportModal').classList.remove('show');
+document.getElementById('monthlyReportPrintBtn').onclick = ()=>{
+  const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const bodyHtml = document.getElementById('monthlyReportBody').innerHTML;
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Monthly Report — ${dateStr}</title>
+      <style>
+        body{ font-family:Arial, sans-serif; color:#1A1D21; padding:24px; }
+        h1{ font-size:18px; margin:0 0 4px; }
+        .sub{ color:#5A6270; font-size:11px; margin-bottom:16px; }
+        h2{ font-size:13px; margin:18px 0 6px; color:#1F4E78; text-transform:uppercase; letter-spacing:0.05em; }
+      </style>
+    </head>
+    <body>
+      <h1>Leader Trailer Bodies — Monthly Report</h1>
+      <div class="sub">Generated ${dateStr}</div>
+      ${bodyHtml}
+    </body>
+    </html>
+  `);
+  printWin.document.close();
+  printWin.focus();
+  printWin.print();
+};
 
 document.getElementById('weeklyReportPrintBtn').onclick = ()=>{
   const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
