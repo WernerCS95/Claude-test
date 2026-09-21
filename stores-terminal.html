@@ -1358,6 +1358,10 @@
             <input type="number" id="grnPrice" min="0" step="0.01" placeholder="e.g. 775">
           </div>
         </div>
+        <div class="addjob-field" id="grnTotalPriceWrap">
+          <label>Or Total Price For This Line <span style="color:var(--text-faint); font-weight:400;">(e.g. 4 boxes for R2496.60 total — works out R/unit for you)</span></label>
+          <input type="number" id="grnTotalPrice" min="0" step="0.01" placeholder="e.g. 2496.60">
+        </div>
         <div id="grnValueLine" style="display:none; background:var(--panel); border:1px solid var(--gold); border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:12.5px; color:var(--text);"></div>
         <div id="grnInvoiceLinkWrap" style="display:none; background:var(--panel); border:1px solid var(--steel); border-radius:8px; padding:10px 12px; margin-bottom:12px;">
           <div style="font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;">Invoiced in a different unit than you stock it — type it exactly as the invoice shows it</div>
@@ -1855,8 +1859,14 @@ function getBoxUnitLink(sku){ return BOX_UNIT_LINKS[sku] || null; }
 //          stays in whole rolls, never meters, per Werner: "how many rolls
 //          do we have, not how many meters")
 // stockQtyAdded = invoiceQty × factor; pricePerStockUnit = totalPrice / stockQtyAdded.
+// Wire is deliberately NOT here — Werner counts and issues it by the box,
+// same unit he buys it in, so there's no real quantity mismatch to convert.
+// "Buy 4 boxes for R2496.60, tell me R/box" is just total÷qty, which the
+// plain "Total Price For This Line" field on the normal Qty/Price fields
+// already covers for any item. This table is only for items where the
+// STOCK unit genuinely differs from the PURCHASE unit (a real quantity
+// conversion, not just a price division).
 const INVOICE_UNIT_LINKS = {
-  '6-000-999': { unitName: 'Box',   stockUnit: 'kg',   factor: 15 },     // 0.8mm Welding Wire
   '9-001-001': { unitName: 'Drum',  stockUnit: 'L',    factor: 20 },     // Soluble Oil - Liters (drum size varies — factor editable per delivery)
   '9-200-003': { unitName: 'Drum',  stockUnit: 'L',    factor: 20 },     // Soluble Oil MP - Liters (drum size varies — factor editable per delivery)
   '8-800-017': { unitName: 'Meter', stockUnit: 'roll', factor: 1/50 },   // Reflective Tape - Rolls
@@ -2565,6 +2575,7 @@ function openGoodsReceivedModal(){
   document.getElementById('grnBulkText').value = "";
   document.getElementById('grnPrice').value = "";
   document.getElementById('grnPackCount').value = "";
+  document.getElementById('grnTotalPrice').value = "";
   document.getElementById('grnUnitsPerPack').value = "";
   document.getElementById('grnPackResult').textContent = "";
   document.getElementById('grnValueLine').style.display = 'none';
@@ -2629,6 +2640,7 @@ document.getElementById('grnSearch').addEventListener('input', e=>{
       const lastPrice = lastKnownPriceFor(item.id);
       document.getElementById('grnPrice').value = lastPrice != null ? lastPrice : "";
       document.getElementById('grnPackCount').value = "";
+  document.getElementById('grnTotalPrice').value = "";
       document.getElementById('grnUnitsPerPack').value = "";
       document.getElementById('grnPackResult').textContent = "";
       showGrnInvoiceLinkPanel(item);
@@ -2649,9 +2661,11 @@ function showGrnInvoiceLinkPanel(item){
   const packWrap = document.getElementById('grnPackCalcWrap');
   const qtyInput = document.getElementById('grnQty');
   const priceInput = document.getElementById('grnPrice');
+  const totalPriceWrap = document.getElementById('grnTotalPriceWrap');
   if(!link){
     wrap.style.display = 'none';
     packWrap.style.display = 'block';
+    totalPriceWrap.style.display = 'block';
     qtyInput.readOnly = false; qtyInput.style.opacity = '';
     priceInput.readOnly = false; priceInput.style.opacity = '';
     return;
@@ -2669,6 +2683,7 @@ function showGrnInvoiceLinkPanel(item){
   // confusing. The main Qty/Price fields become read-only results filled
   // in FROM this panel, not a second place to type different numbers.
   packWrap.style.display = 'none';
+  totalPriceWrap.style.display = 'none';
   qtyInput.readOnly = true; qtyInput.style.opacity = '0.6';
   priceInput.readOnly = true; priceInput.style.opacity = '0.6';
 }
@@ -2683,6 +2698,7 @@ document.getElementById('grnCreateNewBtn').onclick = ()=>{
     document.getElementById('grnQty').value = "";
     document.getElementById('grnPrice').value = "";
     document.getElementById('grnPackCount').value = "";
+  document.getElementById('grnTotalPrice').value = "";
     document.getElementById('grnUnitsPerPack').value = "";
     document.getElementById('grnPackResult').textContent = "";
     showGrnInvoiceLinkPanel(created);
@@ -2715,6 +2731,19 @@ function grnRecalcValue(){
 document.getElementById('grnQty').addEventListener('input', grnRecalcValue);
 document.getElementById('grnPrice').addEventListener('input', grnRecalcValue);
 
+// Plain "total for the line ÷ qty = price per unit" — no unit talk, no
+// factor, just the division Werner actually wants for something like
+// "4 boxes for R2496.60" where he counts and issues in boxes already.
+function grnRecalcFromTotal(){
+  const qty = parseFloat(document.getElementById('grnQty').value);
+  const total = parseFloat(document.getElementById('grnTotalPrice').value);
+  if(!qty || qty <= 0 || !total || total <= 0) return;
+  document.getElementById('grnPrice').value = Math.round((total/qty)*100)/100;
+  grnRecalcValue();
+}
+document.getElementById('grnTotalPrice').addEventListener('input', grnRecalcFromTotal);
+document.getElementById('grnQty').addEventListener('input', grnRecalcFromTotal);
+
 document.getElementById('grnAddPartBtn').onclick = ()=>{
   if(!grnSelected){ alert("Search for and select an item first."); return; }
   // parseFloat, not parseInt — an invoice-unit conversion (e.g. tape's
@@ -2733,6 +2762,7 @@ document.getElementById('grnAddPartBtn').onclick = ()=>{
   document.getElementById('grnSearch').value = "";
   document.getElementById('grnPrice').value = "";
   document.getElementById('grnPackCount').value = "";
+  document.getElementById('grnTotalPrice').value = "";
   document.getElementById('grnUnitsPerPack').value = "";
   document.getElementById('grnPackResult').textContent = "";
   document.getElementById('grnValueLine').style.display = 'none';
