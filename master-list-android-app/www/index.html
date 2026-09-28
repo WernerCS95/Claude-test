@@ -2769,8 +2769,9 @@ let nameplateRegistry = [];
 function loadNameplateRegistry(){
   try{
     const raw = localStorage.getItem(NAMEPLATE_REGISTRY_KEY);
-    if(raw){
-      nameplateRegistry = JSON.parse(raw);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if(Array.isArray(parsed)){
+      nameplateRegistry = parsed;
     } else {
       nameplateRegistry = NAMEPLATE_SEED.plates.map(p=>({
         id: slugifyPlateId(p.text), text: p.text, elephant: !!p.elephant, qty: p.qty,

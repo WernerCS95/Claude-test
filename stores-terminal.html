@@ -5113,11 +5113,17 @@ let nameplateRegistry = [];
 function loadNameplateRegistry(){
   try{
     const raw = localStorage.getItem(NAMEPLATE_QTY_KEY);
-    if(raw){
-      nameplateRegistry = JSON.parse(raw);
+    // A value under this exact key from an earlier, differently-shaped
+    // attempt at this feature is a real possibility on a device that's
+    // been through prior builds — trust it only if it's actually the
+    // array shape this code expects, otherwise treat it as never-seeded.
+    const parsed = raw ? JSON.parse(raw) : null;
+    if(Array.isArray(parsed)){
+      nameplateRegistry = parsed;
     } else {
-      // Never seeded on this device yet — load the physical count once.
-      // Never runs again after this, even if the registry is later emptied.
+      // Never seeded on this device yet (or what was there wasn't usable) —
+      // load the physical count once. Never runs again after this, even if
+      // the registry is later emptied.
       nameplateRegistry = NAMEPLATE_SEED.plates.map(p=>({
         id: slugifyPlateId(p.text), text: p.text, elephant: !!p.elephant, qty: p.qty
       }));
