@@ -5326,6 +5326,7 @@ function renderGroupGrid(){
     tile.className = 'item-tile';
     tile.style.position = 'relative';
 
+    try{
     if(g.key === 'VehicleService'){
       const dueCount = countVehiclesDueForService();
       tile.innerHTML = `
@@ -5362,6 +5363,17 @@ function renderGroupGrid(){
         <div class="item-label">${g.label}</div>
         <div style="font-size:10px; color:var(--text-faint);">${count} item${count===1?'':'s'}</div>
         ${g.note ? `<div style="font-size:9px; color:var(--amber); margin-top:-2px;">${g.note}</div>` : ''}
+      `;
+    }
+    }catch(e){
+      // A single tile failing to build should never take the rest of the
+      // grid down with it — show the problem instead of hiding half the
+      // groups with no explanation.
+      console.error('Tile render failed for group', g.key, e);
+      tile.innerHTML = `
+        <div class="item-icon" style="background:rgba(210,60,60,0.12); display:flex; align-items:center; justify-content:center; font-size:26px;">⚠</div>
+        <div class="item-label">${g.label}</div>
+        <div style="font-size:9px; color:var(--danger);">Failed to load — tell Claude Code</div>
       `;
     }
 
