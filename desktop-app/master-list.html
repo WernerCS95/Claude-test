@@ -210,6 +210,9 @@
       <div class="v num" id="totalValue">R 0</div>
       <div class="sub" id="valueDelta">&nbsp;</div>
       <div class="sub" id="mixingRoomValueNote" style="margin-top:4px;"></div>
+      <div class="sub" id="excludedValueNote" style="margin-top:4px;"></div>
+      <button class="btn" id="valueGroupsBtn" style="margin-top:8px; font-size:11px; padding:4px 10px;">Choose what's in the total</button>
+      <div id="valueGroupsPanel" style="display:none; margin-top:8px; border-top:1px solid var(--panel-line); padding-top:6px;"></div>
     </div>
     <div class="stat-card">
       <div class="l">Opening Value (today)</div>
@@ -282,6 +285,68 @@
   <h2 class="section">Goods Received Ledger — Deliveries In</h2>
   <div id="goodsReceivedLedgerWrap"><div class="empty">No deliveries imported yet. These add to stock, matched against the order number when there is one.</div></div>
 
+  <h2 class="section">Nameplates <span style="font-size:11px; color:var(--text-faint); font-weight:400;">— quantity only, never valued, not part of stock</span></h2>
+  <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+    <button class="btn" id="nameplateCutListBtn" style="border-color:var(--gold); color:var(--gold);">📋 Cut List</button>
+    <button class="btn" id="nameplateClientMapBtn" style="border-color:var(--steel); color:var(--steel);">🔗 Client → Plate Memory</button>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Plate</th><th class="right">Qty On Hand</th><th>Last Cut</th><th>Last Fitted</th><th></th></tr>
+    </thead>
+    <tbody id="nameplatesBody"></tbody>
+  </table>
+
+  <h2 class="section">Nameplates Ledger — Cuts &amp; Fits Imported From Tablet</h2>
+  <div id="nameplateLedgerWrap"><div class="empty">No nameplate moves imported yet.</div></div>
+
+</div>
+
+<!-- Nameplates: Client -> Plate memory, editable, hard-delete allowed -->
+<div class="modal-bg" id="nameplateClientMapModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:620px; width:94%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <h3 style="margin:0;">🔗 Client → Plate Memory</h3>
+      <button class="btn" id="nameplateClientMapCloseBtn">Close</button>
+    </div>
+    <div class="sub" style="margin-bottom:10px;">What the tablet suggests by default when a client's name is searched. Hard delete is fine here — "we don't deal with them, scrap it."</div>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <input type="text" id="ncmNewClient" placeholder="Client name" style="flex:1; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+      <select id="ncmNewPlate" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;"></select>
+      <button class="btn primary" id="ncmAddBtn">Add</button>
+    </div>
+    <table>
+      <thead><tr><th>Client</th><th>Remembered Plate</th><th>Last Used</th><th></th></tr></thead>
+      <tbody id="ncmBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Nameplates: Cut List generator — recreates the batch sheet handed to the boss -->
+<div class="modal-bg" id="cutListModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1000px; width:96%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <h3 style="margin:0;">📋 Nameplate Cut List</h3>
+      <button class="btn" id="cutListCloseBtn">Close</button>
+    </div>
+    <div class="sub" style="margin-bottom:10px;">Planning only — saving or printing a batch does NOT change stock. Stock only changes when the terminal records a Cut.</div>
+    <div id="cutListCurrentWrap"></div>
+    <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
+      <select id="clNewPlate" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; min-width:180px;"></select>
+      <input type="number" id="clNewQty" placeholder="Qty Req'd" min="1" style="width:100px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+      <input type="text" id="clNewJob" placeholder="Job Nr" style="width:110px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+      <input type="text" id="clNewClient" placeholder="Klient" style="width:150px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+      <input type="text" id="clNewComment" placeholder="Kommentaar" style="flex:1; min-width:150px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+      <button class="btn primary" id="clAddLineBtn">Add Line</button>
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button class="btn primary" id="clSaveBatchBtn">💾 Save Batch</button>
+      <button class="btn" id="clPrintBatchBtn" style="border-color:var(--steel); color:var(--steel);">🖨 Print</button>
+      <button class="btn" id="clNewBatchBtn" style="border-color:var(--danger); color:var(--danger);">New Blank Batch</button>
+    </div>
+    <h3 style="font-size:13px; margin-top:18px;">Saved Batches</h3>
+    <div id="cutListSavedWrap"></div>
+  </div>
 </div>
 
 <button id="backToTopBtn" title="Back to top" style="position:fixed; bottom:24px; right:24px; width:48px; height:48px; border-radius:50%; background:var(--gold); color:var(--void); border:none; font-size:18px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,0.4); cursor:pointer; z-index:100; display:none; align-items:center; justify-content:center;">↑</button>
@@ -346,6 +411,45 @@ const SPOT_LEDGER_KEY = 'leader-master-spot-ledger-v1';
 const GOODS_RECEIVED_LEDGER_KEY = 'leader-master-goods-received-ledger-v1';
 const OPENING_VALUE_KEY = 'leader-master-opening-value-v1';
 const PO_CONFIRMED_KEY = 'leader-master-po-confirmed-v1';
+const VALUE_EXCLUDED_KEY = 'leader-master-value-excluded-groups-v1';
+const DEFAULT_VALUE_EXCLUDED = ['Steel','Plates','Tubing','Flatbar','Tyres'];
+let valueExcluded = new Set();
+function loadValueExcluded(){
+  try{
+    const raw = localStorage.getItem(VALUE_EXCLUDED_KEY);
+    valueExcluded = new Set(raw ? JSON.parse(raw) : DEFAULT_VALUE_EXCLUDED);
+  }catch(e){ valueExcluded = new Set(DEFAULT_VALUE_EXCLUDED); }
+}
+function saveValueExcluded(){
+  try{ localStorage.setItem(VALUE_EXCLUDED_KEY, JSON.stringify([...valueExcluded])); }catch(e){}
+}
+function inValueTotal(item){ return !valueExcluded.has(item.cat); }
+
+function renderValueGroupsPanel(){
+  const panel = document.getElementById('valueGroupsPanel');
+  if(!panel) return;
+  const cats = [...new Set(stock.map(i=>i.cat))]
+    .sort((a,b)=>(GROUP_DISPLAY_NAMES[a]||a).localeCompare(GROUP_DISPLAY_NAMES[b]||b));
+  panel.innerHTML = cats.map(c=>`
+    <label style="display:flex; justify-content:space-between; gap:10px; font-size:11.5px; padding:3px 0; cursor:pointer;">
+      <span><input type="checkbox" data-value-cat="${c}" ${valueExcluded.has(c)?'':'checked'}> ${GROUP_DISPLAY_NAMES[c]||c}</span>
+      <span class="num" style="color:var(--text-faint);">${fmtR(totalValue(stock.filter(i=>i.cat===c)))}</span>
+    </label>`).join('');
+  panel.querySelectorAll('[data-value-cat]').forEach(cb=>{
+    cb.onchange = ()=>{
+      const c = cb.dataset.valueCat;
+      if(cb.checked) valueExcluded.delete(c); else valueExcluded.add(c);
+      saveValueExcluded();
+      render();
+    };
+  });
+}
+document.getElementById('valueGroupsBtn').onclick = ()=>{
+  const p = document.getElementById('valueGroupsPanel');
+  const show = p.style.display === 'none';
+  p.style.display = show ? 'block' : 'none';
+  if(show) renderValueGroupsPanel();
+};
 
 let stock = [];
 let ledger = []; // imported issue rows
@@ -2041,6 +2145,7 @@ function render(){
     const belowCount = items.filter(i=>i.qty < i.min).length;
     const catValue = items.reduce((sum,i)=>sum + itemValue(i), 0);
     const label = indent ? steelSubLabel(cat) : (GROUP_DISPLAY_NAMES[cat] || cat);
+    const notInTotal = valueExcluded.has(cat);
 
     const headerTr = document.createElement('tr');
     headerTr.className = 'category-header';
@@ -2049,9 +2154,9 @@ function render(){
     headerTr.innerHTML = `
       <td colspan="4" style="font-weight:${indent?500:600}; padding-left:${indent?'34px':'12px'};">
         <span style="display:inline-block; width:14px;">${isOpen ? '▾' : '▸'}</span>
-        ${label} <span style="color:var(--text-faint); font-weight:400;">(${items.length} item${items.length===1?'':'s'}${belowCount ? `, <span style="color:var(--danger);">${belowCount} below min</span>` : ''})</span>
+        ${label} <span style="color:var(--text-faint); font-weight:400;">(${items.length} item${items.length===1?'':'s'}${belowCount ? `, <span style="color:var(--danger);">${belowCount} below min</span>` : ''}${notInTotal ? ' · <span style="color:var(--text-faint);">NOT IN TOTAL</span>' : ''})</span>
       </td>
-      <td class="right num" style="color:var(--text-faint);" colspan="6">${fmtR(catValue)}</td>
+      <td class="right num" style="color:var(--text-faint); ${notInTotal ? 'opacity:0.55;' : ''}" colspan="6">${fmtR(catValue)}</td>
     `;
     headerTr.onclick = ()=>{
       if(expandedGroups.has(cat)) expandedGroups.delete(cat); else expandedGroups.add(cat);
@@ -2244,23 +2349,34 @@ function render(){
     };
   });
 
-  const tv = totalValue(stock);
-  const ov = openingValue();
+  const tv = totalValue(stock.filter(inValueTotal));
+  const ov = totalValue(cloneOpening().filter(inValueTotal));
   document.getElementById('totalValue').textContent = fmtR(tv);
   document.getElementById('openingValue').textContent = fmtR(ov);
   document.getElementById('belowMinCount').textContent = belowMin;
 
   // Mixing Room isn't Leader's stock, but it's real value sitting on the
   // yard and was already folded into the total above — this just makes
-  // that visible instead of leaving it hidden inside one number.
+  // that visible instead of leaving it hidden inside one number. Only
+  // shown when Mixing Room (Uncategorized) is actually part of the total.
   const mixingRoomItems = stock.filter(i=>i.cat==='Uncategorized');
   const mrNote = document.getElementById('mixingRoomValueNote');
   if(mrNote){
     const mrValue = totalValue(mixingRoomItems);
-    mrNote.textContent = mrValue > 0
+    mrNote.textContent = (mrValue > 0 && inValueTotal({cat:'Uncategorized'}))
       ? `Includes ${fmtR(mrValue)} of Mixing Room stock (not owned by Leader)`
       : '';
   }
+
+  const exclCats = [...new Set(stock.map(i=>i.cat))].filter(c=>valueExcluded.has(c)).sort();
+  const excludedNote = document.getElementById('excludedValueNote');
+  if(excludedNote){
+    excludedNote.textContent = exclCats.length
+      ? 'Tracked, not in total: ' + exclCats.map(c=>`${GROUP_DISPLAY_NAMES[c]||c} ${fmtR(totalValue(stock.filter(i=>i.cat===c)))}`).join(' · ')
+      : '';
+  }
+  const vp = document.getElementById('valueGroupsPanel');
+  if(vp && vp.style.display !== 'none') renderValueGroupsPanel();
 
   const delta = tv - ov;
   const deltaEl = document.getElementById('valueDelta');
@@ -2271,14 +2387,16 @@ function render(){
   }
 
   document.getElementById('importedCount').textContent = ledger.length;
-  document.getElementById('lastImportAt').textContent = ledger.length
-    ? 'Last import: ' + ledger[ledger.length-1]._importedAt
-    : 'No import yet';
+  const lastAt = localStorage.getItem('leader-master-last-import-at')
+    || [...ledger].reverse().map(x=>x._importedAt).find(Boolean);
+  document.getElementById('lastImportAt').textContent = lastAt ? 'Last import: ' + lastAt : 'No import yet';
 
   renderLedger();
   renderSpotCheckLedger();
   renderGoodsReceivedLedger();
   renderPoConfirm();
+  renderNameplatesSection();
+  renderNameplateLedger();
 }
 
 function renderPoConfirm(){
@@ -2400,7 +2518,7 @@ function renderSpotCheckLedger(){
   const dates = sortedDatesDesc(groups);
   if(expandedSpotCheckDates === null) expandedSpotCheckDates = new Set([dates[0]]);
 
-  wrap.innerHTML = dates.map(date=>{
+  const dayHtml = (date)=>{
     const entries = groups[date].slice().reverse();
     const isOpen = expandedSpotCheckDates.has(date);
     const dupInDay = entries.filter(sc=>dupIdsSc.has(sc._id)).length;
@@ -2438,7 +2556,11 @@ function renderSpotCheckLedger(){
         ${isOpen ? `<table style="margin-top:4px;"><thead><tr><th>Time</th><th>Checked By</th><th>Item</th><th>SKU</th><th class="right">Was</th><th class="right">Counted</th><th class="right">Diff</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ''}
       </div>
     `;
-  }).join("");
+  };
+  wrap.innerHTML = renderByMonth(dates, groups, dayHtml,
+    d => groups[d].filter(x=>dupIdsSc.has(x._id)).length,
+    expandedSpotCheckMonths, 'sc', 'entry', 'entries');
+  wireMonthToggles(wrap, 'sc', expandedSpotCheckMonths, renderSpotCheckLedger);
 
   wrap.querySelectorAll('[data-sc-date-toggle]').forEach(header=>{
     header.onclick = ()=>{
@@ -2558,6 +2680,466 @@ function renderGoodsReceivedLedger(){
   });
 }
 
+/* ====================== NAMEPLATES ======================
+   Own registry, never valued, never part of `stock`. Seeded once from
+   the same physical count the terminal uses — same slugify scheme, so
+   the same plate text produces the same id on both devices. Quantity
+   after that moves only via imported Cut/Fit moves from the tablet
+   (the terminal is the operational source of truth for movements). */
+const ELEPHANT_LABEL = 'Olifant';
+const NAMEPLATE_PHYSICAL_COUNT_2026_09_07 = {
+  "plates": [
+    {"text":"AMRO","qty":3,"elephant":false},{"text":"BAKUBUNG","qty":2,"elephant":false},
+    {"text":"BARNARD VERVOER","qty":9,"elephant":false},{"text":"BCI","qty":6,"elephant":false},
+    {"text":"BJS CARRIERS","qty":3,"elephant":false},
+    {"text":"CAPSTONE 58","qty":3,"elephant":false,"review":"Is \"58\" part of the plate text, or a job/quantity that slipped into the name?"},
+    {"text":"CEFRATEC","qty":1,"elephant":false},{"text":"CMP","qty":1,"elephant":true},
+    {"text":"DAO CARRIERS","qty":2,"elephant":false,"review":"History has \"DOA CARRIERS\". Which is right?"},
+    {"text":"DEZMO TRANS","qty":20,"elephant":false},{"text":"DIRARO GROUP","qty":2,"elephant":false},
+    {"text":"ELD","qty":2,"elephant":false,"review":"History only has \"EDL\" (with elephants, last cut 2026-08-28). Typo in the count, or a different client? If EDL, it should have elephants."},
+    {"text":"ELD LOGISTICS","qty":1,"elephant":false,"review":"No history match. Confirm spelling."},
+    {"text":"ENTLE LOGISTICS","qty":1,"elephant":false},{"text":"ESALEONE","qty":1,"elephant":false},
+    {"text":"FALCON FORCE BULK","qty":5,"elephant":false},{"text":"FGH","qty":2,"elephant":true},
+    {"text":"FUHRENT","qty":1,"elephant":false,"review":"History has \"(OLIFANT) FURHEND (OLIFANT)\" (2026-04-13). Same plate? Spelling?"},
+    {"text":"GCL TRANSPORT","qty":1,"elephant":false},
+    {"text":"GLIMLAG BOERDERY","qty":8,"elephant":false,"review":"History has \"GLIMLAG\" only. Confirm full text."},
+    {"text":"GLOBALNET LOGISTICS","qty":1,"elephant":false},{"text":"HANJORU TRANSPORT","qty":2,"elephant":false},
+    {"text":"HBC FARMING","qty":4,"elephant":false},{"text":"HJS","qty":1,"elephant":true},
+    {"text":"HLONGIE TRADING","qty":3,"elephant":false},{"text":"HUDSON TRANSPORT","qty":12,"elephant":false},
+    {"text":"IMS","qty":4,"elephant":true},{"text":"INCEBA CARRIERS","qty":2,"elephant":false},
+    {"text":"IZUSA CARRIERS","qty":2,"elephant":false},{"text":"JABULA","qty":9,"elephant":false},
+    {"text":"JACOBS TRANSPRORT","qty":5,"elephant":false,"review":"Looks like a typo for \"JACOBS TRANSPORT\"."},
+    {"text":"JACODANIE","qty":2,"elephant":false},{"text":"JAIG","qty":1,"elephant":false},
+    {"text":"JAMBOSKO","qty":1,"elephant":false,"review":"History has \"JAMBISKO\". Which is right?"},
+    {"text":"JAMES VAN WYK","qty":3,"elephant":false},{"text":"JAMIL","qty":1,"elephant":false},
+    {"text":"JDJ PLANT HIRE","qty":3,"elephant":false},{"text":"JLF","qty":2,"elephant":true},
+    {"text":"JPC","qty":2,"elephant":false},{"text":"KAGGIES","qty":1,"elephant":false},
+    {"text":"KAI TRUCX","qty":3,"elephant":false},{"text":"KALAHARI ROOTS","qty":1,"elephant":false},
+    {"text":"KE-MATETE","qty":4,"elephant":false,"review":"History writes \"KE - MATETE\". Confirm the exact cut text."},
+    {"text":"KEGO","qty":1,"elephant":false},{"text":"KESHO","qty":1,"elephant":false},
+    {"text":"KINGSVALLY FARMS","qty":1,"elephant":false},{"text":"KLAVER","qty":1,"elephant":false},
+    {"text":"LANGVIC","qty":1,"elephant":false},{"text":"LEADER TRAILER","qty":17,"elephant":false},
+    {"text":"LENATA","qty":2,"elephant":false},{"text":"LETSO","qty":1,"elephant":false},
+    {"text":"LIBALELE SA","qty":1,"elephant":false},{"text":"LORCHA","qty":1,"elephant":false},
+    {"text":"LOUFRANS","qty":1,"elephant":false},{"text":"LUK LOGIC","qty":3,"elephant":false},
+    {"text":"LUMINAR FREIGHT","qty":1,"elephant":false},{"text":"LUTZYL","qty":1,"elephant":false},
+    {"text":"MACDONALDS","qty":22,"elephant":false},{"text":"MARBOD","qty":3,"elephant":false},
+    {"text":"METAFUEL","qty":3,"elephant":false},{"text":"MG","qty":5,"elephant":true},
+    {"text":"MH LOGICA","qty":1,"elephant":false},{"text":"MISS LUCY TRUCKING","qty":1,"elephant":false},
+    {"text":"MKUZE","qty":1,"elephant":false},{"text":"MOVING FORWARD","qty":1,"elephant":false},
+    {"text":"MSESHI","qty":1,"elephant":false},{"text":"NACS LOGISTICS","qty":2,"elephant":false},
+    {"text":"NYIKO","qty":10,"elephant":false},
+    {"text":"OKUNGVONO","qty":1,"elephant":false,"review":"History spells it \"OKUNGCONO\"."},
+    {"text":"ONE LIFE LIVE IT IN GOD","qty":3,"elephant":false},{"text":"ONYX","qty":2,"elephant":false},
+    {"text":"PIKET TRANS","qty":1,"elephant":false},{"text":"PINDULO","qty":1,"elephant":false},
+    {"text":"PROMAR TRUCKING","qty":2,"elephant":false},{"text":"PZN TRUCKING","qty":3,"elephant":false},
+    {"text":"RIVER VALLEY","qty":1,"elephant":true},{"text":"ROCKOM","qty":1,"elephant":false},
+    {"text":"RUDS TRANSPORT","qty":1,"elephant":false},
+    {"text":"RUDWES CARRIES","qty":1,"elephant":false,"review":"History spells it \"RUDWES CARRIERS\"."},
+    {"text":"SEBUSENG","qty":1,"elephant":false},{"text":"SHOSHOLOZA","qty":1,"elephant":false},
+    {"text":"SIYAKHULA","qty":4,"elephant":false},
+    {"text":"SJ DU PLESSIS","qty":0,"elephant":false,"review":"No quantity in the count. Seeded as 0."},
+    {"text":"SMT LOGISTICS","qty":3,"elephant":false},{"text":"SOKOZA","qty":1,"elephant":false},
+    {"text":"SOUTH REEF MINING","qty":3,"elephant":false},{"text":"SPACE","qty":1,"elephant":false},
+    {"text":"STAR LIZARD","qty":4,"elephant":false},{"text":"SYLMOU","qty":4,"elephant":false},
+    {"text":"TAIWATEB DISRUBUTORS","qty":1,"elephant":false,"review":"\"DISRUBUTORS\" looks like a typo for \"DISTRIBUTORS\". Check the first word too."},
+    {"text":"TANVICOR","qty":2,"elephant":false},{"text":"TEXMACOM","qty":3,"elephant":false},
+    {"text":"TGA","qty":1,"elephant":true},
+    {"text":"TM&S","qty":1,"elephant":false,"review":"History cuts it as \"(olifant) TM & S (olifant)\", so probably elephants and spacing \"TM & S\"."},
+    {"text":"TRADEKOR","qty":2,"elephant":false},
+    {"text":"TUGELA STEEL , STEEL STRUCTURES","qty":2,"elephant":false,"review":"Two-line plate? Confirm how it should read."},
+    {"text":"UMBONO","qty":2,"elephant":false},{"text":"UMBUSO","qty":3,"elephant":false},
+    {"text":"VALOSTAR","qty":1,"elephant":false},{"text":"VFOUR","qty":3,"elephant":false},
+    {"text":"VULA VALLA","qty":2,"elephant":false},{"text":"WOT","qty":1,"elephant":false},
+    {"text":"XBFS","qty":2,"elephant":false},{"text":"ZEN BULK","qty":1,"elephant":false},
+    {"text":"ZINGARO","qty":4,"elephant":false},{"text":"ZYHO","qty":2,"elephant":false}
+  ]
+};
+const NAMEPLATE_SEED = NAMEPLATE_PHYSICAL_COUNT_2026_09_07;
+
+function slugifyPlateId(text){
+  return 'NP-' + (text||'').trim().toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+function formatNameplateText(text, elephant){
+  return elephant ? `(${ELEPHANT_LABEL}) ${text} (${ELEPHANT_LABEL})` : text;
+}
+
+const NAMEPLATE_REGISTRY_KEY = 'leader-master-nameplate-registry-v1';
+let nameplateRegistry = [];
+function loadNameplateRegistry(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_REGISTRY_KEY);
+    if(raw){
+      nameplateRegistry = JSON.parse(raw);
+    } else {
+      nameplateRegistry = NAMEPLATE_SEED.plates.map(p=>({
+        id: slugifyPlateId(p.text), text: p.text, elephant: !!p.elephant, qty: p.qty,
+        review: p.review || null
+      }));
+      saveNameplateRegistry();
+    }
+  }catch(e){ nameplateRegistry = []; }
+}
+function saveNameplateRegistry(){
+  try{ localStorage.setItem(NAMEPLATE_REGISTRY_KEY, JSON.stringify(nameplateRegistry)); }catch(e){}
+}
+
+const NAMEPLATE_LEDGER_KEY = 'leader-master-nameplate-ledger-v1';
+let nameplateLedger = [];
+function loadNameplateLedger(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_LEDGER_KEY);
+    nameplateLedger = raw ? JSON.parse(raw) : [];
+  }catch(e){ nameplateLedger = []; }
+}
+function saveNameplateLedger(){
+  try{ localStorage.setItem(NAMEPLATE_LEDGER_KEY, JSON.stringify(nameplateLedger)); }catch(e){}
+}
+
+const NAMEPLATE_CLIENT_MAP_KEY = 'leader-master-nameplate-client-map-v1';
+let nameplateClientMap = {}; // { clientKey: { client, plateId, lastUsedDate } }
+function loadNameplateClientMap(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_CLIENT_MAP_KEY);
+    nameplateClientMap = raw ? JSON.parse(raw) : {};
+  }catch(e){ nameplateClientMap = {}; }
+}
+function saveNameplateClientMap(){
+  try{ localStorage.setItem(NAMEPLATE_CLIENT_MAP_KEY, JSON.stringify(nameplateClientMap)); }catch(e){}
+}
+function nameplateClientKey(name){
+  return (name||'').trim().toLowerCase().replace(/\s+\d+(\s*-\s*\d+)?\s*$/,'').trim();
+}
+
+function renderNameplatesSection(){
+  const body = document.getElementById('nameplatesBody');
+  if(!body) return;
+  const lastMoveFor = (plateId, type) => {
+    const moves = nameplateLedger.filter(m=>m.plateId===plateId && m.type===type);
+    if(moves.length === 0) return '—';
+    return moves.reduce((latest,m)=> (!latest || m.date > latest.date) ? m : latest, null).date;
+  };
+  body.innerHTML = nameplateRegistry.slice().sort((a,b)=>a.text.localeCompare(b.text)).map(p=>`
+    <tr data-np-row="${p.id}">
+      <td>
+        <span data-np-display="${p.id}">${formatNameplateText(p.text, p.elephant)}</span>
+        ${p.review ? `<span class="flag" style="background:var(--amber); color:#1a1200; margin-left:6px;" title="${p.review.replace(/"/g,'&quot;')}">CHECK</span>` : ''}
+        <div data-np-edit="${p.id}" style="display:none; margin-top:4px; gap:6px; align-items:center;">
+          <input type="text" data-np-edit-text="${p.id}" value="${p.text.replace(/"/g,'&quot;')}" style="width:180px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:4px 6px;">
+          <label style="font-size:11px; display:flex; align-items:center; gap:3px;"><input type="checkbox" data-np-edit-elephant="${p.id}" ${p.elephant?'checked':''}> Elephants</label>
+          <button class="btn primary" data-np-edit-save="${p.id}" style="padding:3px 8px; font-size:11px;">Save</button>
+          <button class="btn" data-np-edit-dismiss-review="${p.id}" style="padding:3px 8px; font-size:11px; ${p.review?'':'display:none;'}">Dismiss check</button>
+        </div>
+      </td>
+      <td class="right num">${p.qty}</td>
+      <td>${lastMoveFor(p.id,'cut')}</td>
+      <td>${lastMoveFor(p.id,'fit')}</td>
+      <td><button class="btn" data-np-edit-toggle="${p.id}" style="padding:3px 8px; font-size:11px;">✎ Edit</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('[data-np-edit-toggle]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.npEditToggle;
+      const editRow = body.querySelector(`[data-np-edit="${id}"]`);
+      editRow.style.display = editRow.style.display === 'none' ? 'flex' : 'none';
+    };
+  });
+  body.querySelectorAll('[data-np-edit-save]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.npEditSave;
+      const plate = nameplateRegistry.find(p=>p.id===id);
+      if(!plate) return;
+      const newText = body.querySelector(`[data-np-edit-text="${id}"]`).value.trim();
+      const newElephant = body.querySelector(`[data-np-edit-elephant="${id}"]`).checked;
+      if(!newText){ alert("Plate text can't be blank."); return; }
+      // Same id kept deliberately — a text/elephant fix here shouldn't break
+      // the link to the terminal's copy of the same plate.
+      plate.text = newText;
+      plate.elephant = newElephant;
+      saveNameplateRegistry();
+      renderNameplatesSection();
+    };
+  });
+  body.querySelectorAll('[data-np-edit-dismiss-review]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.npEditDismissReview;
+      const plate = nameplateRegistry.find(p=>p.id===id);
+      if(!plate) return;
+      plate.review = null;
+      saveNameplateRegistry();
+      renderNameplatesSection();
+    };
+  });
+}
+
+let expandedNpMonths = new Set();
+let expandedNpDates = null;
+function renderNameplateLedger(){
+  const wrap = document.getElementById('nameplateLedgerWrap');
+  if(!wrap) return;
+  if(nameplateLedger.length===0){
+    wrap.innerHTML = `<div class="empty">No nameplate moves imported yet.</div>`;
+    return;
+  }
+  const groups = groupByDate(nameplateLedger);
+  const dates = sortedDatesDesc(groups);
+  if(expandedNpDates === null) expandedNpDates = new Set([dates[0]]);
+  const dayHtml = (date)=>{
+    const entries = groups[date].slice().reverse();
+    const isOpen = expandedNpDates.has(date);
+    const rowsHtml = entries.map(m=>`
+      <tr>
+        <td>${m.time||''}</td>
+        <td>${m.worker||'—'}</td>
+        <td>${formatNameplateText(m.text, m.elephant)}</td>
+        <td>${m.type === 'cut' ? 'Cut' : 'Fit'}</td>
+        <td>${m.client||'—'}${m.jobNo?' · Job '+m.jobNo:''}</td>
+        <td class="right num" style="color:${m.type==='cut'?'var(--success)':'var(--danger)'};">${m.type==='cut'?'+':'−'}${m.qty}</td>
+      </tr>`).join("");
+    return `
+      <div style="margin-bottom:8px;">
+        <div class="category-header" data-npledger-date-toggle="${date}" style="cursor:pointer; background:var(--panel-raised); padding:9px 12px; border-radius:6px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+          <span><span style="display:inline-block; width:14px;">${isOpen?'▾':'▸'}</span> ${date} <span style="color:var(--text-faint); font-weight:400;">(${entries.length} move${entries.length===1?'':'s'})</span></span>
+        </div>
+        ${isOpen ? `<table style="margin-top:4px;"><thead><tr><th>Time</th><th>By</th><th>Plate</th><th>Type</th><th>Client / Job</th><th class="right">Qty</th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ''}
+      </div>
+    `;
+  };
+  wrap.innerHTML = renderByMonth(dates, groups, dayHtml, ()=>0, expandedNpMonths, 'npledger', 'move', 'moves');
+  wireMonthToggles(wrap, 'npledger', expandedNpMonths, renderNameplateLedger);
+  wrap.querySelectorAll('[data-npledger-date-toggle]').forEach(header=>{
+    header.onclick = ()=>{
+      const d = header.dataset.npledgerDateToggle;
+      if(expandedNpDates.has(d)) expandedNpDates.delete(d); else expandedNpDates.add(d);
+      renderNameplateLedger();
+    };
+  });
+}
+
+function renderClientMapPicker(selectEl){
+  selectEl.innerHTML = nameplateRegistry.slice().sort((a,b)=>a.text.localeCompare(b.text))
+    .map(p=>`<option value="${p.id}">${formatNameplateText(p.text,p.elephant)}</option>`).join('');
+}
+
+function renderClientMapBody(){
+  const body = document.getElementById('ncmBody');
+  const entries = Object.entries(nameplateClientMap).sort((a,b)=> (a[1].client||a[0]).localeCompare(b[1].client||b[0]));
+  if(entries.length === 0){
+    body.innerHTML = `<tr><td colspan="4" class="empty">No remembered clients yet.</td></tr>`;
+    return;
+  }
+  body.innerHTML = entries.map(([key, v])=>{
+    const plate = nameplateRegistry.find(p=>p.id===v.plateId);
+    return `<tr>
+      <td>${v.client || key}</td>
+      <td>${plate ? formatNameplateText(plate.text, plate.elephant) : v.plateId}</td>
+      <td>${v.lastUsedDate || '—'}</td>
+      <td><button class="btn" data-ncm-delete="${key}" style="border-color:var(--danger); color:var(--danger); padding:3px 8px; font-size:11px;">Delete</button></td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('[data-ncm-delete]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const key = btn.dataset.ncmDelete;
+      if(!confirm(`Delete this remembered client link?`)) return;
+      delete nameplateClientMap[key];
+      saveNameplateClientMap();
+      renderClientMapBody();
+    };
+  });
+}
+document.getElementById('nameplateClientMapBtn').onclick = ()=>{
+  renderClientMapPicker(document.getElementById('ncmNewPlate'));
+  renderClientMapBody();
+  document.getElementById('nameplateClientMapModal').style.display = 'flex';
+};
+document.getElementById('nameplateClientMapCloseBtn').onclick = ()=> document.getElementById('nameplateClientMapModal').style.display = 'none';
+document.getElementById('ncmAddBtn').onclick = ()=>{
+  const client = document.getElementById('ncmNewClient').value.trim();
+  const plateId = document.getElementById('ncmNewPlate').value;
+  if(!client || !plateId){ alert("Enter a client name and pick a plate."); return; }
+  nameplateClientMap[nameplateClientKey(client)] = { client, plateId, lastUsedDate: new Date().toISOString().slice(0,10) };
+  saveNameplateClientMap();
+  document.getElementById('ncmNewClient').value = "";
+  renderClientMapBody();
+};
+
+/* ---- Cut List generator — the batch sheet handed to the boss. Planning
+   only: saving or printing never touches stock, only the terminal's own
+   Cut action does. ---- */
+const CUT_LIST_BATCHES_KEY = 'leader-master-nameplate-cutlist-batches-v1';
+let cutListBatches = [];
+function loadCutListBatches(){
+  try{
+    const raw = localStorage.getItem(CUT_LIST_BATCHES_KEY);
+    cutListBatches = raw ? JSON.parse(raw) : [];
+  }catch(e){ cutListBatches = []; }
+}
+function saveCutListBatches(){
+  try{ localStorage.setItem(CUT_LIST_BATCHES_KEY, JSON.stringify(cutListBatches)); }catch(e){}
+}
+let currentCutListLines = [];
+
+function renderCutListCurrent(){
+  const wrap = document.getElementById('cutListCurrentWrap');
+  if(currentCutListLines.length === 0){
+    wrap.innerHTML = `<div class="empty">No lines yet — add one below.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Detail</th><th class="right">Qty Req'd</th><th class="right">Qty On Hand</th><th class="right">Qty To Cut</th><th>Job Nr</th><th>Klient</th><th>Kommentaar</th><th></th></tr></thead>
+      <tbody>
+        ${currentCutListLines.map((l,i)=>{
+          const plate = nameplateRegistry.find(p=>p.id===l.plateId);
+          const onHand = plate ? plate.qty : 0;
+          const toCut = Math.max(0, l.qtyReqd - onHand);
+          return `<tr>
+            <td>${plate ? formatNameplateText(plate.text, plate.elephant) : l.plateId}</td>
+            <td class="right num">${l.qtyReqd}</td>
+            <td class="right num">${onHand}</td>
+            <td class="right num" style="color:${toCut>0?'var(--danger)':'var(--success)'};">${toCut}</td>
+            <td>${l.jobNo||''}</td>
+            <td>${l.client||''}</td>
+            <td>${l.comment||''}</td>
+            <td><button class="btn" data-cl-remove="${i}" style="padding:2px 6px; font-size:11px;">✕</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-cl-remove]').forEach(btn=>{
+    btn.onclick = ()=>{ currentCutListLines.splice(parseInt(btn.dataset.clRemove),1); renderCutListCurrent(); };
+  });
+}
+
+function renderSavedCutListBatches(){
+  const wrap = document.getElementById('cutListSavedWrap');
+  if(cutListBatches.length === 0){
+    wrap.innerHTML = `<div class="empty">No saved batches yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = cutListBatches.slice().reverse().map(b=>`
+    <div style="border-top:1px solid var(--panel-line); padding:8px 0; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:12.5px;">${b.date} <span style="color:var(--text-faint);">(${b.lines.length} line${b.lines.length===1?'':'s'})</span></span>
+      <span style="display:flex; gap:6px;">
+        <button class="btn" data-cl-load="${b._id}" style="padding:3px 10px; font-size:11px;">Load</button>
+        <button class="btn" data-cl-print="${b._id}" style="padding:3px 10px; font-size:11px; border-color:var(--steel); color:var(--steel);">Print</button>
+        <button class="btn" data-cl-delete="${b._id}" style="padding:3px 10px; font-size:11px; border-color:var(--danger); color:var(--danger);">Delete</button>
+      </span>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-cl-load]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const b = cutListBatches.find(x=>x._id===btn.dataset.clLoad);
+      if(!b) return;
+      currentCutListLines = JSON.parse(JSON.stringify(b.lines));
+      renderCutListCurrent();
+    };
+  });
+  wrap.querySelectorAll('[data-cl-print]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const b = cutListBatches.find(x=>x._id===btn.dataset.clPrint);
+      if(b) printCutListBatch(b);
+    };
+  });
+  wrap.querySelectorAll('[data-cl-delete]').forEach(btn=>{
+    btn.onclick = ()=>{
+      if(!confirm("Delete this saved batch?")) return;
+      cutListBatches = cutListBatches.filter(x=>x._id!==btn.dataset.clDelete);
+      saveCutListBatches();
+      renderSavedCutListBatches();
+    };
+  });
+}
+
+function printCutListBatch(batch){
+  const dateStr = new Date(batch.date).toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const rowsHtml = batch.lines.map(l=>{
+    const plate = nameplateRegistry.find(p=>p.id===l.plateId);
+    const onHand = plate ? plate.qty : 0;
+    const toCut = Math.max(0, l.qtyReqd - onHand);
+    return `<tr>
+      <td>${plate ? formatNameplateText(plate.text, plate.elephant) : l.plateId}</td>
+      <td style="text-align:right;">${l.qtyReqd}</td>
+      <td style="text-align:right;">${onHand}</td>
+      <td style="text-align:right;">${toCut}</td>
+      <td>${l.jobNo||''}</td>
+      <td>${l.client||''}</td>
+      <td>${l.comment||''}</td>
+    </tr>`;
+  }).join('');
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"><title>Nameplate Cut List — ${dateStr}</title>
+    <style>
+      body{ font-family:Arial, sans-serif; color:#1A1D21; padding:24px; }
+      h1{ font-size:18px; margin:0 0 4px; color:#1F4E78; }
+      .sub{ color:#5A6270; font-size:11px; margin-bottom:16px; }
+      table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+      th,td{ border:1px solid #ccc; padding:6px 8px; text-align:left; }
+      th{ background:#1F4E78; color:#fff; }
+      .sign{ margin-top:40px; display:flex; justify-content:space-between; font-size:11px; }
+      .sign div{ width:45%; border-top:1px solid #333; padding-top:4px; }
+    </style></head>
+    <body>
+      <h1>Nameplate Cut List</h1>
+      <div class="sub">Batch date: ${dateStr}</div>
+      <table>
+        <thead><tr><th>Detail</th><th style="text-align:right;">Qty Req'd</th><th style="text-align:right;">Qty On Hand</th><th style="text-align:right;">Qty To Cut</th><th>Job Nr</th><th>Klient</th><th>Kommentaar</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="sign">
+        <div>Prepared by</div>
+        <div>Approved by</div>
+      </div>
+      <div class="sign"><div>Date</div><div></div></div>
+    </body></html>
+  `);
+  printWin.document.close();
+  printWin.focus();
+  printWin.print();
+}
+
+document.getElementById('nameplateCutListBtn').onclick = ()=>{
+  renderClientMapPicker(document.getElementById('clNewPlate'));
+  renderCutListCurrent();
+  renderSavedCutListBatches();
+  document.getElementById('cutListModal').style.display = 'flex';
+};
+document.getElementById('cutListCloseBtn').onclick = ()=> document.getElementById('cutListModal').style.display = 'none';
+document.getElementById('clAddLineBtn').onclick = ()=>{
+  const plateId = document.getElementById('clNewPlate').value;
+  const qtyReqd = Number(document.getElementById('clNewQty').value);
+  const jobNo = document.getElementById('clNewJob').value.trim();
+  const client = document.getElementById('clNewClient').value.trim();
+  const comment = document.getElementById('clNewComment').value.trim();
+  if(!plateId || !qtyReqd || qtyReqd <= 0){ alert("Pick a plate and enter a Qty Req'd."); return; }
+  currentCutListLines.push({ plateId, qtyReqd, jobNo, client, comment });
+  document.getElementById('clNewQty').value = "";
+  document.getElementById('clNewJob').value = "";
+  document.getElementById('clNewClient').value = "";
+  document.getElementById('clNewComment').value = "";
+  renderCutListCurrent();
+};
+document.getElementById('clSaveBatchBtn').onclick = ()=>{
+  if(currentCutListLines.length === 0){ alert("Add at least one line first."); return; }
+  cutListBatches.push({ _id: 'clb'+Date.now(), date: new Date().toISOString().slice(0,10), lines: JSON.parse(JSON.stringify(currentCutListLines)) });
+  saveCutListBatches();
+  renderSavedCutListBatches();
+  alert("Batch saved.");
+};
+document.getElementById('clPrintBatchBtn').onclick = ()=>{
+  if(currentCutListLines.length === 0){ alert("Add at least one line first."); return; }
+  printCutListBatch({ date: new Date().toISOString().slice(0,10), lines: currentCutListLines });
+};
+document.getElementById('clNewBatchBtn').onclick = ()=>{
+  if(currentCutListLines.length > 0 && !confirm("Clear the current unsaved batch?")) return;
+  currentCutListLines = [];
+  renderCutListCurrent();
+};
+
 // "YYYY-MM-DD" -> "YYYY-MM", used to roll individual days up into months.
 // Falls back to grouping anything with an unparseable date under itself.
 function monthKey(dateStr){
@@ -2612,6 +3194,58 @@ function sortedDatesDesc(groups){
   return Object.keys(groups).sort((a,b)=> b.localeCompare(a));
 }
 
+/* ---- Month roll-up for Parts Issued + Spot Check ledgers ----
+   Days in the CURRENT month show flat, exactly as before. Once a month is
+   over, all its days fold into one collapsed month header (e.g.
+   "September 2026"). Open the month to get the normal per-day dropdowns
+   inside it. Nothing is deleted or re-dated -- this is display only.
+   Goods Received already has its own month roll-up from earlier work
+   (see monthKey/monthLabel below, and renderGoodsReceivedLedger) — reused
+   here rather than duplicated, so there's one month-key/label scheme. */
+let expandedLedgerMonths = new Set();
+let expandedSpotCheckMonths = new Set();
+
+function localMonthKey(){
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0');
+}
+// dates: already sorted newest first. dayHtml(date) returns the existing
+// per-day block. dupCount(date) returns possible duplicates for that day,
+// so a closed month still warns you something inside needs checking.
+function renderByMonth(dates, groups, dayHtml, dupCount, expandedMonths, prefix, unit, units){
+  const thisMonth = localMonthKey();
+  const byMonth = {}, order = [];
+  dates.forEach(d=>{
+    const mk = monthKey(d);
+    if(!byMonth[mk]){ byMonth[mk] = []; order.push(mk); }
+    byMonth[mk].push(d);
+  });
+  return order.map(mk=>{
+    const days = byMonth[mk];
+    if(mk === thisMonth) return days.map(dayHtml).join("");
+    const lines = days.reduce((sum,d)=> sum + groups[d].length, 0);
+    const dups = days.reduce((sum,d)=> sum + dupCount(d), 0);
+    const isOpen = expandedMonths.has(mk);
+    return `
+      <div style="margin-bottom:8px;">
+        <div class="category-header" data-${prefix}-month-toggle="${mk}" style="cursor:pointer; background:var(--panel-raised); padding:10px 12px; border-radius:6px; font-weight:700; display:flex; justify-content:space-between; align-items:center; border-left:3px solid var(--steel, #3D5F92);">
+          <span><span style="display:inline-block; width:14px;">${isOpen?'▾':'▸'}</span> ${monthLabel(mk)} <span style="color:var(--text-faint); font-weight:400;">(${days.length} day${days.length===1?'':'s'} · ${lines} ${lines===1?unit:units}${dups ? `, <span style="color:var(--amber);">${dups} possible duplicate${dups===1?'':'s'}</span>` : ''})</span></span>
+        </div>
+        ${isOpen ? `<div style="padding:8px 0 0 18px;">${days.map(dayHtml).join("")}</div>` : ''}
+      </div>
+    `;
+  }).join("");
+}
+function wireMonthToggles(wrap, prefix, expandedMonths, rerender){
+  wrap.querySelectorAll(`[data-${prefix}-month-toggle]`).forEach(header=>{
+    header.onclick = ()=>{
+      const mk = header.getAttribute(`data-${prefix}-month-toggle`);
+      if(expandedMonths.has(mk)) expandedMonths.delete(mk); else expandedMonths.add(mk);
+      rerender();
+    };
+  });
+}
+
 function renderLedger(){
   const wrap = document.getElementById('ledgerWrap');
   if(ledger.length===0){
@@ -2623,7 +3257,7 @@ function renderLedger(){
   const dates = sortedDatesDesc(groups);
   if(expandedLedgerDates === null) expandedLedgerDates = new Set([dates[0]]); // most recent open first time only
 
-  wrap.innerHTML = dates.map(date=>{
+  const dayHtml = (date)=>{
     const entries = groups[date].slice().reverse();
     const isOpen = expandedLedgerDates.has(date);
     const dupInDay = entries.filter(r=>dupIds.has(r._id)).length;
@@ -2649,7 +3283,11 @@ function renderLedger(){
         ${isOpen ? `<table style="margin-top:4px;"><thead><tr><th>Time</th><th>Issued To</th><th>Customer / Job</th><th>Part</th><th>SKU</th><th class="right">Qty</th><th></th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ''}
       </div>
     `;
-  }).join("");
+  };
+  wrap.innerHTML = renderByMonth(dates, groups, dayHtml,
+    d => groups[d].filter(x=>dupIds.has(x._id)).length,
+    expandedLedgerMonths, 'ledger', 'line', 'lines');
+  wireMonthToggles(wrap, 'ledger', expandedLedgerMonths, renderLedger);
 
   wrap.querySelectorAll('[data-ledger-date-toggle]').forEach(header=>{
     header.onclick = ()=>{
@@ -2722,7 +3360,9 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   STOCK_KEY, LEDGER_KEY, SPOT_LEDGER_KEY, GOODS_RECEIVED_LEDGER_KEY,
   OPENING_VALUE_KEY, PO_CONFIRMED_KEY, CYCLE_COUNT_BATCH_KEY,
   IMPORTED_BATCHES_KEY, IMPORTED_LINE_IDS_KEY,
-  ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY
+  ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY,
+  VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,
+  NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY
 ];
 
 function downloadMasterFullSnapshot(){
@@ -2764,7 +3404,27 @@ function restoreMasterFromSnapshotFile(file){
     Object.keys(snapshot.data).forEach(key=>{
       localStorage.setItem(key, snapshot.data[key]);
     });
-    alert("Restored. Reloading now.");
+    // Nameplates never count toward stock value — an old backup from before
+    // that split existed can still carry Nameplates rows inside `stock`.
+    // Pull them out now, on the just-restored data, before anything renders.
+    let removedNameplateRows = [];
+    try{
+      const rawStock = localStorage.getItem(STOCK_KEY);
+      if(rawStock){
+        const restoredStock = JSON.parse(rawStock);
+        removedNameplateRows = restoredStock.filter(i=>i.cat === 'Nameplates');
+        if(removedNameplateRows.length){
+          localStorage.setItem(STOCK_KEY, JSON.stringify(restoredStock.filter(i=>i.cat !== 'Nameplates')));
+        }
+      }
+    }catch(e){}
+    if(removedNameplateRows.length){
+      alert(`Restored. ${removedNameplateRows.length} old Nameplates row(s) were found in stock and removed (nameplates never count toward stock value):\n\n` +
+        removedNameplateRows.map(i=>`${i.name} (qty ${i.qty})`).join('\n') +
+        `\n\nCompare this to the nameplate seed count. Reloading now.`);
+    } else {
+      alert("Restored. Reloading now.");
+    }
     location.reload();
   };
   reader.readAsText(file);
@@ -2857,10 +3517,11 @@ function processImportPayload(payload){
   const rows = payload.rows || [];
   const checks = payload.spotChecks || [];
   const deliveries = payload.goodsReceived || [];
+  const plateMoves = payload.nameplateMoves || [];
   // The tablet may still send newWorkers in the payload — harmless to
   // ignore here, Master List doesn't keep its own worker roster.
-  if(rows.length===0 && checks.length===0 && deliveries.length===0){
-    alert("No rows, spot checks, or deliveries found in that code/file.");
+  if(rows.length===0 && checks.length===0 && deliveries.length===0 && plateMoves.length===0){
+    alert("No rows, spot checks, deliveries, or nameplate moves found in that code/file.");
     return;
   }
   if(payload.batchId && loadImportedBatches().includes(payload.batchId)){
@@ -2957,17 +3618,44 @@ function processImportPayload(payload){
     if(g._id) markApplied(g._id);
   });
 
+  // Nameplates — quantity only, never valued, own registry entirely
+  // separate from `stock`. Cut adds, Fit subtracts (floored at 0 — a
+  // fit that would go negative on THIS device's numbers still applies,
+  // since the tablet is the real source of truth for what physically
+  // happened; the floor is just so this display never shows a negative).
+  let npMatched = 0, npCreated = 0, npSkippedDup = 0;
+  plateMoves.forEach(m=>{
+    if(m._id && alreadyApplied(m._id)){ npSkippedDup++; return; }
+    let plate = nameplateRegistry.find(p=>p.id===m.plateId);
+    if(!plate && m.isNewPlate){
+      plate = { id: m.plateId, text: m.text, elephant: !!m.elephant, qty: 0 };
+      nameplateRegistry.push(plate);
+      npCreated++;
+    }
+    if(plate){
+      plate.qty = Math.max(0, plate.qty + (m.type === 'cut' ? m.qty : -m.qty));
+      nameplateLedger.push(Object.assign({}, m, { _importedAt: importedAt, _id: 'npl'+Date.now()+Math.random().toString(36).slice(2,7) }));
+      npMatched++;
+    }
+    if(m._id) markApplied(m._id);
+  });
+  if(plateMoves.length) saveNameplateRegistry();
+  if(plateMoves.length) saveNameplateLedger();
+
   saveState();
+  localStorage.setItem('leader-master-last-import-at', new Date().toLocaleString('en-ZA'));
   if(payload.batchId) saveImportedBatch(payload.batchId);
   saveImportedLineIds(importedLineIds);
   downloadMasterFullSnapshot();
   render();
-  const totalSkippedDup = rowsSkippedDup + scSkippedDup + grSkippedDup;
+  const totalSkippedDup = rowsSkippedDup + scSkippedDup + grSkippedDup + npSkippedDup;
   let msg = `Imported ${matched} of ${rows.length} issue line(s).`;
   if(checks.length) msg += `\n${scMatched} of ${checks.length} spot check(s) applied — stock levels set to the counted quantity.`;
   if(scCreated) msg += `\n${scCreated} of those were brand new items — added to the stock list at 0 price/min until you give them a proper SKU.`;
   if(deliveries.length) msg += `\n${grMatched} of ${deliveries.length} delivery line(s) added to stock.`;
   if(grCreated) msg += `\n${grCreated} of those were brand new items — added to the stock list at 0 price/min until you give them a proper SKU.`;
+  if(plateMoves.length) msg += `\n${npMatched} of ${plateMoves.length} nameplate move(s) applied.`;
+  if(npCreated) msg += `\n${npCreated} of those were brand new plates — added to the Nameplates list.`;
   if(unmatched.length) msg += `\n\n${unmatched.length} issue line(s) had no matching SKU: ${[...new Set(unmatched)].join(', ')}`;
   if(scUnmatched.length) msg += `\n\n${scUnmatched.length} spot check(s) had no matching SKU: ${[...new Set(scUnmatched)].join(', ')}`;
   if(totalSkippedDup > 0) msg += `\n\n${totalSkippedDup} line(s) were already imported previously (probably from an unconfirmed upload on the tablet) — skipped, not double-counted.`;
@@ -3030,7 +3718,10 @@ function downloadDailyCSV(){
 
   let csv = '';
   csv += row(`Master Stock List — ${dateStr}`);
-  csv += row(`Total Stock Value`, totalValue(stock).toFixed(2));
+  csv += row(`Total Stock Value`, totalValue(stock.filter(inValueTotal)).toFixed(2));
+  [...new Set(stock.map(i=>i.cat))].filter(c=>valueExcluded.has(c)).sort().forEach(c=>{
+    csv += row(`Tracked, not in total — ${GROUP_DISPLAY_NAMES[c]||c}`, totalValue(stock.filter(i=>i.cat===c)).toFixed(2));
+  });
   csv += '\n';
 
   csv += row('INVENTORY CONTROL');
@@ -3063,6 +3754,13 @@ function downloadDailyCSV(){
   csv += row('Date','Supplier','Delivery To','Order No','Invoice No','GRN No','Item','SKU','Qty In','Checked By');
   goodsReceivedLedger.forEach(g=>{
     csv += row(g.date||'', g.supplier||'', g.deliveryTo||'', g.orderNo||'', g.invoiceNo||'', g.grnNo||'', g.name||'', g.sku||'', g.qty, g.checker||'');
+  });
+  csv += '\n';
+
+  csv += row('NAMEPLATES');
+  csv += row('Text','Elephant','Qty');
+  nameplateRegistry.slice().sort((a,b)=>a.text.localeCompare(b.text)).forEach(p=>{
+    csv += row(p.text, p.elephant ? 'Yes' : 'No', p.qty);
   });
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -3449,6 +4147,11 @@ document.getElementById('kitSchedulerViewListBtn').onclick = ()=>{ kitSchedulerV
 loadState();
 loadOrderLists();
 loadOrderHistory();
+loadValueExcluded();
+loadNameplateRegistry();
+loadNameplateLedger();
+loadNameplateClientMap();
+loadCutListBatches();
 removeAdvanceHarnessingOnce();
 render();
 showFreshFileWarningIfNeeded();

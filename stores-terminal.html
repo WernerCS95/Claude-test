@@ -514,6 +514,7 @@
       <button class="clock-btn" id="uploadMasterBtnMain" style="border-color:var(--gold); color:var(--gold);">⬆ Upload to Master List</button>
       <button class="clock-btn" id="moreMenuBtn" style="border-color:var(--text-muted); color:var(--text-muted);">⚙ More ▾</button>
       <input type="file" id="restoreBackupFileInput" accept="application/json" style="display:none;">
+      <input type="file" id="mergeCatalogFileInput" accept="application/json" style="display:none;">
       <input type="file" id="importStockRefFileInput" accept="application/json" style="display:none;">
     </div>
   </div>
@@ -990,6 +991,28 @@
   </div>
 </div>
 
+<!-- Nameplates — cut (+) and fit (−) of engraved client plates, separate from
+     Inventory Control (no price/value, its own registry) -->
+<div class="modal-bg" id="nameplatesModal">
+  <div class="addjob-card">
+    <h3>🪧 Nameplates</h3>
+    <div class="sub">Search by plate text or client name — a client search shows the remembered plate first.</div>
+    <input type="text" id="npSearch" placeholder="Search plate text or client…" style="width:100%; margin-bottom:10px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px 12px; font-size:13px;">
+    <div id="npList" style="max-height:56vh; overflow-y:auto;"></div>
+    <div class="addjob-field" style="margin-top:10px;">
+      <label>+ New Plate</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="npNewText" placeholder="Plate text" style="flex:1;">
+        <label style="display:flex; align-items:center; gap:4px; font-size:12px; white-space:nowrap;"><input type="checkbox" id="npNewElephant"> Elephants</label>
+        <button class="clock-btn" id="npNewAddBtn" style="border-color:var(--steel); color:var(--steel);">Add</button>
+      </div>
+    </div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="npCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Full Count menu — grouped so the toolbar isn't a wall of buttons -->
 <div class="modal-bg" id="fullCountMenuModal">
   <div class="addjob-card">
@@ -1014,7 +1037,8 @@
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
-    <button class="clock-btn" id="restoreBackupBtn" style="width:100%; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
+    <button class="clock-btn" id="restoreBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
+    <button class="clock-btn" id="mergeCatalogBtn" style="width:100%; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🔗 Merge Catalog From Another Device</button>
   </div>
 </div>
 
@@ -4162,6 +4186,7 @@ const GROUPS = [
   { key:"Kits",          label:"Kits",        icon:"📦" },
   { key:"Diesel",        label:"Diesel",      icon:"⛽" },
   { key:"VehicleService",label:"Vehicle Service", icon:"🔧" },
+  { key:"NameplatesGroup",label:"Nameplates", icon:"🪧" },
   { key:"NutBolts",      label:"Nut & Bolts", icon:"🔩" },
   { key:"Misc",          label:"Misc",        icon:"🗂️" },
   { key:"Uncategorized", label:"Mixing Room", icon:"img:paintBucket", note:"Onsite mixing room stock — not yours, but you track updates from it" },
@@ -4331,17 +4356,20 @@ let pendingExportEntryIds = [];
 let pendingExportSpotChecks = [];
 let pendingExportGoodsReceived = [];
 let pendingExportNewWorkers = [];
+let pendingExportNameplateMoves = [];
 
 function uploadToMaster(){
   const rows = buildExportRows();
   const checks = spotChecks.slice();
   const deliveries = goodsReceived.slice();
   const newWorkers = getUnsyncedCustomWorkers();
-  if(rows.length===0 && checks.length===0 && deliveries.length===0 && newWorkers.length===0){
-    alert("Nothing to upload — no new slips, spot checks, deliveries, or workers since the last upload.");
+  const plateMoves = nameplateMoves.filter(m=>!m.synced);
+  if(rows.length===0 && checks.length===0 && deliveries.length===0 && newWorkers.length===0 && plateMoves.length===0){
+    alert("Nothing to upload — no new slips, spot checks, deliveries, workers, or nameplate moves since the last upload.");
     return;
   }
-  const payload = { exportedAt: new Date().toISOString(), batchId: 'b'+Date.now(), rows: rows, spotChecks: checks, goodsReceived: deliveries, newWorkers: newWorkers };
+  pendingExportNameplateMoves = plateMoves.map(m=>m._id);
+  const payload = { exportedAt: new Date().toISOString(), batchId: 'b'+Date.now(), rows: rows, spotChecks: checks, goodsReceived: deliveries, newWorkers: newWorkers, nameplateMoves: plateMoves };
   const jsonStr = JSON.stringify(payload);
 
   document.getElementById('exportCodeArea').value = jsonStr;
@@ -4384,7 +4412,8 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   'leader-stores-diesel-tank-level-v1', 'leader-stores-generator-tank-level-v1', 'leader-stores-liquid-argon-level-v1',
   'leader-stores-vehicle-registry-v1', 'leader-stores-diesel-meter-v1', 'leader-stores-diesel-makes-v1',
   'leader-stores-diesel-regs-v1', 'leader-stores-item-order-v1', 'leader-stores-item-names-v1',
-  'leader-stores-item-category-v1', 'leader-stores-skip-bolt-anim-v1'
+  'leader-stores-item-category-v1', 'leader-stores-skip-bolt-anim-v1',
+  'leader-stores-nameplate-qty-v1', 'leader-stores-nameplate-client-map-v1', 'leader-stores-nameplate-moves-v1'
 ];
 
 function downloadFullSnapshot(){
@@ -4447,6 +4476,95 @@ document.getElementById('restoreBackupFileInput').addEventListener('change', fun
   this.value = ''; // allow picking the same file again later if needed
 });
 
+// "Merge catalog" — the partial-restore mode. Pulls in another device's
+// NEW- items, custom kits, and last-count maps (so both devices agree on
+// the same NEW- SKU for the same real thing) WITHOUT touching this
+// device's own queue, log, or anything already counted here. Never
+// overwrites a sku this device already has a count for — a merge should
+// never quietly erase this device's own more recent number.
+const MERGE_CATALOG_KEYS = ['leader-stores-new-items-v1', 'leader-stores-custom-kits-v1', 'leader-stores-builtin-kit-overrides-v1',
+  'leader-stores-mixing-room-qty-v1', 'leader-stores-steel-qty-v1', 'leader-stores-tyres-qty-v1'];
+
+function mergeCatalogFromSnapshotFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let snapshot;
+    try{ snapshot = JSON.parse(reader.result); }
+    catch(e){ alert("That doesn't look like a valid backup file."); return; }
+    if(!snapshot || snapshot._backupType !== 'leader-stores-full-backup' || !snapshot.data){
+      alert("That doesn't look like a Leader Stores backup file.");
+      return;
+    }
+    const savedAt = snapshot._savedAt ? new Date(snapshot._savedAt).toLocaleString('en-ZA') : 'unknown time';
+    if(!confirm(`Merge catalog from the backup taken ${savedAt}?\n\nThis brings in new item SKUs, custom kits, and last-count entries this device doesn't already have — it never touches this device's own queue, log, or existing counts.`)) return;
+
+    let newItemsAdded = 0, kitsAdded = 0;
+
+    // New items — dedupe by id, source items this device doesn't know yet get added
+    if(snapshot.data['leader-stores-new-items-v1']){
+      let incoming = [];
+      try{ incoming = JSON.parse(snapshot.data['leader-stores-new-items-v1']); }catch(e){}
+      const existingIds = new Set(newItems.map(it=>it.id));
+      incoming.forEach(it=>{
+        if(!existingIds.has(it.id)){ newItems.push(it); existingIds.add(it.id); newItemsAdded++; }
+      });
+      saveNewItems();
+    }
+
+    // Custom kits — same dedupe-by-id approach
+    if(snapshot.data['leader-stores-custom-kits-v1']){
+      let incoming = [];
+      try{ incoming = JSON.parse(snapshot.data['leader-stores-custom-kits-v1']); }catch(e){}
+      const existingIds = new Set(customKits.map(k=>k.id));
+      incoming.forEach(k=>{
+        if(!existingIds.has(k.id)){ customKits.push(k); existingIds.add(k.id); kitsAdded++; }
+      });
+      saveCustomKits();
+    }
+
+    // Built-in kit overrides — an object keyed by kitId; bring in any this device doesn't have yet
+    if(snapshot.data['leader-stores-builtin-kit-overrides-v1']){
+      let incoming = {};
+      try{ incoming = JSON.parse(snapshot.data['leader-stores-builtin-kit-overrides-v1']); }catch(e){}
+      Object.keys(incoming).forEach(kitId=>{
+        saveBuiltinKitOverride(kitId, incoming[kitId]);
+      });
+    }
+
+    // Tyres/Steel/Mixing Room last-count maps — bring across any sku this device
+    // hasn't counted yet (that's how the NEW- tyre size shows up on the other
+    // device at all); a sku this device already has a count for is left alone.
+    [
+      { key: 'leader-stores-mixing-room-qty-v1', map: mixingRoomQty, save: saveMixingRoomQty },
+      { key: 'leader-stores-steel-qty-v1', map: steelQty, save: saveSteelQty },
+      { key: 'leader-stores-tyres-qty-v1', map: tyresQty, save: saveTyresQty },
+    ].forEach(({key, map, save})=>{
+      if(!snapshot.data[key]) return;
+      let incoming = {};
+      try{ incoming = JSON.parse(snapshot.data[key]); }catch(e){}
+      Object.keys(incoming).forEach(sku=>{
+        if(!(sku in map)) map[sku] = incoming[sku];
+      });
+      save();
+    });
+
+    // New items just merged in need to exist in ITEMS before anything renders them
+    loadNewItems();
+    renderGroupGrid();
+    alert(`Merged: ${newItemsAdded} new item(s), ${kitsAdded} custom kit(s), plus any new Tyres/Steel/Mixing Room entries. Nothing already on this device was touched.`);
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('mergeCatalogBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  document.getElementById('mergeCatalogFileInput').click();
+};
+document.getElementById('mergeCatalogFileInput').addEventListener('change', function(){
+  if(this.files && this.files[0]) mergeCatalogFromSnapshotFile(this.files[0]);
+  this.value = '';
+});
+
 function confirmUploadDone(){
   state.log.forEach(e=>{ if(pendingExportEntryIds.includes(e._id)) e.synced = true; });
   saveLogNoSync();
@@ -4462,10 +4580,14 @@ function confirmUploadDone(){
 
   if(pendingExportNewWorkers.length > 0) markWorkersSynced(pendingExportNewWorkers);
 
+  nameplateMoves.forEach(m=>{ if(pendingExportNameplateMoves.includes(m._id)) m.synced = true; });
+  saveNameplateMoves();
+
   pendingExportEntryIds = [];
   pendingExportSpotChecks = [];
   pendingExportGoodsReceived = [];
   pendingExportNewWorkers = [];
+  pendingExportNameplateMoves = [];
   document.getElementById('exportModal').classList.remove('show');
 }
 
@@ -4895,6 +5017,305 @@ function renderStaleCountModal(){
 }
 document.getElementById('staleCountCloseBtn').onclick = ()=> document.getElementById('staleCountModal').classList.remove('show');
 
+/* ====================== NAMEPLATES ======================
+   Separate registry from Inventory Control — no price/value fields
+   anywhere, never feeds Total Stock Value. Seeded once from the physical
+   count (Appendix B of the fresh-install spec, counted 2026-09-07: 106
+   plate texts, 298 plates). The elephant marker is a stored per-plate
+   flag, not a letter-count rule — 3-year cut history disproves "exactly
+   3 letters -> elephants" (NJP/VDM/BCI/W.O.T are 3 letters, never had
+   elephants; MG/DEMATA/RIVER VALLEY did). New-plate creation still
+   pre-ticks the toggle for a 3-letter text as a suggestion only. */
+const ELEPHANT_LABEL = 'Olifant';
+const DEFAULT_PLATE_TEXT = 'LEADER TRAILER';
+const NAMEPLATE_PHYSICAL_COUNT_2026_09_07 = {
+  "source": "Naamplate_reference_V2.xlsx — Sheet2 physical count",
+  "countDate": "2026-09-07",
+  "elephantLabel": "Olifant",
+  "plates": [
+    {"text":"AMRO","qty":3,"elephant":false},{"text":"BAKUBUNG","qty":2,"elephant":false},
+    {"text":"BARNARD VERVOER","qty":9,"elephant":false},{"text":"BCI","qty":6,"elephant":false},
+    {"text":"BJS CARRIERS","qty":3,"elephant":false},
+    {"text":"CAPSTONE 58","qty":3,"elephant":false,"review":"Is \"58\" part of the plate text, or a job/quantity that slipped into the name?"},
+    {"text":"CEFRATEC","qty":1,"elephant":false},{"text":"CMP","qty":1,"elephant":true},
+    {"text":"DAO CARRIERS","qty":2,"elephant":false,"review":"History has \"DOA CARRIERS\". Which is right?"},
+    {"text":"DEZMO TRANS","qty":20,"elephant":false},{"text":"DIRARO GROUP","qty":2,"elephant":false},
+    {"text":"ELD","qty":2,"elephant":false,"review":"History only has \"EDL\" (with elephants, last cut 2026-08-28). Typo in the count, or a different client? If EDL, it should have elephants."},
+    {"text":"ELD LOGISTICS","qty":1,"elephant":false,"review":"No history match. Confirm spelling."},
+    {"text":"ENTLE LOGISTICS","qty":1,"elephant":false},{"text":"ESALEONE","qty":1,"elephant":false},
+    {"text":"FALCON FORCE BULK","qty":5,"elephant":false},{"text":"FGH","qty":2,"elephant":true},
+    {"text":"FUHRENT","qty":1,"elephant":false,"review":"History has \"(OLIFANT) FURHEND (OLIFANT)\" (2026-04-13). Same plate? Spelling?"},
+    {"text":"GCL TRANSPORT","qty":1,"elephant":false},
+    {"text":"GLIMLAG BOERDERY","qty":8,"elephant":false,"review":"History has \"GLIMLAG\" only. Confirm full text."},
+    {"text":"GLOBALNET LOGISTICS","qty":1,"elephant":false},{"text":"HANJORU TRANSPORT","qty":2,"elephant":false},
+    {"text":"HBC FARMING","qty":4,"elephant":false},{"text":"HJS","qty":1,"elephant":true},
+    {"text":"HLONGIE TRADING","qty":3,"elephant":false},{"text":"HUDSON TRANSPORT","qty":12,"elephant":false},
+    {"text":"IMS","qty":4,"elephant":true},{"text":"INCEBA CARRIERS","qty":2,"elephant":false},
+    {"text":"IZUSA CARRIERS","qty":2,"elephant":false},{"text":"JABULA","qty":9,"elephant":false},
+    {"text":"JACOBS TRANSPRORT","qty":5,"elephant":false,"review":"Looks like a typo for \"JACOBS TRANSPORT\"."},
+    {"text":"JACODANIE","qty":2,"elephant":false},{"text":"JAIG","qty":1,"elephant":false},
+    {"text":"JAMBOSKO","qty":1,"elephant":false,"review":"History has \"JAMBISKO\". Which is right?"},
+    {"text":"JAMES VAN WYK","qty":3,"elephant":false},{"text":"JAMIL","qty":1,"elephant":false},
+    {"text":"JDJ PLANT HIRE","qty":3,"elephant":false},{"text":"JLF","qty":2,"elephant":true},
+    {"text":"JPC","qty":2,"elephant":false},{"text":"KAGGIES","qty":1,"elephant":false},
+    {"text":"KAI TRUCX","qty":3,"elephant":false},{"text":"KALAHARI ROOTS","qty":1,"elephant":false},
+    {"text":"KE-MATETE","qty":4,"elephant":false,"review":"History writes \"KE - MATETE\". Confirm the exact cut text."},
+    {"text":"KEGO","qty":1,"elephant":false},{"text":"KESHO","qty":1,"elephant":false},
+    {"text":"KINGSVALLY FARMS","qty":1,"elephant":false},{"text":"KLAVER","qty":1,"elephant":false},
+    {"text":"LANGVIC","qty":1,"elephant":false},{"text":"LEADER TRAILER","qty":17,"elephant":false},
+    {"text":"LENATA","qty":2,"elephant":false},{"text":"LETSO","qty":1,"elephant":false},
+    {"text":"LIBALELE SA","qty":1,"elephant":false},{"text":"LORCHA","qty":1,"elephant":false},
+    {"text":"LOUFRANS","qty":1,"elephant":false},{"text":"LUK LOGIC","qty":3,"elephant":false},
+    {"text":"LUMINAR FREIGHT","qty":1,"elephant":false},{"text":"LUTZYL","qty":1,"elephant":false},
+    {"text":"MACDONALDS","qty":22,"elephant":false},{"text":"MARBOD","qty":3,"elephant":false},
+    {"text":"METAFUEL","qty":3,"elephant":false},{"text":"MG","qty":5,"elephant":true},
+    {"text":"MH LOGICA","qty":1,"elephant":false},{"text":"MISS LUCY TRUCKING","qty":1,"elephant":false},
+    {"text":"MKUZE","qty":1,"elephant":false},{"text":"MOVING FORWARD","qty":1,"elephant":false},
+    {"text":"MSESHI","qty":1,"elephant":false},{"text":"NACS LOGISTICS","qty":2,"elephant":false},
+    {"text":"NYIKO","qty":10,"elephant":false},
+    {"text":"OKUNGVONO","qty":1,"elephant":false,"review":"History spells it \"OKUNGCONO\"."},
+    {"text":"ONE LIFE LIVE IT IN GOD","qty":3,"elephant":false},{"text":"ONYX","qty":2,"elephant":false},
+    {"text":"PIKET TRANS","qty":1,"elephant":false},{"text":"PINDULO","qty":1,"elephant":false},
+    {"text":"PROMAR TRUCKING","qty":2,"elephant":false},{"text":"PZN TRUCKING","qty":3,"elephant":false},
+    {"text":"RIVER VALLEY","qty":1,"elephant":true},{"text":"ROCKOM","qty":1,"elephant":false},
+    {"text":"RUDS TRANSPORT","qty":1,"elephant":false},
+    {"text":"RUDWES CARRIES","qty":1,"elephant":false,"review":"History spells it \"RUDWES CARRIERS\"."},
+    {"text":"SEBUSENG","qty":1,"elephant":false},{"text":"SHOSHOLOZA","qty":1,"elephant":false},
+    {"text":"SIYAKHULA","qty":4,"elephant":false},
+    {"text":"SJ DU PLESSIS","qty":0,"elephant":false,"review":"No quantity in the count. Seeded as 0."},
+    {"text":"SMT LOGISTICS","qty":3,"elephant":false},{"text":"SOKOZA","qty":1,"elephant":false},
+    {"text":"SOUTH REEF MINING","qty":3,"elephant":false},{"text":"SPACE","qty":1,"elephant":false},
+    {"text":"STAR LIZARD","qty":4,"elephant":false},{"text":"SYLMOU","qty":4,"elephant":false},
+    {"text":"TAIWATEB DISRUBUTORS","qty":1,"elephant":false,"review":"\"DISRUBUTORS\" looks like a typo for \"DISTRIBUTORS\". Check the first word too."},
+    {"text":"TANVICOR","qty":2,"elephant":false},{"text":"TEXMACOM","qty":3,"elephant":false},
+    {"text":"TGA","qty":1,"elephant":true},
+    {"text":"TM&S","qty":1,"elephant":false,"review":"History cuts it as \"(olifant) TM & S (olifant)\", so probably elephants and spacing \"TM & S\"."},
+    {"text":"TRADEKOR","qty":2,"elephant":false},
+    {"text":"TUGELA STEEL , STEEL STRUCTURES","qty":2,"elephant":false,"review":"Two-line plate? Confirm how it should read."},
+    {"text":"UMBONO","qty":2,"elephant":false},{"text":"UMBUSO","qty":3,"elephant":false},
+    {"text":"VALOSTAR","qty":1,"elephant":false},{"text":"VFOUR","qty":3,"elephant":false},
+    {"text":"VULA VALLA","qty":2,"elephant":false},{"text":"WOT","qty":1,"elephant":false},
+    {"text":"XBFS","qty":2,"elephant":false},{"text":"ZEN BULK","qty":1,"elephant":false},
+    {"text":"ZINGARO","qty":4,"elephant":false},{"text":"ZYHO","qty":2,"elephant":false}
+  ]
+};
+const NAMEPLATE_SEED = NAMEPLATE_PHYSICAL_COUNT_2026_09_07;
+
+function slugifyPlateId(text){
+  return 'NP-' + (text||'').trim().toUpperCase().replace(/[^A-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+function formatNameplateText(text, elephant){
+  return elephant ? `(${ELEPHANT_LABEL}) ${text} (${ELEPHANT_LABEL})` : text;
+}
+
+const NAMEPLATE_QTY_KEY = 'leader-stores-nameplate-qty-v1';
+let nameplateRegistry = [];
+function loadNameplateRegistry(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_QTY_KEY);
+    if(raw){
+      nameplateRegistry = JSON.parse(raw);
+    } else {
+      // Never seeded on this device yet — load the physical count once.
+      // Never runs again after this, even if the registry is later emptied.
+      nameplateRegistry = NAMEPLATE_SEED.plates.map(p=>({
+        id: slugifyPlateId(p.text), text: p.text, elephant: !!p.elephant, qty: p.qty
+      }));
+      saveNameplateRegistry();
+    }
+  }catch(e){ nameplateRegistry = []; }
+}
+function saveNameplateRegistry(){
+  try{ localStorage.setItem(NAMEPLATE_QTY_KEY, JSON.stringify(nameplateRegistry)); }catch(e){}
+}
+
+const NAMEPLATE_CLIENT_MAP_KEY = 'leader-stores-nameplate-client-map-v1';
+let nameplateClientMap = {}; // { clientKey: { plateId, lastUsedDate } }
+function loadNameplateClientMap(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_CLIENT_MAP_KEY);
+    nameplateClientMap = raw ? JSON.parse(raw) : {};
+  }catch(e){ nameplateClientMap = {}; }
+}
+function saveNameplateClientMap(){
+  try{ localStorage.setItem(NAMEPLATE_CLIENT_MAP_KEY, JSON.stringify(nameplateClientMap)); }catch(e){}
+}
+// Client name -> lookup key: trimmed, lowercased, trailing trailer
+// numbers/ranges stripped ("Luk Logic 2-4" -> "luk logic").
+function nameplateClientKey(name){
+  return (name||'').trim().toLowerCase().replace(/\s+\d+(\s*-\s*\d+)?\s*$/,'').trim();
+}
+
+// Movements — the terminal's own ledger of cuts/fits, mirrors the
+// Goods Received pattern: never cleared locally, entries just get
+// marked .synced once an upload including them is confirmed.
+const NAMEPLATE_MOVES_KEY = 'leader-stores-nameplate-moves-v1';
+let nameplateMoves = [];
+function loadNameplateMoves(){
+  try{
+    const raw = localStorage.getItem(NAMEPLATE_MOVES_KEY);
+    nameplateMoves = raw ? JSON.parse(raw) : [];
+  }catch(e){ nameplateMoves = []; }
+}
+function saveNameplateMoves(){
+  try{ localStorage.setItem(NAMEPLATE_MOVES_KEY, JSON.stringify(nameplateMoves)); }catch(e){}
+}
+
+function openNameplatesModal(){
+  document.getElementById('npSearch').value = "";
+  document.getElementById('npNewText').value = "";
+  document.getElementById('npNewElephant').checked = false;
+  renderNameplatesList("");
+  document.getElementById('nameplatesModal').classList.add('show');
+}
+document.getElementById('npCloseBtn').onclick = ()=> document.getElementById('nameplatesModal').classList.remove('show');
+document.getElementById('npSearch').addEventListener('input', e=> renderNameplatesList(e.target.value));
+document.getElementById('npNewText').addEventListener('input', e=>{
+  const letters = e.target.value.trim().replace(/[^A-Za-z]/g,'');
+  document.getElementById('npNewElephant').checked = letters.length === 3;
+});
+
+function renderNameplatesList(term){
+  const wrap = document.getElementById('npList');
+  const q = (term||'').trim().toLowerCase();
+  let matches = nameplateRegistry;
+  let rememberedPlateId = null;
+  if(q){
+    const byClient = nameplateClientMap[nameplateClientKey(q)];
+    if(byClient){
+      rememberedPlateId = byClient.plateId;
+    } else if(!nameplateRegistry.some(p=>p.text.toLowerCase().includes(q))){
+      // No remembered plate and no text match at all — this looks like a
+      // client search with no history, so default to the Leader plate.
+      const defaultPlate = nameplateRegistry.find(p=>p.text === DEFAULT_PLATE_TEXT);
+      if(defaultPlate) rememberedPlateId = defaultPlate.id;
+    }
+    matches = nameplateRegistry.filter(p=> p.text.toLowerCase().includes(q) || p.id === rememberedPlateId);
+  }
+  matches = matches.slice().sort((a,b)=>{
+    if(rememberedPlateId){
+      if(a.id === rememberedPlateId) return -1;
+      if(b.id === rememberedPlateId) return 1;
+    }
+    return a.text.localeCompare(b.text);
+  });
+  if(matches.length === 0){
+    wrap.innerHTML = `<div style="color:var(--text-faint); font-size:11.5px; padding:8px 0;">No plates match — use "+ New Plate" below to add one.</div>`;
+    return;
+  }
+  wrap.innerHTML = matches.map(p=>`
+    <div style="border-top:1px solid var(--panel-line); padding:8px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <span style="font-size:12.5px; font-weight:600;">${formatNameplateText(p.text, p.elephant)}${p.id===rememberedPlateId ? ' <span style="color:var(--gold); font-weight:400; font-size:10.5px;">(remembered)</span>' : ''}</span>
+        <span style="font-size:11.5px; color:var(--text-faint);">qty ${p.qty}</span>
+      </div>
+      <div style="display:flex; gap:6px; margin-top:6px;">
+        <button data-np-cut="${p.id}" class="clock-btn" style="flex:1; border-color:var(--success); color:var(--success); padding:6px 10px; font-size:11.5px;">+ Cut</button>
+        <button data-np-fit="${p.id}" class="clock-btn" style="flex:1; border-color:var(--danger); color:var(--danger); padding:6px 10px; font-size:11.5px;">− Fit</button>
+      </div>
+      <div data-np-form="${p.id}" style="display:none; margin-top:8px;"></div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-np-cut]').forEach(btn=>{
+    btn.onclick = ()=> toggleNameplateForm(btn.dataset.npCut, 'cut');
+  });
+  wrap.querySelectorAll('[data-np-fit]').forEach(btn=>{
+    btn.onclick = ()=> toggleNameplateForm(btn.dataset.npFit, 'fit');
+  });
+}
+
+function toggleNameplateForm(plateId, type){
+  const formWrap = document.querySelector(`[data-np-form="${plateId}"]`);
+  if(!formWrap) return;
+  const isOpen = formWrap.style.display !== 'none';
+  document.querySelectorAll('[data-np-form]').forEach(f=> f.style.display = 'none');
+  if(isOpen) return;
+  formWrap.style.display = 'block';
+  if(type === 'cut'){
+    formWrap.innerHTML = `
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="number" min="1" data-np-cut-qty="${plateId}" placeholder="Qty cut" style="flex:1;">
+        <button data-np-cut-save="${plateId}" class="clock-btn" style="border-color:var(--success); color:var(--success);">Save</button>
+      </div>
+    `;
+    formWrap.querySelector(`[data-np-cut-save="${plateId}"]`).onclick = ()=>{
+      const qtyInput = formWrap.querySelector(`[data-np-cut-qty="${plateId}"]`);
+      const qty = Number(qtyInput.value);
+      if(!qty || qty <= 0){ alert("Enter how many were cut."); return; }
+      recordNameplateMove(plateId, 'cut', qty, {});
+      formWrap.style.display = 'none';
+      renderNameplatesList(document.getElementById('npSearch').value);
+    };
+  } else {
+    formWrap.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <input type="number" min="1" data-np-fit-qty="${plateId}" placeholder="Qty fitted">
+        <input type="text" data-np-fit-job="${plateId}" placeholder="Job Nr">
+        <input type="text" data-np-fit-client="${plateId}" placeholder="Client">
+        <label style="display:flex; align-items:center; gap:6px; font-size:11.5px;"><input type="checkbox" data-np-fit-remember="${plateId}"> Use this plate for this client from now on</label>
+        <button data-np-fit-save="${plateId}" class="clock-btn" style="border-color:var(--danger); color:var(--danger);">Save</button>
+      </div>
+    `;
+    formWrap.querySelector(`[data-np-fit-save="${plateId}"]`).onclick = ()=>{
+      const qty = Number(formWrap.querySelector(`[data-np-fit-qty="${plateId}"]`).value);
+      const jobNo = formWrap.querySelector(`[data-np-fit-job="${plateId}"]`).value.trim();
+      const client = formWrap.querySelector(`[data-np-fit-client="${plateId}"]`).value.trim();
+      const remember = formWrap.querySelector(`[data-np-fit-remember="${plateId}"]`).checked;
+      if(!qty || qty <= 0){ alert("Enter how many were fitted."); return; }
+      const plate = nameplateRegistry.find(p=>p.id===plateId);
+      if(plate && qty > plate.qty){
+        alert(`Only ${plate.qty} of this plate in stock — can't fit ${qty}.`);
+        return;
+      }
+      recordNameplateMove(plateId, 'fit', qty, { jobNo, client });
+      // Only a ticked, confirmed fit updates the memory — a one-off override never changes the default.
+      if(remember && client){
+        nameplateClientMap[nameplateClientKey(client)] = { plateId, lastUsedDate: new Date().toISOString().slice(0,10) };
+        saveNameplateClientMap();
+      }
+      formWrap.style.display = 'none';
+      renderNameplatesList(document.getElementById('npSearch').value);
+    };
+  }
+}
+
+function recordNameplateMove(plateId, type, qty, extra){
+  const plate = nameplateRegistry.find(p=>p.id===plateId);
+  if(!plate) return;
+  plate.qty += (type === 'cut' ? qty : -qty);
+  saveNameplateRegistry();
+  const now = new Date();
+  nameplateMoves.push({
+    _id: 'np'+Date.now()+Math.random().toString(36).slice(2,7),
+    plateId, text: plate.text, elephant: plate.elephant, type, qty,
+    jobNo: extra.jobNo || null, client: extra.client || null,
+    date: now.toISOString().slice(0,10),
+    time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    worker: state.worker ? state.worker.name : null,
+    isNewPlate: false
+  });
+  saveNameplateMoves();
+  renderGroupGrid();
+}
+
+document.getElementById('npNewAddBtn').onclick = ()=>{
+  const text = document.getElementById('npNewText').value.trim();
+  if(!text){ alert("Enter the plate text first."); return; }
+  if(nameplateRegistry.some(p=>p.text.toLowerCase() === text.toLowerCase())){
+    alert("A plate with this text already exists — search for it instead of adding a duplicate.");
+    return;
+  }
+  const elephant = document.getElementById('npNewElephant').checked;
+  const plate = { id: slugifyPlateId(text), text, elephant, qty: 0 };
+  nameplateRegistry.push(plate);
+  saveNameplateRegistry();
+  document.getElementById('npNewText').value = "";
+  document.getElementById('npNewElephant').checked = false;
+  renderNameplatesList(document.getElementById('npSearch').value);
+  renderGroupGrid();
+};
+
 function renderGroupGrid(){
   renderStaleCountBanner();
   const grid = document.getElementById('groupGrid');
@@ -4927,6 +5348,13 @@ function renderGroupGrid(){
         <div class="item-label">${g.label}</div>
         <div style="font-size:10px; color:var(--text-faint);">${count} size${count===1?'':'s'} tracked</div>
       `;
+    } else if(g.key === 'NameplatesGroup'){
+      const totalQty = nameplateRegistry.reduce((sum,p)=>sum+(p.qty||0), 0);
+      tile.innerHTML = `
+        <div class="item-icon" style="background:rgba(200,155,60,0.12); display:flex; align-items:center; justify-content:center; font-size:26px;">${renderGroupIcon(g.icon)}</div>
+        <div class="item-label">${g.label}</div>
+        <div style="font-size:10px; color:var(--text-faint);">${nameplateRegistry.length} plates · ${totalQty} in stock</div>
+      `;
     } else {
       const count = groupItemCount(g.key);
       tile.innerHTML = `
@@ -4943,6 +5371,7 @@ function renderGroupGrid(){
       if(g.key === 'VehicleService') return openVehicleServicePage();
       if(g.key === 'SteelGroup') return openSteelModal();
       if(g.key === 'TyresGroup') return openTyresModal();
+      if(g.key === 'NameplatesGroup') return openNameplatesModal();
       return openGroup(g.key, g.label);
     };
     grid.appendChild(tile);
@@ -5053,7 +5482,10 @@ function openSteelModal(){
   renderSteelList();
   document.getElementById('steelModal').classList.add('show');
 }
-document.getElementById('steelCancelBtn').onclick = ()=> document.getElementById('steelModal').classList.remove('show');
+document.getElementById('steelCancelBtn').onclick = ()=>{
+  document.getElementById('steelModal').classList.remove('show');
+  renderGroupGrid();
+};
 
 function renderSteelList(){
   const wrap = document.getElementById('steelList');
@@ -5126,6 +5558,7 @@ function renderSteelList(){
       const created = createNewItem(name, cat);
       steelValues[created.id] = 0;
       renderSteelList();
+      renderGroupGrid();
     };
   });
 }
@@ -5147,7 +5580,7 @@ document.getElementById('steelConfirmBtn').onclick = ()=>{
       if(newVal !== oldVal){
         spotChecks.push({
     _id: newSpotCheckId(),
-          sku: i.id, name: i.name, cat: i.cat, countedQty: newVal, isNewItem: false,
+          sku: i.id, name: i.name, cat: i.cat, countedQty: newVal, isNewItem: i.id.startsWith('NEW-'),
           date: todayStr, time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
           checker: state.worker ? state.worker.name : null
         });
@@ -5161,6 +5594,7 @@ document.getElementById('steelConfirmBtn').onclick = ()=>{
   saveSteelQty();
   saveSpotChecks();
   document.getElementById('steelModal').classList.remove('show');
+  renderGroupGrid();
   alert(changedCount === 0
     ? "No changes from the last confirmed count — nothing queued."
     : `${changedCount} item(s) updated and queued — hit "Upload to Master List" to send them through.`);
@@ -5187,7 +5621,10 @@ function openTyresModal(){
   renderTyresList();
   document.getElementById('tyresModal').classList.add('show');
 }
-document.getElementById('tyresCancelBtn').onclick = ()=> document.getElementById('tyresModal').classList.remove('show');
+document.getElementById('tyresCancelBtn').onclick = ()=>{
+  document.getElementById('tyresModal').classList.remove('show');
+  renderGroupGrid();
+};
 
 function renderTyresList(){
   const items = ITEMS.filter(i=>i.cat==='Tyres');
@@ -5235,6 +5672,7 @@ document.getElementById('tyresAddItemBtn').onclick = ()=>{
   tyresValues[created.id] = 0;
   input.value = "";
   renderTyresList();
+  renderGroupGrid();
 };
 
 document.getElementById('tyresConfirmBtn').onclick = ()=>{
@@ -5248,7 +5686,7 @@ document.getElementById('tyresConfirmBtn').onclick = ()=>{
     if(newVal !== oldVal){
       spotChecks.push({
     _id: newSpotCheckId(),
-        sku: i.id, name: i.name, cat: i.cat, countedQty: newVal, isNewItem: false,
+        sku: i.id, name: i.name, cat: i.cat, countedQty: newVal, isNewItem: i.id.startsWith('NEW-'),
         date: todayStr, time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
         checker: state.worker ? state.worker.name : null
       });
@@ -5261,6 +5699,7 @@ document.getElementById('tyresConfirmBtn').onclick = ()=>{
   saveTyresQty();
   saveSpotChecks();
   document.getElementById('tyresModal').classList.remove('show');
+  renderGroupGrid();
   alert(changedCount === 0
     ? "No changes from the last confirmed count — nothing queued."
     : `${changedCount} item(s) updated and queued — hit "Upload to Master List" to send them through.`);
@@ -5330,7 +5769,7 @@ document.getElementById('mrConfirmBtn').onclick = ()=>{
     _id: newSpotCheckId(),
         sku: i.id, name: i.name, cat: i.cat,
         countedQty: newVal,
-        isNewItem: false,
+        isNewItem: i.id.startsWith('NEW-'),
         date: todayStr,
         time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
         checker: state.worker ? state.worker.name : null
@@ -8359,6 +8798,9 @@ loadRetiredItems();
 loadReportNotes();
 loadCompletedJobs();
 loadChassisCalendar();
+loadNameplateRegistry();
+loadNameplateClientMap();
+loadNameplateMoves();
 loadNewItems();
 loadCustomKits();
 loadBuiltinKitOverrides();
