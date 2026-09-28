@@ -4278,11 +4278,12 @@ function addHistoryFromRemoteTransaction(txn, itemName, beforeQty){
     // Previously never recorded here at all — a live spot check from the
     // terminal updated the qty but left no trace in the Spot Check Log,
     // so it looked like nothing had synced even when it had.
+    const afterQty = Number(txn.absolute_qty);
     spotLedger.push({
       _id: txn.id, sku: txn.item_id, name: itemName,
-      before: beforeQty, after: Number(txn.absolute_qty),
+      before: beforeQty, after: afterQty, diff: afterQty - beforeQty,
       date: dateStr, time: timeStr,
-      checker: meta.checker || ''
+      checker: meta.checker || meta.worker || ''
     });
   }
 }
