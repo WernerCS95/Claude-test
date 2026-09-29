@@ -285,17 +285,23 @@
   <h2 class="section">Goods Received Ledger — Deliveries In</h2>
   <div id="goodsReceivedLedgerWrap"><div class="empty">No deliveries imported yet. These add to stock, matched against the order number when there is one.</div></div>
 
-  <h2 class="section">Nameplates <span style="font-size:11px; color:var(--text-faint); font-weight:400;">— quantity only, never valued, not part of stock</span></h2>
-  <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
-    <button class="btn" id="nameplateCutListBtn" style="border-color:var(--gold); color:var(--gold);">📋 Cut List</button>
-    <button class="btn" id="nameplateClientMapBtn" style="border-color:var(--steel); color:var(--steel);">🔗 Client → Plate Memory</button>
+  <div class="category-header" id="nameplatesSectionToggle" style="cursor:pointer; background:var(--panel-raised); padding:9px 12px; border-radius:6px; font-weight:600; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <span><span id="nameplatesToggleArrow" style="display:inline-block; width:14px;">▸</span> Nameplates <span style="color:var(--text-faint); font-weight:400;" id="nameplatesCountLabel"></span></span>
+    <span style="font-size:11px; color:var(--text-faint); font-weight:400;">quantity only, never valued, not part of stock</span>
   </div>
-  <table>
-    <thead>
-      <tr><th>Plate</th><th class="right">Qty On Hand</th><th>Last Cut</th><th>Last Fitted</th><th></th></tr>
-    </thead>
-    <tbody id="nameplatesBody"></tbody>
-  </table>
+  <div id="nameplatesSectionBody" style="display:none;">
+    <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+      <button class="btn" id="nameplateCutListBtn" style="border-color:var(--gold); color:var(--gold);">📋 Cut List</button>
+      <button class="btn" id="nameplateClientMapBtn" style="border-color:var(--steel); color:var(--steel);">🔗 Client → Plate Memory</button>
+      <input type="text" id="nameplatesSearch" placeholder="Search plate text…" style="flex:1; min-width:160px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; font-size:12.5px;">
+    </div>
+    <table>
+      <thead>
+        <tr><th>Plate</th><th class="right">Qty On Hand</th><th>Last Cut</th><th>Last Fitted</th><th></th></tr>
+      </thead>
+      <tbody id="nameplatesBody"></tbody>
+    </table>
+  </div>
 
   <h2 class="section">Nameplates Ledger — Cuts &amp; Fits Imported From Tablet</h2>
   <div id="nameplateLedgerWrap"><div class="empty">No nameplate moves imported yet.</div></div>
@@ -1346,11 +1352,47 @@ function generateDirectorStatement(){
   openDirectorStatementPrintWindow(dateStr, current, opening, change, changePct, catRows, totalBelowMin, orderSummaries);
 }
 
+// window.open('', '_blank') + document.write() only works when the new
+// window is the SAME app/process — in the Android WebView (both the
+// Terminal and this app, when built as an APK) an empty-URL window.open
+// hands off to an external browser via an Android intent instead, which
+// is a completely separate process. The returned handle looks valid but
+// .document.write() into it silently does nothing, so every print screen
+// opened a blank external Chrome/Mi Browser/Opera tab with no content —
+// not actually broken printing, just never-written content.
+// On native, write the HTML to a real file and hand it to Share instead,
+// so whatever app is picked (Chrome, a PDF viewer, etc.) opens the real
+// document and can print/save from there. Electron and desktop browser
+// keep the exact window.open+document.write behavior as before.
+function openPrintableDocument(html, filenameBase){
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if(isNative){
+    (async ()=>{
+      try{
+        const { Filesystem } = window.Capacitor.Plugins;
+        const filename = `${filenameBase}-${new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)}.html`;
+        const written = await Filesystem.writeFile({ path: filename, data: html, directory: 'CACHE', encoding: 'utf8' });
+        const { Share } = window.Capacitor.Plugins;
+        if(Share){
+          await Share.share({ title: filenameBase, url: written.uri });
+        } else {
+          alert(`Saved as ${filename}, but no share option is available to open it.`);
+        }
+      }catch(e){
+        alert(`Couldn't prepare this for printing.\n\n${e && e.message ? e.message : e}`);
+      }
+    })();
+    return;
+  }
+  const printWin = window.open('', '_blank');
+  printWin.document.write(html);
+  printWin.document.close();
+}
+
 function openDirectorStatementPrintWindow(dateStr, current, opening, change, changePct, catRows, totalBelowMin, orderSummaries){
   const changeColor = change >= 0 ? '#1F7A3D' : '#B3261E';
   const changeSign = change >= 0 ? '+' : '';
-  const w = window.open('', '_blank');
-  w.document.write(`
+  const html = `
     <html>
     <head>
       <title>Director Statement — ${dateStr}</title>
@@ -1439,35 +1481,46 @@ function openDirectorStatementPrintWindow(dateStr, current, opening, change, cha
       </div>
     </body>
     </html>
-  `);
-  w.document.close();
+  `;
+  openPrintableDocument(html, 'director-statement');
 }
 
 // Shared by the live order sheet print and a saved History snapshot's
 // "View" button, so a printed page looks identical either way.
 function openPrintWindow(title, dateStr, suppliers, bySupplier){
-  // Pull current Min/Max live from stock — order-list lines only ever
-  // stored a snapshot of On Hand, never Min/Max, so the printed sheet was
-  // missing the context a director actually needs to approve an order.
-  const tablesHtml = suppliers.map(sup=>`
+  // Pull current Min/Max/Price live from stock — order-list lines only
+  // ever stored a snapshot of On Hand, never Min/Max/Price, so the
+  // printed sheet was missing exactly what's needed to approve an order:
+  // what it costs, per line and in total.
+  let grandTotal = 0;
+  const tablesHtml = suppliers.map(sup=>{
+    let supplierTotal = 0;
+    const rowsHtml = bySupplier[sup].map(l=>{
+      const item = stock.find(s=>s.sku===l.sku);
+      const min = item ? (item.min ?? '—') : '—';
+      const max = item ? (item.max ?? '—') : '—';
+      const price = item ? (item.price || 0) : 0;
+      const qty = parseFloat(l.orderQty) || 0;
+      const lineTotal = price * qty;
+      supplierTotal += lineTotal;
+      return `<tr><td>${l.name}</td><td class="qty">${l.onHand}</td><td class="qty">${min}</td><td class="qty">${max}</td><td class="qty" style="color:#1F4E78; font-weight:bold;">${l.orderQty}</td><td class="qty">${fmtR(price)}</td><td class="qty" style="font-weight:600;">${fmtR(lineTotal)}</td><td class="notes">${l.notes||''}</td></tr>`;
+    }).join('');
+    grandTotal += supplierTotal;
+    return `
     <div class="supplier-block">
       <div class="supplier-name">${sup}</div>
       <table>
-        <thead><tr><th>Part</th><th class="right">On Hand</th><th class="right">Min</th><th class="right">Max</th><th class="right">Order Qty</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Part</th><th class="right">On Hand</th><th class="right">Min</th><th class="right">Max</th><th class="right">Order Qty</th><th class="right">Price</th><th class="right">Line Total</th><th>Notes</th></tr></thead>
         <tbody>
-          ${bySupplier[sup].map(l=>{
-            const item = stock.find(s=>s.sku===l.sku);
-            const min = item ? (item.min ?? '—') : '—';
-            const max = item ? (item.max ?? '—') : '—';
-            return `<tr><td>${l.name}</td><td class="qty">${l.onHand}</td><td class="qty">${min}</td><td class="qty">${max}</td><td class="qty" style="color:#1F4E78; font-weight:bold;">${l.orderQty}</td><td class="notes">${l.notes||''}</td></tr>`;
-          }).join('')}
+          ${rowsHtml}
         </tbody>
+        <tfoot><tr><td colspan="6" style="text-align:right; font-weight:bold; border-top:2px solid #1F4E78;">Supplier Total</td><td class="qty" style="font-weight:bold; border-top:2px solid #1F4E78;">${fmtR(supplierTotal)}</td><td style="border-top:2px solid #1F4E78;"></td></tr></tfoot>
       </table>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
-  const printWin = window.open('', '_blank');
-  printWin.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -1504,6 +1557,7 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier){
         <div class="sub">Generated ${dateStr}</div>
       </div>
       ${tablesHtml}
+      <div style="text-align:right; font-size:15px; font-weight:bold; color:#1F4E78; margin:6px 0 20px;">Grand Total: ${fmtR(grandTotal)}</div>
       <div class="signoff">
         <div><div class="line">Prepared by (Werner)</div></div>
         <div><div class="line">Approved by</div></div>
@@ -1514,8 +1568,8 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier){
       </div>
     </body>
     </html>
-  `);
-  printWin.document.close();
+  `;
+  openPrintableDocument(html, 'order-list');
 }
 
 /* ====================== PRINT SPOT CHECK LIST ======================
@@ -1802,8 +1856,7 @@ document.getElementById('printSpotCheckListBtn').onclick = ()=>{
     </div>
   `).join('');
 
-  const printWin = window.open('', '_blank');
-  printWin.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -1846,8 +1899,8 @@ document.getElementById('printSpotCheckListBtn').onclick = ()=>{
       </div>
     </body>
     </html>
-  `);
-  printWin.document.close();
+  `;
+  openPrintableDocument(html, 'spot-check-list');
 };
 
 function fmtR(n){
@@ -2812,15 +2865,26 @@ function nameplateClientKey(name){
   return (name||'').trim().toLowerCase().replace(/\s+\d+(\s*-\s*\d+)?\s*$/,'').trim();
 }
 
+let nameplatesSectionExpanded = false;
 function renderNameplatesSection(){
   const body = document.getElementById('nameplatesBody');
   if(!body) return;
+  const countLabel = document.getElementById('nameplatesCountLabel');
+  if(countLabel) countLabel.textContent = `(${nameplateRegistry.length} plates)`;
+  const sectionBody = document.getElementById('nameplatesSectionBody');
+  const arrow = document.getElementById('nameplatesToggleArrow');
+  if(sectionBody) sectionBody.style.display = nameplatesSectionExpanded ? 'block' : 'none';
+  if(arrow) arrow.textContent = nameplatesSectionExpanded ? '▾' : '▸';
+  if(!nameplatesSectionExpanded) return; // collapsed — skip building 106 rows for nothing
+  const searchInput = document.getElementById('nameplatesSearch');
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
   const lastMoveFor = (plateId, type) => {
     const moves = nameplateLedger.filter(m=>m.plateId===plateId && m.type===type);
     if(moves.length === 0) return '—';
     return moves.reduce((latest,m)=> (!latest || m.date > latest.date) ? m : latest, null).date;
   };
-  body.innerHTML = nameplateRegistry.slice().sort((a,b)=>a.text.localeCompare(b.text)).map(p=>`
+  const filtered = nameplateRegistry.filter(p=> !q || p.text.toLowerCase().includes(q));
+  body.innerHTML = filtered.slice().sort((a,b)=>a.text.localeCompare(b.text)).map(p=>`
     <tr data-np-row="${p.id}">
       <td>
         <span data-np-display="${p.id}">${formatNameplateText(p.text, p.elephant)}</span>
@@ -2873,6 +2937,11 @@ function renderNameplatesSection(){
     };
   });
 }
+document.getElementById('nameplatesSectionToggle').onclick = ()=>{
+  nameplatesSectionExpanded = !nameplatesSectionExpanded;
+  renderNameplatesSection();
+};
+document.getElementById('nameplatesSearch').addEventListener('input', renderNameplatesSection);
 
 let expandedNpMonths = new Set();
 let expandedNpDates = null;
@@ -3070,8 +3139,7 @@ function printCutListBatch(batch){
       <td>${l.comment||''}</td>
     </tr>`;
   }).join('');
-  const printWin = window.open('', '_blank');
-  printWin.document.write(`
+  const html = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"><title>Nameplate Cut List — ${dateStr}</title>
     <style>
@@ -3097,10 +3165,8 @@ function printCutListBatch(batch){
       </div>
       <div class="sign"><div>Date</div><div></div></div>
     </body></html>
-  `);
-  printWin.document.close();
-  printWin.focus();
-  printWin.print();
+  `;
+  openPrintableDocument(html, 'nameplate-cut-list');
 }
 
 document.getElementById('nameplateCutListBtn').onclick = ()=>{
