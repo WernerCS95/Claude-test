@@ -40,4 +40,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- @capacitor/filesystem writing to Directory.Documents — only needed
+         on pre-scoped-storage Android (<=12); modern Android handles this
+         without the legacy permission, gated here so it's never requested
+         on devices that don't need it. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 </manifest>

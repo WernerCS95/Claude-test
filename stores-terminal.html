@@ -1034,7 +1034,7 @@
     <button class="clock-btn" id="chassisCalendarBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📆 Chassis Calendar</button>
     <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🗓 Kit Scheduler (Demo)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
-    <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export Full Current State (for Laptop)</button>
+    <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export &amp; Share Full Current State</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
     <button class="clock-btn" id="restoreBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
@@ -6013,27 +6013,80 @@ document.getElementById('importStockRefFileInput').addEventListener('change', fu
 // nothing. This exports every item's real current Qty on Hand directly,
 // so the laptop can be brought level in one shot regardless of sync
 // history.
-document.getElementById('exportFullStateBtn').onclick = ()=>{
+// Shared by the button below and anything else that needs the same
+// "make the laptop/anywhere else match the tablet right now" snapshot.
+function buildFullStatePayload(){
   const state = {};
   Object.keys(qtyOnHand).forEach(sku=>{
     const item = ITEMS.find(i=>i.id===sku);
     if(item) state[sku] = { qty: qtyOnHand[sku], name: item.name, cat: item.cat };
   });
   const count = Object.keys(state).length;
-  if(count === 0){ alert("No items have a counted Qty on Hand yet — nothing to export."); return; }
   const payload = { _stateType: 'leader-stores-full-state', _exportedAt: new Date().toISOString(), state };
-  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  return { payload, count };
+}
+
+// Blob + <a download> — the normal browser save — writes nothing at all
+// inside the Android WebView (no file ever appears, confirmed by browsing
+// the tablet over USB). Capacitor's Filesystem/Share plugins are the real
+// save+send path there; Electron/browser keep the download exactly as before.
+document.getElementById('exportFullStateBtn').onclick = async ()=>{
+  const { payload, count } = buildFullStatePayload();
+  if(count === 0){ alert("No items have a counted Qty on Hand yet — nothing to export."); return; }
+  const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  const filename = `leader-stores-FULLSTATE-${stamp}.json`;
+  const jsonStr = JSON.stringify(payload);
+
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if(isNative){
+    try{
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      const written = await Filesystem.writeFile({
+        path: filename, data: jsonStr, directory: Directory.Documents, encoding: 'utf8'
+      });
+      showToast(`Exported ${count} item(s) — saved to Documents/${filename}`);
+      const { Share } = window.Capacitor.Plugins;
+      if(Share){
+        try{
+          await Share.share({ title: 'Leader Stores — Full State', url: written.uri });
+        }catch(shareErr){
+          // Save succeeded even if the share sheet was dismissed/cancelled — that's not a failure.
+        }
+      }
+    }catch(e){
+      showExportErrorModal(`Couldn't save the export file.\n\n${e && e.message ? e.message : e}`);
+    }
+    return;
+  }
+
+  const blob = new Blob([jsonStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
   a.href = url;
-  a.download = `leader-stores-FULLSTATE-${stamp}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   alert(`Exported ${count} item(s) — every item this tablet currently has a real count for.\n\nOn the laptop: use "📥 Import Full State from Tablet" and pick this file (starts with "leader-stores-FULLSTATE-").`);
 };
+
+// A real failure here (disk full, permission denied) needs to be seen, not
+// swallowed — this is the one export path that isn't a blocking alert(),
+// per the no-blocking-dialogs rule, so it's an in-app modal instead.
+function showExportErrorModal(message){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:99999;`;
+  overlay.innerHTML = `
+    <div style="background:var(--panel); border:1px solid var(--danger); border-radius:10px; padding:20px; max-width:420px; width:90%;">
+      <div style="font-weight:700; color:var(--danger); margin-bottom:8px;">⚠ Export failed</div>
+      <div style="font-size:12.5px; white-space:pre-wrap; margin-bottom:14px;">${message.replace(/</g,'&lt;')}</div>
+      <button id="exportErrorCloseBtn" class="addjob-save" style="width:100%;">Close</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#exportErrorCloseBtn').onclick = ()=> overlay.remove();
+}
 
 // Export Jobs for Kit Scheduler — a one-shot manual snapshot of every
 // not-yet-completed job (JOB_SPECS + manually added jobs), trimmed to just
