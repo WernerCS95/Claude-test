@@ -6040,9 +6040,13 @@ document.getElementById('exportFullStateBtn').onclick = async ()=>{
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   if(isNative){
     try{
-      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      // Directory/Encoding are JS enums exported by the @capacitor/filesystem
+      // npm package for bundler imports — there's no bundler here, and they
+      // are NOT attached to window.Capacitor.Plugins (only plugin instances
+      // are). Using the plugin's own literal enum values instead.
+      const { Filesystem } = window.Capacitor.Plugins;
       const written = await Filesystem.writeFile({
-        path: filename, data: jsonStr, directory: Directory.Documents, encoding: 'utf8'
+        path: filename, data: jsonStr, directory: 'DOCUMENTS', encoding: 'utf8'
       });
       showToast(`Exported ${count} item(s) — saved to Documents/${filename}`);
       const { Share } = window.Capacitor.Plugins;
