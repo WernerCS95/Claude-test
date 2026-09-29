@@ -3449,6 +3449,21 @@ function importFullStateFromTablet(file){
       return;
     }
     const exportedStr = payload._exportedAt ? new Date(payload._exportedAt).toLocaleString('en-ZA') : 'unknown time';
+    // This OVERWRITES real quantities with whatever's in the file — the
+    // exported-at time is the only thing that tells you whether it's the
+    // count you just took or something stale from weeks ago. Show it and
+    // require confirmation BEFORE writing anything, not just in the
+    // after-the-fact summary.
+    const itemCount = Object.keys(payload.state).length;
+    const ageMs = payload._exportedAt ? (Date.now() - new Date(payload._exportedAt).getTime()) : null;
+    const ageHours = ageMs !== null ? ageMs / 3600000 : null;
+    const staleWarning = (ageHours === null)
+      ? "\n\n⚠ This file has no timestamp — can't tell how old it is."
+      : (ageHours > 24 ? `\n\n⚠ This export is ${ageHours >= 48 ? Math.round(ageHours/24)+' days' : Math.round(ageHours)+' hours'} old — check this is really the one you want before applying it.` : '');
+    if(!confirm(
+      `Apply this Full State export?\n\nFrom the tablet, exported ${exportedStr}\n${itemCount} item(s) in the file.${staleWarning}\n\n` +
+      `This SETS every matched item's quantity to whatever this file says — it does not merge or add, it overwrites.`
+    )) return;
     let updated = 0, unchanged = 0, skippedGas = 0, notFound = 0;
     const now = new Date();
     const dateStr = now.toISOString().slice(0,10);
