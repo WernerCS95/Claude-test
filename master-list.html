@@ -133,7 +133,23 @@
         <span>/day</span>
       </span>
       <button class="btn primary" id="newDayBtn" style="background:var(--success); border-color:var(--success);">☀ Start New Day (keeps stock)</button>
+      <button class="btn" id="duplicateItemsBtn" style="border-color:var(--gold); color:var(--gold);">🔗 Find Duplicate Items</button>
       <button class="btn" id="resetBtn" style="border-color:var(--danger); color:var(--danger);">⚠ Full Reset — Wipes ALL Real Stock</button>
+    </div>
+  </div>
+
+  <!-- Duplicate Items — same real part filed under two slightly different
+       names (e.g. "101 x 6 Tubing x 6m" vs "Ø101 x 6 Tubing x 6m"). Scans
+       and surfaces candidates; nothing merges automatically, you decide
+       the final quantity and which one survives, per group. -->
+  <div class="modal-bg" id="duplicateItemsModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:900px; width:96%; max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <h3 style="margin:0;">🔗 Duplicate Items</h3>
+        <button class="btn" id="duplicateItemsCloseBtn">Close</button>
+      </div>
+      <div class="sub" style="margin-bottom:10px;">Same real part filed under two names — matched by ignoring case, spacing, punctuation and Ø/diameter symbols. Nothing merges until you pick the survivor and confirm the quantity for each group.</div>
+      <div id="duplicateItemsBody"></div>
     </div>
   </div>
 
@@ -288,9 +304,6 @@
   <h2 class="section">Spot Check Log — Physical Count Corrections</h2>
   <div id="spotCheckLedgerWrap"><div class="empty">No spot checks imported yet. These set the stock level directly rather than deducting from it.</div></div>
 
-  <h2 class="section">Open PO Confirmations</h2>
-  <div class="empty" style="margin-bottom:8px;">There's no real Orders/PO system yet (that's parked with the Kits work) — this is a manual checklist: every PO number that shows up on a delivery lands here until you confirm it's fully in. Tap ✎ Edit to fix a typo in the PO number itself. Nothing here checks quantities against an actual order, it's just a reminder that a PO is still open.</div>
-  <div id="poConfirmWrap"></div>
 
   <h2 class="section">Goods Received Ledger — Deliveries In</h2>
   <div id="goodsReceivedLedgerWrap"><div class="empty">No deliveries imported yet. These add to stock, matched against the order number when there is one.</div></div>
@@ -426,7 +439,6 @@ const LEDGER_KEY = 'leader-master-ledger-v1';
 const SPOT_LEDGER_KEY = 'leader-master-spot-ledger-v1';
 const GOODS_RECEIVED_LEDGER_KEY = 'leader-master-goods-received-ledger-v1';
 const OPENING_VALUE_KEY = 'leader-master-opening-value-v1';
-const PO_CONFIRMED_KEY = 'leader-master-po-confirmed-v1';
 const VALUE_EXCLUDED_KEY = 'leader-master-value-excluded-groups-v1';
 const DEFAULT_VALUE_EXCLUDED = ['Steel','Plates','Tubing','Flatbar','Tyres'];
 let valueExcluded = new Set();
@@ -471,7 +483,6 @@ let stock = [];
 let ledger = []; // imported issue rows
 let spotLedger = []; // imported spot-check corrections
 let goodsReceivedLedger = []; // imported deliveries
-let poConfirmed = []; // PO numbers manually confirmed as fully received
 let stockSearch = "";
 let stockGroupFilter = "";
 let expandedGroups = new Set(); // collapsed by default — only categories the person opens show their items
@@ -583,10 +594,6 @@ function loadState(){
     const gr = localStorage.getItem(GOODS_RECEIVED_LEDGER_KEY);
     goodsReceivedLedger = gr ? JSON.parse(gr) : [];
   }catch(e){ goodsReceivedLedger = []; }
-  try{
-    const pc = localStorage.getItem(PO_CONFIRMED_KEY);
-    poConfirmed = pc ? JSON.parse(pc) : [];
-  }catch(e){ poConfirmed = []; }
 }
 
 function saveState(){
@@ -594,7 +601,6 @@ function saveState(){
   localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger));
   localStorage.setItem(SPOT_LEDGER_KEY, JSON.stringify(spotLedger));
   localStorage.setItem(GOODS_RECEIVED_LEDGER_KEY, JSON.stringify(goodsReceivedLedger));
-  localStorage.setItem(PO_CONFIRMED_KEY, JSON.stringify(poConfirmed));
 }
 
 function openingValue(){
@@ -1938,6 +1944,105 @@ function fmtR(n){
   return 'R ' + n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/* ====================== DUPLICATE ITEMS ======================
+   Same real part filed under two SKUs with near-identical names — e.g.
+   "101 x 6 Tubing x 6m" vs "Ø101 x 6 Tubing x 6m". Matched by an exact
+   compare AFTER stripping case, punctuation/spacing and diameter symbols,
+   not fuzzy matching — a false-positive merge (two genuinely different
+   parts combined) is much worse than missing one, so this only groups
+   things that become byte-identical once the cosmetic noise is gone. */
+function normalizeItemName(name){
+  return (name||'')
+    .toUpperCase()
+    .replace(/[ØΦ⌀]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+}
+
+function findDuplicateItemGroups(){
+  const byNorm = {};
+  stock.forEach(item=>{
+    const key = normalizeItemName(item.name);
+    if(!key) return;
+    if(!byNorm[key]) byNorm[key] = [];
+    byNorm[key].push(item);
+  });
+  return Object.values(byNorm).filter(group=>group.length > 1);
+}
+
+function renderDuplicateItemsModal(){
+  const body = document.getElementById('duplicateItemsBody');
+  const groups = findDuplicateItemGroups();
+  if(groups.length === 0){
+    body.innerHTML = `<div class="empty">No duplicate items found — every name in stock is unique once case/spacing/punctuation/Ø is ignored.</div>`;
+    return;
+  }
+  body.innerHTML = groups.map((group, gi)=>{
+    const sumQty = group.reduce((s,i)=>s+(i.qty||0), 0);
+    return `
+    <div data-dup-group="${gi}" style="border:1px solid var(--panel-line); border-radius:8px; padding:12px; margin-bottom:12px;">
+      <table>
+        <thead><tr><th>Keep</th><th>Name</th><th>SKU</th><th>Group</th><th class="right">Qty</th><th class="right">Min</th><th class="right">Max</th><th class="right">Price</th></tr></thead>
+        <tbody>
+          ${group.map((item, ii)=>`
+            <tr>
+              <td><input type="radio" name="dup-keeper-${gi}" data-dup-keeper="${gi}" value="${ii}" ${ii===0?'checked':''}></td>
+              <td>${item.name}</td>
+              <td class="sku">${item.sku}</td>
+              <td>${GROUP_DISPLAY_NAMES[item.cat]||item.cat}</td>
+              <td class="right num">${item.qty}</td>
+              <td class="right num">${item.min ?? '—'}</td>
+              <td class="right num">${item.max ?? '—'}</td>
+              <td class="right num">${fmtR(item.price||0)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;">
+        <label style="font-size:12px;">Final Qty on the surviving item:
+          <input type="number" data-dup-finalqty="${gi}" value="${sumQty}" style="width:90px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:5px 8px; margin-left:6px;">
+        </label>
+        <span class="sub" style="margin:0;">(suggested: sum of both — ${sumQty})</span>
+        <button class="btn primary" data-dup-merge="${gi}" style="margin-left:auto;">🔗 Merge This Group</button>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  body.querySelectorAll('[data-dup-merge]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const gi = parseInt(btn.dataset.dupMerge);
+      const group = findDuplicateItemGroups()[gi]; // re-scan — indices stay stable within one render pass
+      if(!group){ renderDuplicateItemsModal(); return; }
+      const keeperRadio = body.querySelector(`input[name="dup-keeper-${gi}"]:checked`);
+      const keeperIdx = keeperRadio ? parseInt(keeperRadio.value) : 0;
+      const keeper = group[keeperIdx];
+      const losers = group.filter((_, i)=> i !== keeperIdx);
+      const finalQtyInput = body.querySelector(`[data-dup-finalqty="${gi}"]`);
+      const finalQty = parseFloat(finalQtyInput.value);
+      if(isNaN(finalQty) || finalQty < 0){ alert("Enter a valid final quantity (0 or more)."); return; }
+      if(!confirm(
+        `Merge into "${keeper.name}" (${keeper.sku})?\n\n` +
+        `Its quantity becomes ${finalQty}.\n` +
+        `${losers.map(l=>`"${l.name}" (${l.sku}) will be removed from stock`).join('\n')}\n\n` +
+        `Past Parts Issued / Spot Check / Goods Received history for the removed item(s) stays exactly as it is — only new activity uses the surviving item from now on.`
+      )) return;
+      keeper.qty = finalQty;
+      const loserSkus = new Set(losers.map(l=>l.sku));
+      stock = stock.filter(s=> !loserSkus.has(s.sku));
+      saveState();
+      render();
+      renderDuplicateItemsModal();
+    };
+  });
+}
+
+document.getElementById('duplicateItemsBtn').onclick = ()=>{
+  renderDuplicateItemsModal();
+  document.getElementById('duplicateItemsModal').style.display = 'flex';
+};
+document.getElementById('duplicateItemsCloseBtn').onclick = ()=> document.getElementById('duplicateItemsModal').style.display = 'none';
+
 /* ====================== RENDER ====================== */
 
 const GROUP_DISPLAY_NAMES = { Uncategorized: "Mixing Room", Plates: "Steel — Plates", Tubing: "Steel — Tubing", Flatbar: "Steel — Flatbar" };
@@ -2478,116 +2583,8 @@ function render(){
   renderLedger();
   renderSpotCheckLedger();
   renderGoodsReceivedLedger();
-  renderPoConfirm();
   renderNameplatesSection();
   renderNameplateLedger();
-}
-
-function renderPoConfirm(){
-  const wrap = document.getElementById('poConfirmWrap');
-  if(!wrap) return;
-  // Group every delivery line that has an order number by that order number.
-  const byPo = {};
-  goodsReceivedLedger.forEach(g=>{
-    const po = (g.orderNo||'').trim();
-    if(!po) return;
-    if(!byPo[po]) byPo[po] = [];
-    byPo[po].push(g);
-  });
-  const allPos = Object.keys(byPo).sort();
-  const openPos = allPos.filter(po=>!poConfirmed.includes(po));
-  const confirmedPos = allPos.filter(po=>poConfirmed.includes(po));
-
-  const poCard = (po, isConfirmed) => {
-    const lines = byPo[po];
-    const supplier = lines[0].supplier || '';
-    const totalValue = lines.reduce((s,g)=> s + (g.price ? g.qty*g.price : 0), 0);
-    const itemsHtml = lines.map(g=>`<div style="font-size:11.5px; color:var(--text-muted);">${g.name} +${g.qty}${g.price ? ` @ R${g.price.toLocaleString(undefined,{minimumFractionDigits:2})}` : ''}</div>`).join('');
-    const borderColor = isConfirmed ? 'var(--panel-line)' : 'var(--amber)';
-    return `
-      <div style="background:var(--panel-raised); border:1px solid ${borderColor}; border-radius:8px; padding:10px 14px; margin-bottom:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <div>
-            <b>PO ${po}</b>
-            <button class="row-delete-btn" data-edit-po="${po}" title="Fix a typo in this PO number" style="font-size:10px; padding:2px 6px; margin-left:4px;">✎ Edit</button>
-            <span style="color:var(--text-faint);">— ${supplier}</span>
-            ${totalValue ? `<span style="color:var(--gold); margin-left:8px;">R${totalValue.toLocaleString(undefined,{minimumFractionDigits:2})} received</span>` : ''}
-            ${isConfirmed ? `<span style="color:var(--success); margin-left:8px;">✓ confirmed</span>` : ''}
-          </div>
-          ${isConfirmed
-            ? `<button class="btn" style="padding:6px 12px; font-size:12px;" data-unconfirm-po="${po}">↺ Undo confirm</button>`
-            : `<button class="btn primary" style="padding:6px 12px; font-size:12px;" data-confirm-po="${po}">✓ Confirm all items for PO ${po} received</button>`
-          }
-        </div>
-        <div style="margin-top:6px;">${itemsHtml}</div>
-      </div>
-    `;
-  };
-
-  let html = '';
-  if(openPos.length === 0){
-    html += `<div class="empty">No open PO numbers waiting on confirmation.</div>`;
-  } else {
-    html += openPos.map(po=>poCard(po, false)).join('');
-  }
-  if(confirmedPos.length > 0){
-    html += `<div class="category-header" id="poConfirmedToggle" style="cursor:pointer; background:var(--panel-raised); padding:9px 12px; border-radius:6px; font-weight:600; margin-top:10px;">
-      <span id="poConfirmedToggleIcon">▸</span> Confirmed POs (${confirmedPos.length})
-    </div>
-    <div id="poConfirmedList" style="display:none; margin-top:6px;">${confirmedPos.map(po=>poCard(po, true)).join('')}</div>`;
-  }
-  wrap.innerHTML = html;
-
-  const toggleHeader = document.getElementById('poConfirmedToggle');
-  if(toggleHeader){
-    toggleHeader.onclick = ()=>{
-      const list = document.getElementById('poConfirmedList');
-      const icon = document.getElementById('poConfirmedToggleIcon');
-      const isOpen = list.style.display !== 'none';
-      list.style.display = isOpen ? 'none' : 'block';
-      icon.textContent = isOpen ? '▸' : '▾';
-    };
-  }
-
-  wrap.querySelectorAll('[data-confirm-po]').forEach(btn=>{
-    btn.onclick = ()=>{
-      const po = btn.dataset.confirmPo;
-      if(!confirm(`Confirm that ALL items for PO ${po} have been received?\n\nThis just clears it from this checklist — it doesn't check quantities.`)) return;
-      poConfirmed.push(po);
-      saveState();
-      renderPoConfirm();
-    };
-  });
-  wrap.querySelectorAll('[data-unconfirm-po]').forEach(btn=>{
-    btn.onclick = ()=>{
-      const po = btn.dataset.unconfirmPo;
-      poConfirmed = poConfirmed.filter(p=>p!==po);
-      saveState();
-      renderPoConfirm();
-    };
-  });
-  wrap.querySelectorAll('[data-edit-po]').forEach(btn=>{
-    btn.onclick = async ()=>{
-      const oldPo = btn.dataset.editPo;
-      const newPo = await showPromptModal(`Fix PO number\n\nRelabels every delivery line filed under "${oldPo}" — use this to correct a typo, not to reassign items to a different real PO.`, oldPo);
-      if(newPo === null) return; // cancelled
-      const trimmed = newPo.trim();
-      if(!trimmed){ alert("PO number can't be blank."); return; }
-      if(trimmed === oldPo) return;
-      goodsReceivedLedger.forEach(g=>{
-        if((g.orderNo||'').trim() === oldPo) g.orderNo = trimmed;
-      });
-      // Carry the confirmed status across if the old number had one, and
-      // merge with the new number's existing status if it already had lines.
-      if(poConfirmed.includes(oldPo)){
-        poConfirmed = poConfirmed.filter(p=>p!==oldPo);
-        if(!poConfirmed.includes(trimmed)) poConfirmed.push(trimmed);
-      }
-      saveState();
-      renderPoConfirm();
-      renderGoodsReceivedLedger();
-    };
-  });
 }
 
 function renderSpotCheckLedger(){
@@ -3456,7 +3453,7 @@ function saveImportedLineIds(idSet){
 ========================================================================= */
 const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   STOCK_KEY, LEDGER_KEY, SPOT_LEDGER_KEY, GOODS_RECEIVED_LEDGER_KEY,
-  OPENING_VALUE_KEY, PO_CONFIRMED_KEY, CYCLE_COUNT_BATCH_KEY,
+  OPENING_VALUE_KEY, CYCLE_COUNT_BATCH_KEY,
   IMPORTED_BATCHES_KEY, IMPORTED_LINE_IDS_KEY,
   ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY,
   VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,

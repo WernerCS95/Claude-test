@@ -510,6 +510,7 @@
       <button class="clock-btn" id="addJobBtn" style="border-color:var(--steel); color:var(--steel);">+ Add Job</button>
       <button class="clock-btn" id="spotCheckBtn" style="border-color:var(--success); color:var(--success);">🔍 Spot Check</button>
       <button class="clock-btn" id="goodsReceivedBtn" style="border-color:var(--steel); color:var(--steel);">📥 Goods Received</button>
+      <button class="clock-btn" id="newPartBtn" style="border-color:var(--gold); color:var(--gold);">+ New Part</button>
       <button class="clock-btn" id="fullCountMenuBtn" style="border-color:var(--gold); color:var(--gold);">🖨 Full Count ▾</button>
       <button class="clock-btn" id="uploadMasterBtnMain" style="border-color:var(--gold); color:var(--gold);">⬆ Upload to Master List</button>
       <button class="clock-btn" id="moreMenuBtn" style="border-color:var(--text-muted); color:var(--text-muted);">⚙ More ▾</button>
@@ -2067,6 +2068,22 @@ function guessCategory(name){
   return bestScore > 0 ? best : "Misc";
 }
 
+// Same normalization used on the Master List's duplicate-item finder — same
+// name once case/spacing/punctuation/Ø is ignored. Used here to warn BEFORE
+// a new duplicate gets created, rather than needing a merge tool after.
+function normalizeItemName(name){
+  return (name||'')
+    .toUpperCase()
+    .replace(/[ØΦ⌀]/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+}
+function findSimilarItem(name){
+  const norm = normalizeItemName(name);
+  if(!norm) return null;
+  return ITEMS.find(i => normalizeItemName(i.name) === norm) || null;
+}
+
 function createNewItem(name, cat){
   const safeName = name.trim();
   const id = "NEW-" + Date.now().toString(36).toUpperCase();
@@ -2088,12 +2105,33 @@ function openNewItemModal(prefillName, prefillCat, onCreated){
     const name = document.getElementById('newItemName').value.trim();
     const cat = document.getElementById('newItemGroup').value;
     if(!name){ alert("Enter an item name."); return; }
+    const similar = findSimilarItem(name);
+    if(similar){
+      const useExisting = confirm(
+        `Similar part already exists:\n\n"${similar.name}"\n\nTap OK to use that one instead of creating a new, separate item — or Cancel to create "${name}" as its own new part anyway.`
+      );
+      if(useExisting){
+        document.getElementById('newItemModal').classList.remove('show');
+        if(onCreated) onCreated(similar);
+        return;
+      }
+    }
     const created = createNewItem(name, cat);
     document.getElementById('newItemModal').classList.remove('show');
     if(onCreated) onCreated(created);
   };
 }
 document.getElementById('newItemCancelBtn').onclick = ()=> document.getElementById('newItemModal').classList.remove('show');
+
+// Always-visible entry point for adding a part — the other creation paths
+// (Spot Check "no match", Goods Received "item not found", Copy as New
+// Variant) only surface once you're already mid-flow somewhere else.
+document.getElementById('newPartBtn').onclick = ()=>{
+  openNewItemModal('', 'Misc', ()=>{
+    renderGrid();
+    renderGroupGrid();
+  });
+};
 
 /* ====================== CUSTOM KIT BUILDER ======================
    Lets Werner build his own kit tiles from real items already in stock —
