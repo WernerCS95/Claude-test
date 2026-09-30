@@ -1038,6 +1038,7 @@
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export &amp; Share Full Current State</button>
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
+    <button class="clock-btn" id="downloadBackupNowBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">💾 Download Backup Now</button>
     <button class="clock-btn" id="restoreBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
     <button class="clock-btn" id="mergeCatalogBtn" style="width:100%; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🔗 Merge Catalog From Another Device</button>
   </div>
@@ -4417,7 +4418,7 @@ function uploadToMaster(){
   if(newWorkers.length) countLabel += ` + ${newWorkers.length} new worker${newWorkers.length>1?'s':''}`;
   document.getElementById('exportRowCount').textContent = countLabel;
   document.getElementById('exportModal').classList.add('show');
-  downloadFullSnapshot(); // automatic, silent safety net — see below
+  downloadFullSnapshot(true); // automatic, silent safety net — see below
 
   // Don't mark anything as synced yet — only once the person confirms the
   // paste actually happened on the laptop. Marking it here, before that's
@@ -4454,27 +4455,47 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   'leader-stores-nameplate-qty-v1', 'leader-stores-nameplate-client-map-v1', 'leader-stores-nameplate-moves-v1'
 ];
 
-function downloadFullSnapshot(){
+// Blob + <a download> writes nothing at all inside the Android WebView —
+// same root bug as the Full State export had. This ran automatically on
+// every Upload and has been silently failing there the whole time; the
+// person had no way to know a "backup" that never actually saved existed.
+// silent=true keeps the original no-interruption behavior for the
+// automatic call inside uploadToMaster(); the manual "Download Backup Now"
+// button passes silent=false so a real success/failure is always visible.
+async function downloadFullSnapshot(silent){
   try{
     const snapshot = { _backupType: 'leader-stores-full-backup', _savedAt: new Date().toISOString(), data: {} };
     BACKUP_LOCALSTORAGE_KEYS.forEach(key=>{
       const val = localStorage.getItem(key);
       if(val !== null) snapshot.data[key] = val;
     });
-    const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' });
+    const jsonStr = JSON.stringify(snapshot);
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const filename = `leader-stores-backup-${stamp}.json`;
+
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if(isNative){
+      const { Filesystem } = window.Capacitor.Plugins;
+      await Filesystem.writeFile({ path: filename, data: jsonStr, directory: 'DOCUMENTS', encoding: 'utf8' });
+      if(!silent) showToast(`Backup saved to Documents/${filename}`);
+      return true;
+    }
+
+    const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
     a.href = url;
-    a.download = `leader-stores-backup-${stamp}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    if(!silent) showToast(`Backup downloaded: ${filename}`);
+    return true;
   }catch(e){
     console.error('Backup snapshot failed:', e);
-    // Deliberately silent to the user — this runs automatically in the
-    // background and shouldn't interrupt the Upload flow if it fails.
+    if(!silent) showExportErrorModal(`Couldn't save the backup.\n\n${e && e.message ? e.message : e}`);
+    return false;
   }
 }
 
@@ -4508,6 +4529,10 @@ function restoreFromSnapshotFile(file){
 // might itself be part of what's missing.
 document.getElementById('restoreBackupBtn').onclick = ()=>{
   document.getElementById('restoreBackupFileInput').click();
+};
+document.getElementById('downloadBackupNowBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  downloadFullSnapshot(false);
 };
 document.getElementById('restoreBackupFileInput').addEventListener('change', function(){
   if(this.files && this.files[0]) restoreFromSnapshotFile(this.files[0]);
