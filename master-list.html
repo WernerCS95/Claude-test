@@ -286,6 +286,24 @@
     <select id="groupFilter" style="background:var(--panel); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px 12px; font-size:13px; font-family:'Inter',sans-serif;">
       <option value="">All groups</option>
     </select>
+    <button class="btn primary" id="newPartBtn" style="white-space:nowrap;">+ New Part</button>
+  </div>
+
+  <!-- New Part — direct add to stock, same near-duplicate check as the Terminal's -->
+  <div class="modal-bg" id="newPartModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:420px; width:94%;">
+      <h3 style="margin:0 0 4px;">+ New Part</h3>
+      <div class="sub" style="margin-bottom:12px;">Min/Max/Price/Supplier can be set after — this just gets it into stock with a real SKU.</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="npName" placeholder="Part name" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px 10px; font-size:13px;">
+        <select id="npGroup" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px 10px; font-size:13px;"></select>
+        <input type="number" id="npQty" placeholder="Qty on hand now (optional)" min="0" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px 10px; font-size:13px;">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button class="btn" id="npCancelBtn" style="flex:1;">Cancel</button>
+        <button class="btn primary" id="npSaveBtn" style="flex:1;">Add Part</button>
+      </div>
+    </div>
   </div>
   <table>
     <thead>
@@ -2042,6 +2060,52 @@ document.getElementById('duplicateItemsBtn').onclick = ()=>{
   document.getElementById('duplicateItemsModal').style.display = 'flex';
 };
 document.getElementById('duplicateItemsCloseBtn').onclick = ()=> document.getElementById('duplicateItemsModal').style.display = 'none';
+
+/* ====================== NEW PART ======================
+   Direct add-to-stock — same near-duplicate check as the Terminal's own
+   "+ New Part", so this doesn't quietly recreate the same problem the
+   Duplicate Items tool above exists to clean up. */
+function findSimilarStockItem(name){
+  const norm = normalizeItemName(name);
+  if(!norm) return null;
+  return stock.find(i => normalizeItemName(i.name) === norm) || null;
+}
+document.getElementById('newPartBtn').onclick = ()=>{
+  document.getElementById('npName').value = '';
+  document.getElementById('npQty').value = '';
+  const sel = document.getElementById('npGroup');
+  const groups = [...new Set(stock.map(i=>i.cat))].sort();
+  sel.innerHTML = groups.map(g=>`<option value="${g}">${GROUP_DISPLAY_NAMES[g]||g}</option>`).join('')
+    + `<option value="Misc">Misc</option>`;
+  document.getElementById('newPartModal').style.display = 'flex';
+};
+document.getElementById('npCancelBtn').onclick = ()=> document.getElementById('newPartModal').style.display = 'none';
+document.getElementById('npSaveBtn').onclick = ()=>{
+  const name = document.getElementById('npName').value.trim();
+  const cat = document.getElementById('npGroup').value;
+  const qtyRaw = document.getElementById('npQty').value;
+  const qty = qtyRaw === '' ? 0 : parseFloat(qtyRaw);
+  if(!name){ alert("Enter a part name."); return; }
+  if(isNaN(qty) || qty < 0){ alert("Qty on hand must be 0 or more."); return; }
+
+  const similar = findSimilarStockItem(name);
+  if(similar){
+    const useExisting = confirm(
+      `Similar part already exists:\n\n"${similar.name}" (${similar.sku})\n\nTap OK to use that one instead of creating a new, separate item — or Cancel to create "${name}" as its own new part anyway.`
+    );
+    if(useExisting){
+      document.getElementById('newPartModal').style.display = 'none';
+      alert(`Using existing part "${similar.name}" — adjust its quantity from the Inventory Control table if needed.`);
+      return;
+    }
+  }
+
+  const sku = 'NEW-' + Date.now().toString(36).toUpperCase();
+  stock.push({ sku, name, cat, qty, min: 0, max: null, price: 0, supplier: '', packSize: null });
+  saveState();
+  render();
+  document.getElementById('newPartModal').style.display = 'none';
+};
 
 /* ====================== RENDER ====================== */
 
