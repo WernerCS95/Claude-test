@@ -53,8 +53,21 @@ function createWindow(){
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {
     const reqUrl = new URL(request.url);
-    // Only one file is ever served — anything under app://leaderapp/ maps to master-list.html.
-    const filePath = path.join(__dirname, 'master-list.html');
+    // Used to always serve master-list.html regardless of the requested
+    // path — fine while it really was the only file, but a <script
+    // src="vendor/..."> request would get master-list.html's own HTML
+    // back instead of the actual script and silently fail to parse.
+    // Now resolves the real file under __dirname when it exists (e.g.
+    // vendor/jspdf.umd.min.js), and only falls back to master-list.html
+    // for the root path or anything that doesn't resolve to a real file —
+    // same safety net as before, still always served from app://leaderapp
+    // so the storage origin stays exactly as fixed as it always was.
+    let relPath = decodeURIComponent(reqUrl.pathname);
+    if(!relPath || relPath === '/') relPath = '/master-list.html';
+    const resolved = path.normalize(path.join(__dirname, relPath));
+    const filePath = (resolved.startsWith(__dirname) && fs.existsSync(resolved) && fs.statSync(resolved).isFile())
+      ? resolved
+      : path.join(__dirname, 'master-list.html');
     return net.fetch(url.pathToFileURL(filePath).toString());
   });
 

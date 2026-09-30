@@ -18,7 +18,8 @@
     "files": [
       "main.js",
       "master-list.html",
-      "build/icon.png"
+      "build/icon.png",
+      "vendor/**"
     ],
     "win": {
       "target": "nsis",
