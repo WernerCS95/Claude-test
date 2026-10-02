@@ -123,6 +123,7 @@
       <input type="file" id="importFullStateFileInput" accept="application/json" style="display:none;">
       <input type="file" id="restoreMasterBackupFileInput" accept="application/json" style="display:none;">
       <button class="btn" id="orderListsBtn" style="border-color:var(--gold); color:var(--gold);">📋 Order Lists</button>
+      <button class="btn" id="priceCompareBtn" style="border-color:var(--gold); color:var(--gold);">💰 Price Compare</button>
       <button class="btn" id="kitSchedulerBtn" style="border-color:var(--steel); color:var(--steel);">📅 Kit Scheduler</button>
       <button class="btn primary" id="directorStatementBtn">📊 Director Statement</button>
       <button class="btn" id="printSpotCheckListBtn" style="border-color:var(--danger); color:var(--danger);">🖨 Print Spot Check List</button>
@@ -366,6 +367,66 @@
       <thead><tr><th>Client</th><th>Remembered Plate</th><th>Last Used</th><th></th></tr></thead>
       <tbody id="ncmBody"></tbody>
     </table>
+  </div>
+</div>
+
+<!-- Price Compare — same part, multiple suppliers, without duplicate stock items -->
+<div class="modal-bg" id="priceCompareModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1100px; width:97%; max-height:92vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <h3 style="margin:0;">💰 Price Compare</h3>
+      <button class="btn" id="priceCompareCloseBtn">Close</button>
+    </div>
+    <div class="sub" style="margin-bottom:12px;">One stock item per part — supplier prices live separately and never create duplicates.</div>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px; border-bottom:1px solid var(--panel-line); padding-bottom:10px;">
+      <button class="btn" id="pcTabCompareBtn" style="border-color:var(--gold); color:var(--gold);">Compare</button>
+      <button class="btn" id="pcTabPasteBtn" style="border-color:var(--steel); color:var(--steel);">Paste prices</button>
+      <button class="btn" id="pcTabIncreaseBtn" style="border-color:var(--steel); color:var(--steel);">Supplier increase</button>
+    </div>
+
+    <!-- Compare tab -->
+    <div id="pcCompareTab">
+      <input type="text" id="pcItemSearch" placeholder="Search by name or SKU to tick items to compare…" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px 10px; font-size:13px; margin-bottom:8px;">
+      <div id="pcItemPicker" style="max-height:140px; overflow-y:auto; border:1px solid var(--panel-line); border-radius:8px; padding:8px; margin-bottom:14px;"></div>
+      <div id="pcSelectedItems"></div>
+      <div id="pcFooterTotal" style="text-align:right; font-weight:700; color:var(--gold); font-size:14px; margin-top:10px;"></div>
+    </div>
+
+    <!-- Paste prices tab -->
+    <div id="pcPasteTab" style="display:none;">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+        <label style="font-size:12.5px;">Supplier:
+          <select id="pcPasteSupplier" style="margin-left:6px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;"></select>
+        </label>
+        <input type="text" id="pcPasteNewSupplier" placeholder="New supplier name" style="display:none; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;">
+      </div>
+      <textarea id="pcPasteArea" placeholder="Paste two columns from Excel: supplier code, price (tab or comma separated)" style="width:100%; min-height:100px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:10px; font-size:12px; font-family:monospace;"></textarea>
+      <button class="btn primary" id="pcPastePreviewBtn" style="margin-top:8px;">Preview</button>
+      <div id="pcPastePreviewWrap" style="margin-top:12px;"></div>
+      <div id="pcPasteActions" style="display:none; gap:8px; margin-top:12px;">
+        <button class="btn primary" id="pcPasteAcceptBtn">Accept</button>
+        <button class="btn" id="pcPasteCancelBtn">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Supplier increase tab -->
+    <div id="pcIncreaseTab" style="display:none;">
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+        <label style="font-size:12.5px;">Supplier:
+          <select id="pcIncSupplier" style="margin-left:6px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;"></select>
+        </label>
+        <label style="font-size:12.5px;">% change (negative allowed):
+          <input type="number" id="pcIncPercent" step="0.1" style="margin-left:6px; width:90px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;">
+        </label>
+        <button class="btn primary" id="pcIncPreviewBtn">Preview</button>
+      </div>
+      <div id="pcIncPreviewWrap"></div>
+      <div id="pcIncActions" style="display:none; gap:8px; margin-top:12px;">
+        <button class="btn primary" id="pcIncApplyBtn">Apply</button>
+        <button class="btn" id="pcIncCancelBtn">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1081,7 +1142,30 @@ function renderOrderListModal(){
     `;
   }).join('');
 
-  body.innerHTML = addRowHtml + tablesHtml;
+  const pcRows = buildOrderListPriceComparisonRows(list);
+  const priceComparisonHtml = pcRows.length === 0 ? '' : `
+    <div style="margin-top:16px; border:1px solid var(--gold); border-radius:8px; padding:12px;">
+      <div style="font-weight:700; color:var(--gold); margin-bottom:6px;">💰 Price Comparison</div>
+      <table>
+        <thead><tr><th>Item</th><th class="right">Qty on Order</th><th>Supplier Prices</th><th>Cheapest</th><th class="right">Saving/Unit</th><th class="right">Saving on this Order</th></tr></thead>
+        <tbody>
+          ${pcRows.map(r=>`
+            <tr>
+              <td>${r.line.name}</td>
+              <td class="right num">${parseFloat(r.line.orderQty)||0}</td>
+              <td style="font-size:11px;">${r.info.sorted.map(p=>`${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' <span class="flag" style="background:var(--amber); color:#1a1200;">OLD PRICE</span>' : ''}`).join('<br>')}</td>
+              <td style="color:var(--success); font-weight:700;">${r.info.cheapest.supplier}</td>
+              <td class="right num">${fmtR(r.info.savingPerUnit)}</td>
+              <td class="right num" style="font-weight:700; color:var(--gold);">${fmtR(r.savingOnOrder)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="text-align:right; font-weight:700; color:var(--gold); margin-top:8px;">Potential saving on this order: ${fmtR(pcRows.reduce((s,r)=>s+r.savingOnOrder,0))}</div>
+    </div>
+  `;
+
+  body.innerHTML = addRowHtml + tablesHtml + priceComparisonHtml;
   wireOrderListAdd(listKey);
   wireNearMissAdd(listKey);
   wireRunningLowAdd(listKey);
@@ -1326,7 +1410,7 @@ document.getElementById('orderSheetPrintBtn').onclick = ()=>{
   const suppliers = Object.keys(bySupplier).sort((a,b)=> a==='No Supplier Set'?1 : b==='No Supplier Set'?-1 : a.localeCompare(b));
   const title = document.getElementById('orderSheetTitle').textContent;
   const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
-  openPrintWindow(title, dateStr, suppliers, bySupplier);
+  openPrintWindow(title, dateStr, suppliers, bySupplier, list);
 };
 
 /* ====================== DIRECTOR STATEMENT ======================
@@ -1551,7 +1635,7 @@ function openDirectorStatementPrintWindow(dateStr, current, opening, change, cha
 // "get someone to convert this to a PDF" step on Android every single
 // time. A real PDF file needs no conversion — it opens/prints/saves
 // correctly wherever it lands, laptop or tablet, no middleman.
-function openPrintWindow(title, dateStr, suppliers, bySupplier){
+function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const navy = [31, 78, 120];
@@ -1614,6 +1698,52 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier){
   doc.setFont(undefined, 'bold');
   doc.text(`Grand Total: ${fmtR(grandTotal)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
   doc.setFont(undefined, 'normal');
+
+  // Price Comparison section — only when 2+ suppliers are priced for a SKU
+  // on this order; otherwise skip entirely (per brief, hide when none).
+  if(Array.isArray(list)){
+    const pcRows = buildOrderListPriceComparisonRows(list);
+    if(pcRows.length > 0){
+      cursorY += 10;
+      if(cursorY > 250){ doc.addPage(); cursorY = 14; }
+      doc.setFontSize(11);
+      doc.setTextColor(255,255,255);
+      doc.setFillColor(...navy);
+      doc.rect(14, cursorY, pageWidth - 28, 6, 'F');
+      doc.text('Price Comparison', 16, cursorY + 4.3);
+      cursorY += 6;
+
+      let potentialSaving = 0;
+      const rows = pcRows.map(r=>{
+        potentialSaving += r.savingOnOrder;
+        const priceList = r.info.sorted.map(p=> `${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' (OLD)' : ''}`).join('\n');
+        return [r.line.name, String(parseFloat(r.line.orderQty)||0), priceList, r.info.cheapest.supplier, fmtR(r.info.savingPerUnit), fmtR(r.savingOnOrder)];
+      });
+
+      doc.autoTable({
+        startY: cursorY,
+        margin: { left: 14, right: 14 },
+        head: [['Item', 'Qty on Order', 'Supplier Prices', 'Cheapest', 'Saving/Unit', 'Saving on Order']],
+        body: rows,
+        theme: 'grid',
+        headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 8.5, lineColor: [185,194,204] },
+        bodyStyles: { fontSize: 8, textColor: [26,29,33] },
+        columnStyles: {
+          1: { halign: 'right' },
+          3: { halign: 'left', fontStyle: 'bold', textColor: [26,122,55] },
+          4: { halign: 'right' },
+          5: { halign: 'right', fontStyle: 'bold', textColor: navy },
+        },
+      });
+      cursorY = doc.lastAutoTable.finalY + 5;
+      doc.setFontSize(11);
+      doc.setTextColor(...navy);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Potential saving on this order: ${fmtR(potentialSaving)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
+      doc.setFont(undefined, 'normal');
+      cursorY += 8;
+    }
+  }
 
   const signY = Math.min(cursorY + 24, 280);
   doc.setFontSize(9);
@@ -2106,6 +2236,489 @@ document.getElementById('npSaveBtn').onclick = ()=>{
   render();
   document.getElementById('newPartModal').style.display = 'none';
 };
+
+/* ====================== SUPPLIER PRICE COMPARISON ======================
+   Prices live by SKU in their own key, never on the stock item itself —
+   so catalog imports/tablet syncs can never wipe them, and there's still
+   exactly one stock item per part. item.price (stock valuation) only ever
+   changes through the explicit "Use this price" confirm below.
+========================================================================= */
+const SUPPLIER_PRICES_KEY = 'leader-master-supplier-prices-v1';
+let supplierPrices = {}; // { sku: [{ supplier, code, price, date, source }] }
+function loadSupplierPrices(){
+  try{
+    const raw = localStorage.getItem(SUPPLIER_PRICES_KEY);
+    supplierPrices = raw ? JSON.parse(raw) : {};
+  }catch(e){ supplierPrices = {}; }
+}
+function saveSupplierPrices(){
+  try{ localStorage.setItem(SUPPLIER_PRICES_KEY, JSON.stringify(supplierPrices)); }catch(e){}
+}
+
+// No alias system existed before this feature — built fresh. Maps
+// supplier+code to a SKU so a pasted quote auto-matches next time.
+const SUPPLIER_CODE_ALIAS_KEY = 'leader-master-supplier-code-alias-v1';
+let supplierCodeAlias = {}; // { "supplier|code": sku }
+function loadSupplierCodeAlias(){
+  try{
+    const raw = localStorage.getItem(SUPPLIER_CODE_ALIAS_KEY);
+    supplierCodeAlias = raw ? JSON.parse(raw) : {};
+  }catch(e){ supplierCodeAlias = {}; }
+}
+function saveSupplierCodeAlias(){
+  try{ localStorage.setItem(SUPPLIER_CODE_ALIAS_KEY, JSON.stringify(supplierCodeAlias)); }catch(e){}
+}
+function aliasKey(supplier, code){ return (supplier||'').trim().toLowerCase() + '|' + (code||'').trim().toLowerCase(); }
+function parsePastedPrice(raw){
+  let s = (raw||'').trim().replace(/R/gi,'').replace(/\s/g,'');
+  // A comma followed by exactly 2 digits at the end is a decimal separator
+  // (ZA format, e.g. "395,00"); otherwise commas are thousand separators.
+  if(/,\d{2}$/.test(s) && !/\.\d+$/.test(s)){
+    s = s.replace(/\./g,'').replace(',', '.');
+  } else {
+    s = s.replace(/,/g,'');
+  }
+  return parseFloat(s);
+}
+
+function knownSuppliers(){
+  const set = new Set();
+  Object.values(supplierPrices).forEach(rows=> (rows||[]).forEach(r=>{ if(r.supplier) set.add(r.supplier); }));
+  goodsReceivedLedger.forEach(g=>{ if(g.supplier) set.add(g.supplier.trim()); });
+  return [...set].filter(Boolean).sort();
+}
+
+function pricedRowsForSku(sku){
+  return (supplierPrices[sku] || []).filter(r=> r.price && r.price > 0);
+}
+function sortedPricesForSku(sku){
+  return pricedRowsForSku(sku).slice().sort((a,b)=> a.price - b.price);
+}
+function isOldPriceDate(dateStr){
+  if(!dateStr) return false;
+  return (Date.now() - new Date(dateStr).getTime()) / 86400000 > 90;
+}
+function issuesLast12Months(sku){
+  const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 1);
+  return ledger.filter(r=> r.sku === sku && r.date && new Date(r.date) >= cutoff)
+    .reduce((s,r)=> s + (Number(r.qty)||0), 0);
+}
+// Saving measured vs the MOST EXPENSIVE priced supplier, per the brief's own example.
+function savingInfoForSku(sku){
+  const sorted = sortedPricesForSku(sku);
+  if(sorted.length < 2) return null;
+  const cheapest = sorted[0];
+  const mostExpensive = sorted[sorted.length - 1];
+  const savingPerUnit = mostExpensive.price - cheapest.price;
+  const savingPct = mostExpensive.price > 0 ? (savingPerUnit / mostExpensive.price) * 100 : 0;
+  return { sorted, cheapest, mostExpensive, savingPerUnit, savingPct };
+}
+
+let pcSelectedSkus = new Set();
+let pcQtyBySku = {};
+
+function openPriceCompareModal(){
+  document.getElementById('pcItemSearch').value = '';
+  renderPcItemPicker('');
+  renderPcSelectedItems();
+  pcShowTab('compare');
+  document.getElementById('priceCompareModal').style.display = 'flex';
+}
+document.getElementById('priceCompareBtn').onclick = openPriceCompareModal;
+document.getElementById('priceCompareCloseBtn').onclick = ()=> document.getElementById('priceCompareModal').style.display = 'none';
+
+function pcShowTab(tab){
+  document.getElementById('pcCompareTab').style.display = tab==='compare' ? 'block' : 'none';
+  document.getElementById('pcPasteTab').style.display = tab==='paste' ? 'block' : 'none';
+  document.getElementById('pcIncreaseTab').style.display = tab==='increase' ? 'block' : 'none';
+  [['pcTabCompareBtn','compare'],['pcTabPasteBtn','paste'],['pcTabIncreaseBtn','increase']].forEach(([id,t])=>{
+    const el = document.getElementById(id);
+    el.style.borderColor = tab===t ? 'var(--gold)' : 'var(--steel)';
+    el.style.color = tab===t ? 'var(--gold)' : 'var(--steel)';
+  });
+  if(tab==='paste') populatePcPasteSupplierSelect();
+  if(tab==='increase') populatePcIncSupplierSelect();
+}
+document.getElementById('pcTabCompareBtn').onclick = ()=> pcShowTab('compare');
+document.getElementById('pcTabPasteBtn').onclick = ()=> pcShowTab('paste');
+document.getElementById('pcTabIncreaseBtn').onclick = ()=> pcShowTab('increase');
+
+function renderPcItemPicker(query){
+  const wrap = document.getElementById('pcItemPicker');
+  const q = (query||'').trim().toLowerCase();
+  if(!q){ wrap.innerHTML = `<div class="sub" style="margin:0;">Type to search…</div>`; return; }
+  const matches = stock.filter(i=> i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)).slice(0, 30);
+  if(matches.length === 0){ wrap.innerHTML = `<div class="sub" style="margin:0;">No matches.</div>`; return; }
+  wrap.innerHTML = matches.map(i=>`
+    <label style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12.5px; cursor:pointer;">
+      <input type="checkbox" data-pc-pick="${i.sku}" ${pcSelectedSkus.has(i.sku)?'checked':''}>
+      ${i.name} <span class="sku" style="color:var(--text-faint);">${i.sku}</span>
+    </label>
+  `).join('');
+  wrap.querySelectorAll('[data-pc-pick]').forEach(cb=>{
+    cb.onchange = ()=>{
+      if(cb.checked) pcSelectedSkus.add(cb.dataset.pcPick); else pcSelectedSkus.delete(cb.dataset.pcPick);
+      renderPcSelectedItems();
+    };
+  });
+}
+document.getElementById('pcItemSearch').addEventListener('input', e=> renderPcItemPicker(e.target.value));
+
+function renderPcSelectedItems(){
+  const wrap = document.getElementById('pcSelectedItems');
+  const suppliers = knownSuppliers();
+  if(pcSelectedSkus.size === 0){
+    wrap.innerHTML = `<div class="empty">Tick one or more items above to compare supplier prices.</div>`;
+    document.getElementById('pcFooterTotal').textContent = '';
+    return;
+  }
+  let footerTotal = 0;
+  wrap.innerHTML = [...pcSelectedSkus].map(sku=>{
+    const item = stock.find(s=>s.sku===sku);
+    if(!item) return '';
+    const rows = supplierPrices[sku] || [];
+    const info = savingInfoForSku(sku);
+    const qty = pcQtyBySku[sku] || '';
+    const qtyNum = parseFloat(qty) || 0;
+    let qtySaving = 0, yearlySaving = null;
+    if(info){
+      qtySaving = info.savingPerUnit * qtyNum;
+      footerTotal += qtySaving;
+      const issues = issuesLast12Months(sku);
+      yearlySaving = issues > 0 ? info.savingPerUnit * issues : null;
+    }
+    const rowsHtml = rows.map((r, ri)=>{
+      const isCheapest = info && r === info.cheapest;
+      const old = isOldPriceDate(r.date);
+      const supplierOptions = ['', ...suppliers.filter(s=>s)].map(s=>
+        `<option value="${s}" ${s===r.supplier?'selected':''}>${s || '— Select —'}</option>`
+      ).join('') + `<option value="__new__">+ New supplier</option>`;
+      return `
+        <tr data-pc-row="${sku}|${ri}" style="${isCheapest ? 'background:rgba(184,134,46,0.12);' : ''}">
+          <td>
+            <select data-pc-supplier="${sku}|${ri}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;">${supplierOptions}</select>
+            <input type="text" data-pc-newsupplier="${sku}|${ri}" placeholder="New supplier name" style="display:none; margin-top:3px; width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11px;">
+          </td>
+          <td><input type="text" data-pc-code="${sku}|${ri}" value="${r.code||''}" style="width:90px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;"></td>
+          <td><input type="number" step="0.01" data-pc-price="${sku}|${ri}" value="${r.price||''}" style="width:85px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;"></td>
+          <td style="font-size:10.5px; color:var(--text-faint);">${r.date || '—'}${old ? ' <span class="flag" style="background:var(--amber); color:#1a1200;">OLD PRICE</span>' : ''}</td>
+          <td>${info ? `<button class="btn ${isCheapest?'primary':''}" data-pc-use="${sku}" data-pc-use-price="${r.price}" data-pc-use-supplier="${r.supplier}" style="padding:3px 8px; font-size:10.5px;">Use this price</button>` : ''}</td>
+          <td><button class="row-delete-btn" data-pc-remove="${sku}|${ri}">✕</button></td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div style="border:1px solid var(--panel-line); border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <b>${item.name}</b> <span class="sku" style="color:var(--text-faint);">${sku}</span>
+          <button class="btn" data-pc-unselect="${sku}" style="padding:3px 8px; font-size:11px;">Remove from compare</button>
+        </div>
+        <table>
+          <thead><tr><th>Supplier</th><th>Code</th><th>Price</th><th>Date</th><th></th><th></th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <button class="btn" data-pc-addrow="${sku}" style="margin-top:8px; padding:4px 10px; font-size:11.5px; border-color:var(--steel); color:var(--steel);">+ Add supplier</button>
+        ${info ? `
+          <div style="margin-top:8px; font-size:12px;">
+            <span style="color:var(--success); font-weight:600;">Cheapest: ${info.cheapest.supplier} ${fmtR(info.cheapest.price)}</span>
+            — saves ${fmtR(info.savingPerUnit)}/unit (${info.savingPct.toFixed(1)}%) vs ${info.mostExpensive.supplier}
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px;">
+            <label>Qty: <input type="number" min="0" data-pc-qty="${sku}" value="${qty}" style="width:70px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 6px;"></label>
+            <span id="pc-qtysaving-${sku}">${qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(qtySaving)}</b>` : ''}</span>
+            <span style="color:var(--text-faint);">Est. yearly saving: ${yearlySaving !== null ? fmtR(yearlySaving) : '—'}</span>
+          </div>
+        ` : `<div class="sub" style="margin-top:6px;">Add a second supplier's price to see a comparison.</div>`}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('pcFooterTotal').textContent = footerTotal > 0
+    ? `Total saving across selected items: ${fmtR(footerTotal)}`
+    : '';
+
+  wirePcSelectedItemsEvents();
+}
+
+function wirePcSelectedItemsEvents(){
+  const wrap = document.getElementById('pcSelectedItems');
+
+  wrap.querySelectorAll('[data-pc-unselect]').forEach(btn=>{
+    btn.onclick = ()=>{ pcSelectedSkus.delete(btn.dataset.pcUnselect); renderPcSelectedItems(); renderPcItemPicker(document.getElementById('pcItemSearch').value); };
+  });
+
+  wrap.querySelectorAll('[data-pc-addrow]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const sku = btn.dataset.pcAddrow;
+      if(!supplierPrices[sku]) supplierPrices[sku] = [];
+      supplierPrices[sku].push({ supplier: '', code: '', price: 0, date: '', source: 'manual' });
+      saveSupplierPrices();
+      renderPcSelectedItems();
+    };
+  });
+
+  wrap.querySelectorAll('[data-pc-remove]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const [sku, ri] = btn.dataset.pcRemove.split('|');
+      supplierPrices[sku].splice(parseInt(ri), 1);
+      saveSupplierPrices();
+      renderPcSelectedItems();
+    };
+  });
+
+  wrap.querySelectorAll('[data-pc-supplier]').forEach(sel=>{
+    sel.onchange = ()=>{
+      const [sku, ri] = sel.dataset.pcSupplier.split('|');
+      const newInput = wrap.querySelector(`[data-pc-newsupplier="${sku}|${ri}"]`);
+      if(sel.value === '__new__'){
+        newInput.style.display = 'block';
+        newInput.focus();
+      } else {
+        supplierPrices[sku][ri].supplier = sel.value;
+        saveSupplierPrices();
+      }
+    };
+  });
+  wrap.querySelectorAll('[data-pc-newsupplier]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const [sku, ri] = inp.dataset.pcNewsupplier.split('|');
+      const name = inp.value.trim();
+      if(!name) return;
+      supplierPrices[sku][ri].supplier = name;
+      saveSupplierPrices();
+      renderPcSelectedItems();
+    });
+  });
+
+  wrap.querySelectorAll('[data-pc-code]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const [sku, ri] = inp.dataset.pcCode.split('|');
+      supplierPrices[sku][ri].code = inp.value.trim();
+      saveSupplierPrices();
+    });
+  });
+
+  wrap.querySelectorAll('[data-pc-price]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const [sku, ri] = inp.dataset.pcPrice.split('|');
+      const newPrice = parseFloat(inp.value) || 0;
+      const row = supplierPrices[sku][ri];
+      if(row.price !== newPrice){
+        row.date = new Date().toISOString().slice(0,10);
+      }
+      row.price = newPrice;
+      if(!row.source) row.source = 'manual';
+      saveSupplierPrices();
+      renderPcSelectedItems();
+    });
+  });
+
+  // Targeted update (not full re-render) so typing a qty doesn't lose focus/cursor.
+  wrap.querySelectorAll('[data-pc-qty]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const sku = inp.dataset.pcQty;
+      pcQtyBySku[sku] = inp.value;
+      const info = savingInfoForSku(sku);
+      const qtyNum = parseFloat(inp.value) || 0;
+      const span = document.getElementById(`pc-qtysaving-${sku}`);
+      if(span && info) span.innerHTML = qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(info.savingPerUnit*qtyNum)}</b>` : '';
+      let footerTotal = 0;
+      pcSelectedSkus.forEach(s=>{
+        const inf = savingInfoForSku(s);
+        if(inf){ const q = parseFloat(pcQtyBySku[s])||0; footerTotal += inf.savingPerUnit*q; }
+      });
+      document.getElementById('pcFooterTotal').textContent = footerTotal > 0 ? `Total saving across selected items: ${fmtR(footerTotal)}` : '';
+    });
+  });
+
+  wrap.querySelectorAll('[data-pc-use]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const sku = btn.dataset.pcUse;
+      const price = parseFloat(btn.dataset.pcUsePrice);
+      const supplier = btn.dataset.pcUseSupplier;
+      const item = stock.find(s=>s.sku===sku);
+      if(!item) return;
+      if(!confirm(`Set "${item.name}"'s stock valuation price to ${fmtR(price)} (${supplier})?\n\nThis changes Total Stock Value — current price is ${fmtR(item.price||0)}.`)) return;
+      item.price = price;
+      saveState();
+      render();
+      renderPcSelectedItems();
+    };
+  });
+}
+
+function populatePcPasteSupplierSelect(){
+  const sel = document.getElementById('pcPasteSupplier');
+  const suppliers = knownSuppliers();
+  sel.innerHTML = suppliers.map(s=>`<option value="${s}">${s}</option>`).join('') + `<option value="__new__">+ New supplier</option>`;
+  sel.onchange = ()=>{
+    document.getElementById('pcPasteNewSupplier').style.display = sel.value === '__new__' ? 'block' : 'none';
+  };
+}
+function pcPasteCurrentSupplier(){
+  const sel = document.getElementById('pcPasteSupplier');
+  if(sel.value === '__new__') return document.getElementById('pcPasteNewSupplier').value.trim();
+  return sel.value;
+}
+
+let pcPastePreviewRows = [];
+document.getElementById('pcPastePreviewBtn').onclick = ()=>{
+  const supplier = pcPasteCurrentSupplier();
+  if(!supplier){ alert('Pick or enter a supplier first.'); return; }
+  const raw = document.getElementById('pcPasteArea').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  pcPastePreviewRows = lines.map(line=>{
+    const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+    const code = (parts[0]||'').trim();
+    const price = parsePastedPrice(parts[1]);
+    const key = aliasKey(supplier, code);
+    let sku = supplierCodeAlias[key] || null;
+    if(!sku){
+      const direct = Object.entries(supplierPrices).find(([s, rows])=> rows.some(r=> r.supplier===supplier && r.code===code));
+      if(direct) sku = direct[0];
+    }
+    const item = sku ? stock.find(s=>s.sku===sku) : null;
+    const oldPrice = (sku && supplierPrices[sku]) ? (supplierPrices[sku].find(r=>r.supplier===supplier)||{}).price : null;
+    return { code, price, sku: item ? sku : null, itemName: item ? item.name : null, oldPrice };
+  }).filter(r=> r.code && !isNaN(r.price));
+  renderPcPastePreview(supplier);
+};
+
+function renderPcPastePreview(supplier){
+  const wrap = document.getElementById('pcPastePreviewWrap');
+  if(pcPastePreviewRows.length === 0){
+    wrap.innerHTML = `<div class="empty">No valid rows found — expecting "code, price" per line.</div>`;
+    document.getElementById('pcPasteActions').style.display = 'none';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Code</th><th>Matched Item</th><th class="right">Old Price</th><th class="right">New Price</th><th>Change</th><th></th></tr></thead>
+      <tbody>
+        ${pcPastePreviewRows.map((r,i)=>{
+          const change = r.oldPrice ? fmtR(r.price - r.oldPrice) : '—';
+          return `<tr data-pc-paste-row="${i}">
+            <td>${r.code}</td>
+            <td>${r.itemName || `<select data-pc-paste-assign="${i}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px;"><option value="">— pick item —</option>${stock.map(s=>`<option value="${s.sku}">${s.name}</option>`).join('')}</select>`}</td>
+            <td class="right num">${r.oldPrice ? fmtR(r.oldPrice) : '—'}</td>
+            <td class="right num">${fmtR(r.price)}</td>
+            <td>${change}</td>
+            <td>${r.itemName ? '✓' : '<span style="color:var(--text-faint);">no match</span>'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-pc-paste-assign]').forEach(sel=>{
+    sel.onchange = ()=>{
+      const i = parseInt(sel.dataset.pcPasteAssign);
+      const sku = sel.value;
+      if(!sku) return;
+      const item = stock.find(s=>s.sku===sku);
+      pcPastePreviewRows[i].sku = sku;
+      pcPastePreviewRows[i].itemName = item.name;
+      supplierCodeAlias[aliasKey(supplier, pcPastePreviewRows[i].code)] = sku;
+      saveSupplierCodeAlias();
+      renderPcPastePreview(supplier);
+    };
+  });
+  document.getElementById('pcPasteActions').style.display = 'flex';
+}
+
+document.getElementById('pcPasteAcceptBtn').onclick = ()=>{
+  const supplier = pcPasteCurrentSupplier();
+  const today = new Date().toISOString().slice(0,10);
+  let applied = 0;
+  pcPastePreviewRows.forEach(r=>{
+    if(!r.sku) return;
+    if(!supplierPrices[r.sku]) supplierPrices[r.sku] = [];
+    let row = supplierPrices[r.sku].find(x=>x.supplier===supplier);
+    if(!row){ row = { supplier, code: r.code, price: 0, date: '', source: 'paste' }; supplierPrices[r.sku].push(row); }
+    row.code = r.code;
+    row.price = r.price;
+    row.date = today;
+    row.source = 'paste';
+    applied++;
+  });
+  saveSupplierPrices();
+  document.getElementById('pcPasteArea').value = '';
+  document.getElementById('pcPastePreviewWrap').innerHTML = '';
+  document.getElementById('pcPasteActions').style.display = 'none';
+  pcPastePreviewRows = [];
+  renderPcSelectedItems();
+  alert(`${applied} price(s) updated from the pasted list.`);
+};
+document.getElementById('pcPasteCancelBtn').onclick = ()=>{
+  pcPastePreviewRows = [];
+  document.getElementById('pcPastePreviewWrap').innerHTML = '';
+  document.getElementById('pcPasteActions').style.display = 'none';
+};
+
+function populatePcIncSupplierSelect(){
+  const sel = document.getElementById('pcIncSupplier');
+  sel.innerHTML = knownSuppliers().map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+let pcIncPreviewList = [];
+document.getElementById('pcIncPreviewBtn').onclick = ()=>{
+  const supplier = document.getElementById('pcIncSupplier').value;
+  const pct = parseFloat(document.getElementById('pcIncPercent').value);
+  if(!supplier){ alert('Pick a supplier.'); return; }
+  if(isNaN(pct)){ alert('Enter a percentage.'); return; }
+  pcIncPreviewList = [];
+  Object.entries(supplierPrices).forEach(([sku, rows])=>{
+    const row = rows.find(r=>r.supplier===supplier && r.price > 0);
+    if(!row) return;
+    const item = stock.find(s=>s.sku===sku);
+    const newPrice = Math.round(row.price * (1 + pct/100) * 100) / 100;
+    pcIncPreviewList.push({ sku, name: item ? item.name : sku, oldPrice: row.price, newPrice });
+  });
+  const wrap = document.getElementById('pcIncPreviewWrap');
+  if(pcIncPreviewList.length === 0){
+    wrap.innerHTML = `<div class="empty">No priced items for this supplier yet.</div>`;
+    document.getElementById('pcIncActions').style.display = 'none';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Item</th><th class="right">Old Price</th><th class="right">New Price</th></tr></thead>
+      <tbody>${pcIncPreviewList.map(r=>`<tr><td>${r.name}</td><td class="right num">${fmtR(r.oldPrice)}</td><td class="right num">${fmtR(r.newPrice)}</td></tr>`).join('')}</tbody>
+    </table>
+  `;
+  document.getElementById('pcIncActions').style.display = 'flex';
+};
+document.getElementById('pcIncApplyBtn').onclick = ()=>{
+  const supplier = document.getElementById('pcIncSupplier').value;
+  const today = new Date().toISOString().slice(0,10);
+  const count = pcIncPreviewList.length;
+  pcIncPreviewList.forEach(r=>{
+    const row = supplierPrices[r.sku].find(x=>x.supplier===supplier);
+    if(row){ row.price = r.newPrice; row.date = today; row.source = 'increase'; }
+  });
+  saveSupplierPrices();
+  document.getElementById('pcIncPreviewWrap').innerHTML = '';
+  document.getElementById('pcIncActions').style.display = 'none';
+  pcIncPreviewList = [];
+  renderPcSelectedItems();
+  alert(`Applied ${supplier} price increase to ${count} item(s).`);
+};
+document.getElementById('pcIncCancelBtn').onclick = ()=>{
+  pcIncPreviewList = [];
+  document.getElementById('pcIncPreviewWrap').innerHTML = '';
+  document.getElementById('pcIncActions').style.display = 'none';
+};
+
+// Order-list integration helper (shared by on-screen render and PDF print):
+function buildOrderListPriceComparisonRows(list){
+  return list
+    .map(l=>{
+      const info = savingInfoForSku(l.sku);
+      if(!info) return null;
+      const qty = parseFloat(l.orderQty) || 0;
+      return { line: l, info, savingOnOrder: info.savingPerUnit * qty };
+    })
+    .filter(Boolean);
+}
 
 /* ====================== RENDER ====================== */
 
@@ -3521,7 +4134,8 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   IMPORTED_BATCHES_KEY, IMPORTED_LINE_IDS_KEY,
   ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY,
   VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,
-  NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY
+  NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY,
+  SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY
 ];
 
 function downloadMasterFullSnapshot(){
@@ -4326,6 +4940,8 @@ loadNameplateRegistry();
 loadNameplateLedger();
 loadNameplateClientMap();
 loadCutListBatches();
+loadSupplierPrices();
+loadSupplierCodeAlias();
 removeAdvanceHarnessingOnce();
 render();
 showFreshFileWarningIfNeeded();
