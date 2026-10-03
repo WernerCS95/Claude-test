@@ -387,6 +387,17 @@
 
     <!-- Compare tab -->
     <div id="pcCompareTab">
+      <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel-raised);">
+        <label style="font-size:12px;">★ Preferred supplier:
+          <select id="pcPreferredSupplierSelect" style="margin-left:6px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:5px 7px;"></select>
+        </label>
+        <label style="font-size:12px;">Quality premium tolerance:
+          <input type="number" id="pcToleranceInput" min="0" step="0.5" style="margin-left:6px; width:65px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:5px 7px;"> %
+        </label>
+        <label style="font-size:12px; display:flex; align-items:center; gap:5px; margin-left:auto;">
+          <input type="checkbox" id="pcPreferredOnlyFilter"> ★ C&amp;J items only
+        </label>
+      </div>
       <input type="text" id="pcItemSearch" placeholder="Search by name or SKU to tick items to compare…" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:8px; padding:9px 10px; font-size:13px; margin-bottom:8px;">
       <div id="pcItemPicker" style="max-height:140px; overflow-y:auto; border:1px solid var(--panel-line); border-radius:8px; padding:8px; margin-bottom:14px;"></div>
       <div id="pcSelectedItems"></div>
@@ -1143,27 +1154,52 @@ function renderOrderListModal(){
   }).join('');
 
   const pcRows = buildOrderListPriceComparisonRows(list);
-  const priceComparisonHtml = pcRows.length === 0 ? '' : `
+  const priceComparisonHtml = pcRows.length === 0 ? '' : (()=>{
+    const totalSaving = pcRows.reduce((s,r)=> s + (r.savingOnOrder||0), 0);
+    const totalPremium = pcRows.reduce((s,r)=> s + (r.premiumOnOrder||0), 0);
+    const overToleranceCount = pcRows.filter(r=> r.info.overTolerance).length;
+    return `
     <div style="margin-top:16px; border:1px solid var(--gold); border-radius:8px; padding:12px;">
       <div style="font-weight:700; color:var(--gold); margin-bottom:6px;">💰 Price Comparison</div>
       <table>
-        <thead><tr><th>Item</th><th class="right">Qty on Order</th><th>Supplier Prices</th><th>Cheapest</th><th class="right">Saving/Unit</th><th class="right">Saving on this Order</th></tr></thead>
+        <thead><tr><th>Item</th><th class="right">Qty on Order</th><th>Supplier Prices</th><th>Buy From</th><th class="right">Saving/Unit</th><th class="right">Saving on this Order</th></tr></thead>
         <tbody>
-          ${pcRows.map(r=>`
+          ${pcRows.map(r=>{
+            const priceList = r.info.sorted.map(p=>`${p.supplier===supplierSettings.preferredSupplier?'★ ':''}${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' <span class="flag" style="background:var(--amber); color:#1a1200;">OLD PRICE</span>' : ''}`).join('<br>');
+            let buyFromCell, savingCell, savingOnOrderCell;
+            if(r.info.priceNeeded){
+              buyFromCell = `<span style="color:var(--amber); font-weight:700;">★ ${supplierSettings.preferredSupplier} — price needed</span>`;
+              savingCell = '—'; savingOnOrderCell = '—';
+            } else {
+              const premiumNote = r.info.premiumPerUnit > 0
+                ? (r.info.overTolerance
+                    ? `<div style="font-size:10.5px; color:var(--amber);">+${fmtR(r.info.premiumPerUnit)}/u (${r.info.premiumPct.toFixed(1)}%) above tolerance</div>`
+                    : `<div style="font-size:10.5px; color:var(--text-faint);">Quality premium +${fmtR(r.info.premiumPerUnit)}/u</div>`)
+                : '';
+              buyFromCell = `<span style="color:var(--success); font-weight:700;">${r.info.buyFromRow===r.info.preferredRow?'★ ':''}${r.info.buyFromRow.supplier}</span>${premiumNote}`;
+              savingCell = fmtR(r.info.savingPerUnit);
+              savingOnOrderCell = fmtR(r.savingOnOrder);
+            }
+            return `
             <tr>
               <td>${r.line.name}</td>
               <td class="right num">${parseFloat(r.line.orderQty)||0}</td>
-              <td style="font-size:11px;">${r.info.sorted.map(p=>`${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' <span class="flag" style="background:var(--amber); color:#1a1200;">OLD PRICE</span>' : ''}`).join('<br>')}</td>
-              <td style="color:var(--success); font-weight:700;">${r.info.cheapest.supplier}</td>
-              <td class="right num">${fmtR(r.info.savingPerUnit)}</td>
-              <td class="right num" style="font-weight:700; color:var(--gold);">${fmtR(r.savingOnOrder)}</td>
+              <td style="font-size:11px;">${priceList}</td>
+              <td>${buyFromCell}</td>
+              <td class="right num">${savingCell}</td>
+              <td class="right num" style="font-weight:700; color:var(--gold);">${savingOnOrderCell}</td>
             </tr>
-          `).join('')}
+          `;}).join('')}
         </tbody>
       </table>
-      <div style="text-align:right; font-weight:700; color:var(--gold); margin-top:8px;">Potential saving on this order: ${fmtR(pcRows.reduce((s,r)=>s+r.savingOnOrder,0))}</div>
+      <div style="text-align:right; margin-top:8px;">
+        <div style="font-weight:700; color:var(--gold);">Saving on this order buying per policy: ${fmtR(totalSaving)}</div>
+        ${totalPremium > 0 ? `<div style="font-size:12px; color:var(--text-faint); margin-top:3px;">Quality premium paid to ${supplierSettings.preferredSupplier}: ${fmtR(totalPremium)}</div>` : ''}
+        ${overToleranceCount > 0 ? `<div style="font-size:12px; color:var(--amber); margin-top:3px;">Lines above tolerance: ${overToleranceCount}</div>` : ''}
+      </div>
     </div>
   `;
+  })();
 
   body.innerHTML = addRowHtml + tablesHtml + priceComparisonHtml;
   wireOrderListAdd(listKey);
@@ -1699,8 +1735,9 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
   doc.text(`Grand Total: ${fmtR(grandTotal)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
   doc.setFont(undefined, 'normal');
 
-  // Price Comparison section — only when 2+ suppliers are priced for a SKU
-  // on this order; otherwise skip entirely (per brief, hide when none).
+  // Price Comparison section — only when a SKU is a preferred-supplier item
+  // or has 2+ priced suppliers; otherwise skip entirely (per brief, hide
+  // when none).
   if(Array.isArray(list)){
     const pcRows = buildOrderListPriceComparisonRows(list);
     if(pcRows.length > 0){
@@ -1713,17 +1750,28 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
       doc.text('Price Comparison', 16, cursorY + 4.3);
       cursorY += 6;
 
-      let potentialSaving = 0;
+      let totalSaving = 0, totalPremium = 0, overToleranceCount = 0;
       const rows = pcRows.map(r=>{
-        potentialSaving += r.savingOnOrder;
-        const priceList = r.info.sorted.map(p=> `${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' (OLD)' : ''}`).join('\n');
-        return [r.line.name, String(parseFloat(r.line.orderQty)||0), priceList, r.info.cheapest.supplier, fmtR(r.info.savingPerUnit), fmtR(r.savingOnOrder)];
+        totalSaving += r.savingOnOrder || 0;
+        totalPremium += r.premiumOnOrder || 0;
+        if(r.info.overTolerance) overToleranceCount++;
+        const priceList = r.info.sorted.map(p=> `${p.supplier===supplierSettings.preferredSupplier?'* ':''}${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' (OLD)' : ''}`).join('\n');
+        if(r.info.priceNeeded){
+          return [r.line.name, String(parseFloat(r.line.orderQty)||0), priceList, `* ${supplierSettings.preferredSupplier} — price needed`, '-', '-'];
+        }
+        let buyFromCell = `${r.info.buyFromRow===r.info.preferredRow?'* ':''}${r.info.buyFromRow.supplier}`;
+        if(r.info.premiumPerUnit > 0){
+          buyFromCell += r.info.overTolerance
+            ? `\n+${fmtR(r.info.premiumPerUnit)}/u (${r.info.premiumPct.toFixed(1)}%) above tolerance`
+            : `\nQuality premium +${fmtR(r.info.premiumPerUnit)}/u`;
+        }
+        return [r.line.name, String(parseFloat(r.line.orderQty)||0), priceList, buyFromCell, fmtR(r.info.savingPerUnit), fmtR(r.savingOnOrder)];
       });
 
       doc.autoTable({
         startY: cursorY,
         margin: { left: 14, right: 14 },
-        head: [['Item', 'Qty on Order', 'Supplier Prices', 'Cheapest', 'Saving/Unit', 'Saving on Order']],
+        head: [['Item', 'Qty on Order', 'Supplier Prices', 'Buy From', 'Saving/Unit', 'Saving on Order']],
         body: rows,
         theme: 'grid',
         headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 8.5, lineColor: [185,194,204] },
@@ -1739,9 +1787,21 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
       doc.setFontSize(11);
       doc.setTextColor(...navy);
       doc.setFont(undefined, 'bold');
-      doc.text(`Potential saving on this order: ${fmtR(potentialSaving)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
+      doc.text(`Saving on this order buying per policy: ${fmtR(totalSaving)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
+      cursorY += 5;
       doc.setFont(undefined, 'normal');
-      cursorY += 8;
+      doc.setFontSize(9);
+      if(totalPremium > 0){
+        doc.setTextColor(91, 97, 105);
+        doc.text(`Quality premium paid to ${supplierSettings.preferredSupplier}: ${fmtR(totalPremium)}`, pageWidth - 14, cursorY + 4, { align: 'right' });
+        cursorY += 5;
+      }
+      if(overToleranceCount > 0){
+        doc.setTextColor(184, 120, 20);
+        doc.text(`Lines above tolerance: ${overToleranceCount}`, pageWidth - 14, cursorY + 4, { align: 'right' });
+        cursorY += 5;
+      }
+      cursorY += 3;
     }
   }
 
@@ -2269,6 +2329,22 @@ function saveSupplierCodeAlias(){
   try{ localStorage.setItem(SUPPLIER_CODE_ALIAS_KEY, JSON.stringify(supplierCodeAlias)); }catch(e){}
 }
 function aliasKey(supplier, code){ return (supplier||'').trim().toLowerCase() + '|' + (code||'').trim().toLowerCase(); }
+
+// Management rule: whatever the preferred supplier can supply gets bought
+// from them, within an accepted quality-premium tolerance — changeable in
+// settings, never hard-coded.
+const SUPPLIER_SETTINGS_KEY = 'leader-master-supplier-settings-v1';
+const DEFAULT_SUPPLIER_SETTINGS = { preferredSupplier: 'C&J Components', premiumTolerancePct: 10 };
+let supplierSettings = { ...DEFAULT_SUPPLIER_SETTINGS };
+function loadSupplierSettings(){
+  try{
+    const raw = localStorage.getItem(SUPPLIER_SETTINGS_KEY);
+    supplierSettings = raw ? Object.assign({}, DEFAULT_SUPPLIER_SETTINGS, JSON.parse(raw)) : { ...DEFAULT_SUPPLIER_SETTINGS };
+  }catch(e){ supplierSettings = { ...DEFAULT_SUPPLIER_SETTINGS }; }
+}
+function saveSupplierSettings(){
+  try{ localStorage.setItem(SUPPLIER_SETTINGS_KEY, JSON.stringify(supplierSettings)); }catch(e){}
+}
 function parsePastedPrice(raw){
   let s = (raw||'').trim().replace(/R/gi,'').replace(/\s/g,'');
   // A comma followed by exactly 2 digits at the end is a decimal separator
@@ -2314,11 +2390,88 @@ function savingInfoForSku(sku){
   return { sorted, cheapest, mostExpensive, savingPerUnit, savingPct };
 }
 
+// A preferred-supplier row may have no price yet ("can supply, price not
+// known") — that still counts as a preferred-supplier item, so this looks
+// at the raw row, not the price>0-filtered list.
+function preferredRowForSku(sku){
+  const rows = supplierPrices[sku] || [];
+  return rows.find(r=> r.supplier === supplierSettings.preferredSupplier) || null;
+}
+function isPreferredSupplierItem(sku){
+  return !!preferredRowForSku(sku);
+}
+
+// "Buy from" = the preferred supplier if it can supply the item (priced or
+// not), otherwise the cheapest priced supplier. Returns null when there's
+// nothing worth showing (no preferred row AND fewer than 2 priced rows).
+function buyFromInfoForSku(sku){
+  const sorted = sortedPricesForSku(sku);
+  const preferredRow = preferredRowForSku(sku);
+  const hasPreferred = !!preferredRow;
+  if(sorted.length < 2 && !hasPreferred) return null;
+
+  if(sorted.length === 0){
+    // Only a preferred row exists, and it has no price yet.
+    return { sorted, preferredRow, hasPreferred, cheapest: null, mostExpensive: null, buyFromRow: null, priceNeeded: true, savingPerUnit: null, savingPct: null, premiumPerUnit: 0, premiumPct: 0, overTolerance: false };
+  }
+
+  const cheapest = sorted[0];
+  const mostExpensive = sorted[sorted.length - 1];
+  let buyFromRow, priceNeeded = false, premiumPerUnit = 0, premiumPct = 0, overTolerance = false;
+
+  if(hasPreferred && preferredRow.price > 0){
+    buyFromRow = preferredRow;
+    if(preferredRow.price > cheapest.price){
+      premiumPerUnit = preferredRow.price - cheapest.price;
+      premiumPct = cheapest.price > 0 ? (premiumPerUnit / cheapest.price) * 100 : 0;
+      overTolerance = premiumPct > supplierSettings.premiumTolerancePct;
+    }
+  } else if(hasPreferred){
+    // Preferred supplier covers this item but hasn't given a price yet.
+    buyFromRow = null;
+    priceNeeded = true;
+  } else {
+    buyFromRow = cheapest;
+  }
+
+  const savingPerUnit = buyFromRow ? (mostExpensive.price - buyFromRow.price) : null;
+  const savingPct = (buyFromRow && mostExpensive.price > 0) ? (savingPerUnit / mostExpensive.price) * 100 : null;
+
+  return { sorted, preferredRow, hasPreferred, cheapest, mostExpensive, buyFromRow, priceNeeded, savingPerUnit, savingPct, premiumPerUnit, premiumPct, overTolerance };
+}
+
 let pcSelectedSkus = new Set();
 let pcQtyBySku = {};
+let pcPreferredOnly = false;
+
+function populatePcPreferredSupplierSelect(){
+  const sel = document.getElementById('pcPreferredSupplierSelect');
+  const suppliers = [...new Set([supplierSettings.preferredSupplier, ...knownSuppliers()])].filter(Boolean);
+  sel.innerHTML = suppliers.map(s=>`<option value="${s}" ${s===supplierSettings.preferredSupplier?'selected':''}>${s}</option>`).join('');
+  sel.onchange = ()=>{
+    supplierSettings.preferredSupplier = sel.value;
+    saveSupplierSettings();
+    renderPcItemPicker(document.getElementById('pcItemSearch').value);
+    renderPcSelectedItems();
+  };
+  document.getElementById('pcToleranceInput').value = supplierSettings.premiumTolerancePct;
+  document.getElementById('pcToleranceInput').onchange = (e)=>{
+    const v = parseFloat(e.target.value);
+    supplierSettings.premiumTolerancePct = isNaN(v) ? DEFAULT_SUPPLIER_SETTINGS.premiumTolerancePct : v;
+    saveSupplierSettings();
+    renderPcSelectedItems();
+  };
+}
+document.getElementById('pcPreferredOnlyFilter').onchange = (e)=>{
+  pcPreferredOnly = e.target.checked;
+  renderPcItemPicker(document.getElementById('pcItemSearch').value);
+};
 
 function openPriceCompareModal(){
   document.getElementById('pcItemSearch').value = '';
+  pcPreferredOnly = false;
+  document.getElementById('pcPreferredOnlyFilter').checked = false;
+  populatePcPreferredSupplierSelect();
   renderPcItemPicker('');
   renderPcSelectedItems();
   pcShowTab('compare');
@@ -2346,13 +2499,19 @@ document.getElementById('pcTabIncreaseBtn').onclick = ()=> pcShowTab('increase')
 function renderPcItemPicker(query){
   const wrap = document.getElementById('pcItemPicker');
   const q = (query||'').trim().toLowerCase();
-  if(!q){ wrap.innerHTML = `<div class="sub" style="margin:0;">Type to search…</div>`; return; }
-  const matches = stock.filter(i=> i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)).slice(0, 30);
+
+  let matches;
+  if(pcPreferredOnly){
+    matches = stock.filter(i=> isPreferredSupplierItem(i.sku) && (!q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)));
+  } else {
+    if(!q){ wrap.innerHTML = `<div class="sub" style="margin:0;">Type to search…</div>`; return; }
+    matches = stock.filter(i=> i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)).slice(0, 30);
+  }
   if(matches.length === 0){ wrap.innerHTML = `<div class="sub" style="margin:0;">No matches.</div>`; return; }
   wrap.innerHTML = matches.map(i=>`
     <label style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12.5px; cursor:pointer;">
       <input type="checkbox" data-pc-pick="${i.sku}" ${pcSelectedSkus.has(i.sku)?'checked':''}>
-      ${i.name} <span class="sku" style="color:var(--text-faint);">${i.sku}</span>
+      ${isPreferredSupplierItem(i.sku) ? '★ ' : ''}${i.name} <span class="sku" style="color:var(--text-faint);">${i.sku}</span>
     </label>
   `).join('');
   wrap.querySelectorAll('[data-pc-pick]').forEach(cb=>{
@@ -2377,41 +2536,71 @@ function renderPcSelectedItems(){
     const item = stock.find(s=>s.sku===sku);
     if(!item) return '';
     const rows = supplierPrices[sku] || [];
-    const info = savingInfoForSku(sku);
+    const info = buyFromInfoForSku(sku);
     const qty = pcQtyBySku[sku] || '';
     const qtyNum = parseFloat(qty) || 0;
     let qtySaving = 0, yearlySaving = null;
-    if(info){
+    if(info && info.savingPerUnit != null){
       qtySaving = info.savingPerUnit * qtyNum;
       footerTotal += qtySaving;
       const issues = issuesLast12Months(sku);
       yearlySaving = issues > 0 ? info.savingPerUnit * issues : null;
     }
     const rowsHtml = rows.map((r, ri)=>{
-      const isCheapest = info && r === info.cheapest;
+      const isPreferred = r.supplier === supplierSettings.preferredSupplier;
+      const isBuyFrom = info && info.buyFromRow === r;
       const old = isOldPriceDate(r.date);
       const supplierOptions = ['', ...suppliers.filter(s=>s)].map(s=>
         `<option value="${s}" ${s===r.supplier?'selected':''}>${s || '— Select —'}</option>`
       ).join('') + `<option value="__new__">+ New supplier</option>`;
       return `
-        <tr data-pc-row="${sku}|${ri}" style="${isCheapest ? 'background:rgba(184,134,46,0.12);' : ''}">
+        <tr data-pc-row="${sku}|${ri}" style="${isBuyFrom ? 'background:rgba(184,134,46,0.12);' : ''}">
           <td>
-            <select data-pc-supplier="${sku}|${ri}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;">${supplierOptions}</select>
+            ${isPreferred ? '★ ' : ''}<select data-pc-supplier="${sku}|${ri}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;">${supplierOptions}</select>
             <input type="text" data-pc-newsupplier="${sku}|${ri}" placeholder="New supplier name" style="display:none; margin-top:3px; width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11px;">
           </td>
           <td><input type="text" data-pc-code="${sku}|${ri}" value="${r.code||''}" style="width:90px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;"></td>
           <td><input type="number" step="0.01" data-pc-price="${sku}|${ri}" value="${r.price||''}" style="width:85px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px; font-size:11.5px;"></td>
           <td style="font-size:10.5px; color:var(--text-faint);">${r.date || '—'}${old ? ' <span class="flag" style="background:var(--amber); color:#1a1200;">OLD PRICE</span>' : ''}</td>
-          <td>${info ? `<button class="btn ${isCheapest?'primary':''}" data-pc-use="${sku}" data-pc-use-price="${r.price}" data-pc-use-supplier="${r.supplier}" style="padding:3px 8px; font-size:10.5px;">Use this price</button>` : ''}</td>
+          <td>${(r.price>0) ? `<button class="btn ${isBuyFrom?'primary':''}" data-pc-use="${sku}" data-pc-use-price="${r.price}" data-pc-use-supplier="${r.supplier}" style="padding:3px 8px; font-size:10.5px;">Use this price</button>` : ''}</td>
           <td><button class="row-delete-btn" data-pc-remove="${sku}|${ri}">✕</button></td>
         </tr>
       `;
     }).join('');
 
+    let resultHtml;
+    if(!info){
+      resultHtml = `<div class="sub" style="margin-top:6px;">Add a second supplier's price to see a comparison.</div>`;
+    } else if(info.priceNeeded){
+      resultHtml = `<div style="margin-top:8px; font-size:12px; color:var(--amber); font-weight:600;">★ ${supplierSettings.preferredSupplier} supplies — price needed</div>`;
+    } else {
+      const buyFromLabel = info.buyFromRow === info.preferredRow
+        ? `★ Buy from: ${info.buyFromRow.supplier} ${fmtR(info.buyFromRow.price)}`
+        : `Buy from: ${info.buyFromRow.supplier} ${fmtR(info.buyFromRow.price)} (cheapest)`;
+      let premiumNote = '';
+      if(info.premiumPerUnit > 0){
+        premiumNote = info.overTolerance
+          ? `<div style="margin-top:4px; font-size:11.5px; color:var(--amber); font-weight:600;">+${fmtR(info.premiumPerUnit)}/unit (${info.premiumPct.toFixed(1)}%) — above tolerance</div>`
+          : `<div style="margin-top:4px; font-size:11.5px; color:var(--text-faint);">Quality premium +${fmtR(info.premiumPerUnit)}/unit</div>`;
+      }
+      resultHtml = `
+        <div style="margin-top:8px; font-size:12px;">
+          <span style="color:var(--success); font-weight:600;">${buyFromLabel}</span>
+          — saves ${fmtR(info.savingPerUnit)}/unit (${info.savingPct.toFixed(1)}%) vs ${info.mostExpensive.supplier}
+          ${premiumNote}
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px;">
+          <label>Qty: <input type="number" min="0" data-pc-qty="${sku}" value="${qty}" style="width:70px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 6px;"></label>
+          <span id="pc-qtysaving-${sku}">${qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(qtySaving)}</b>` : ''}</span>
+          <span style="color:var(--text-faint);">Est. yearly saving: ${yearlySaving !== null ? fmtR(yearlySaving) : '—'}</span>
+        </div>
+      `;
+    }
+
     return `
       <div style="border:1px solid var(--panel-line); border-radius:8px; padding:12px; margin-bottom:12px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <b>${item.name}</b> <span class="sku" style="color:var(--text-faint);">${sku}</span>
+          <b>${isPreferredSupplierItem(sku) ? '★ ' : ''}${item.name}</b> <span class="sku" style="color:var(--text-faint);">${sku}</span>
           <button class="btn" data-pc-unselect="${sku}" style="padding:3px 8px; font-size:11px;">Remove from compare</button>
         </div>
         <table>
@@ -2419,17 +2608,7 @@ function renderPcSelectedItems(){
           <tbody>${rowsHtml}</tbody>
         </table>
         <button class="btn" data-pc-addrow="${sku}" style="margin-top:8px; padding:4px 10px; font-size:11.5px; border-color:var(--steel); color:var(--steel);">+ Add supplier</button>
-        ${info ? `
-          <div style="margin-top:8px; font-size:12px;">
-            <span style="color:var(--success); font-weight:600;">Cheapest: ${info.cheapest.supplier} ${fmtR(info.cheapest.price)}</span>
-            — saves ${fmtR(info.savingPerUnit)}/unit (${info.savingPct.toFixed(1)}%) vs ${info.mostExpensive.supplier}
-          </div>
-          <div style="display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px;">
-            <label>Qty: <input type="number" min="0" data-pc-qty="${sku}" value="${qty}" style="width:70px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 6px;"></label>
-            <span id="pc-qtysaving-${sku}">${qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(qtySaving)}</b>` : ''}</span>
-            <span style="color:var(--text-faint);">Est. yearly saving: ${yearlySaving !== null ? fmtR(yearlySaving) : '—'}</span>
-          </div>
-        ` : `<div class="sub" style="margin-top:6px;">Add a second supplier's price to see a comparison.</div>`}
+        ${resultHtml}
       </div>
     `;
   }).join('');
@@ -2519,14 +2698,14 @@ function wirePcSelectedItemsEvents(){
     inp.addEventListener('input', ()=>{
       const sku = inp.dataset.pcQty;
       pcQtyBySku[sku] = inp.value;
-      const info = savingInfoForSku(sku);
+      const info = buyFromInfoForSku(sku);
       const qtyNum = parseFloat(inp.value) || 0;
       const span = document.getElementById(`pc-qtysaving-${sku}`);
-      if(span && info) span.innerHTML = qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(info.savingPerUnit*qtyNum)}</b>` : '';
+      if(span && info && info.savingPerUnit != null) span.innerHTML = qtyNum > 0 ? `Total saving at this qty: <b>${fmtR(info.savingPerUnit*qtyNum)}</b>` : '';
       let footerTotal = 0;
       pcSelectedSkus.forEach(s=>{
-        const inf = savingInfoForSku(s);
-        if(inf){ const q = parseFloat(pcQtyBySku[s])||0; footerTotal += inf.savingPerUnit*q; }
+        const inf = buyFromInfoForSku(s);
+        if(inf && inf.savingPerUnit != null){ const q = parseFloat(pcQtyBySku[s])||0; footerTotal += inf.savingPerUnit*q; }
       });
       document.getElementById('pcFooterTotal').textContent = footerTotal > 0 ? `Total saving across selected items: ${fmtR(footerTotal)}` : '';
     });
@@ -2712,10 +2891,12 @@ document.getElementById('pcIncCancelBtn').onclick = ()=>{
 function buildOrderListPriceComparisonRows(list){
   return list
     .map(l=>{
-      const info = savingInfoForSku(l.sku);
+      const info = buyFromInfoForSku(l.sku);
       if(!info) return null;
       const qty = parseFloat(l.orderQty) || 0;
-      return { line: l, info, savingOnOrder: info.savingPerUnit * qty };
+      const savingOnOrder = info.savingPerUnit != null ? info.savingPerUnit * qty : null;
+      const premiumOnOrder = info.premiumPerUnit > 0 ? info.premiumPerUnit * qty : 0;
+      return { line: l, info, savingOnOrder, premiumOnOrder };
     })
     .filter(Boolean);
 }
@@ -4135,7 +4316,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY,
   VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,
   NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY,
-  SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY
+  SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY, SUPPLIER_SETTINGS_KEY
 ];
 
 function downloadMasterFullSnapshot(){
@@ -4942,6 +5123,7 @@ loadNameplateClientMap();
 loadCutListBatches();
 loadSupplierPrices();
 loadSupplierCodeAlias();
+loadSupplierSettings();
 removeAdvanceHarnessingOnce();
 render();
 showFreshFileWarningIfNeeded();
