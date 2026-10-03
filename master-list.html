@@ -2583,10 +2583,12 @@ function renderPcSelectedItems(){
           ? `<div style="margin-top:4px; font-size:11.5px; color:var(--amber); font-weight:600;">+${fmtR(info.premiumPerUnit)}/unit (${info.premiumPct.toFixed(1)}%) — above tolerance</div>`
           : `<div style="margin-top:4px; font-size:11.5px; color:var(--text-faint);">Quality premium +${fmtR(info.premiumPerUnit)}/unit</div>`;
       }
+      const savingNote = info.buyFromRow === info.mostExpensive
+        ? ''
+        : ` — saves ${fmtR(info.savingPerUnit)}/unit (${info.savingPct.toFixed(1)}%) vs ${info.mostExpensive.supplier}`;
       resultHtml = `
         <div style="margin-top:8px; font-size:12px;">
-          <span style="color:var(--success); font-weight:600;">${buyFromLabel}</span>
-          — saves ${fmtR(info.savingPerUnit)}/unit (${info.savingPct.toFixed(1)}%) vs ${info.mostExpensive.supplier}
+          <span style="color:var(--success); font-weight:600;">${buyFromLabel}</span>${savingNote}
           ${premiumNote}
         </div>
         <div style="display:flex; align-items:center; gap:10px; margin-top:6px; font-size:12px;">
