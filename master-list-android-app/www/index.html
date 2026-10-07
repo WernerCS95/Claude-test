@@ -118,6 +118,7 @@
       <input type="file" id="fileInput" accept="application/json">
       <button class="btn primary" id="saveDailyBtn">💾 Save Today's List</button>
       <button class="btn" id="restoreMasterBackupBtn" style="border-color:var(--danger); color:var(--danger);">🛟 Restore Backup</button>
+      <button class="btn" id="backupShareBtn" style="border-color:var(--gold); color:var(--gold);">💾 Backup &amp; Share</button>
       <button class="btn" id="verifyMasterBackupBtn" style="border-color:var(--steel); color:var(--steel);">🔎 Verify Against Backup</button>
       <input type="file" id="verifyMasterBackupFileInput" accept="application/json" style="display:none;">
       <button class="btn" id="exportStockRefBtn" style="border-color:var(--steel); color:var(--steel);">📤 Export Stock Reference for Terminal</button>
@@ -4404,6 +4405,7 @@ function masterDataCounts(get){
     'Order list lines': (me === null && nm === null) ? 'not in file' : ((me||[]).length + (nm||[]).length)
   };
 }
+document.getElementById('backupShareBtn').onclick = ()=> downloadMasterFullSnapshot(true);
 document.getElementById('verifyMasterBackupBtn').onclick = ()=> document.getElementById('verifyMasterBackupFileInput').click();
 document.getElementById('verifyMasterBackupFileInput').addEventListener('change', function(){
   const file = this.files && this.files[0];
@@ -4431,23 +4433,42 @@ document.getElementById('verifyMasterBackupFileInput').addEventListener('change'
   reader.readAsText(file);
 });
 
-function downloadMasterFullSnapshot(){
+// Blob + <a download> writes nothing at all inside the Android WebView —
+// the same root bug already fixed in the terminal. On Android this writes
+// a real file and opens the Share sheet (Drive, WhatsApp, email); on the
+// laptop it stays a normal download, exactly as before.
+async function saveTextFile(filename, text, mime, share){
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if(isNative){
+    const { Filesystem, Share } = window.Capacitor.Plugins;
+    const written = await Filesystem.writeFile({ path: filename, data: text, directory: share ? 'CACHE' : 'DOCUMENTS', encoding: 'utf8' });
+    if(share && Share) await Share.share({ title: filename, url: written.uri });
+    return true;
+  }
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
+function downloadMasterFullSnapshot(share){
   try{
     const snapshot = { _backupType: 'leader-master-full-backup', _savedAt: new Date().toISOString(), data: {} };
     MASTER_BACKUP_LOCALSTORAGE_KEYS.forEach(key=>{
       const val = localStorage.getItem(key);
       if(val !== null) snapshot.data[key] = val;
     });
-    const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
     const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-    a.href = url;
-    a.download = `leader-master-backup-${stamp}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    const filename = `leader-master-backup-${stamp}.json`;
+    return saveTextFile(filename, JSON.stringify(snapshot), 'application/json', !!share)
+      .then(()=>{ if(share) return; })
+      .catch(e=>{ console.error('Master backup snapshot failed:', e); if(share) alert(`Backup failed:\n\n${e && e.message ? e.message : e}`); });
   }catch(e){
     console.error('Master backup snapshot failed:', e);
     // Silent by design — runs automatically, shouldn't interrupt the flow it's riding on.
@@ -4844,16 +4865,9 @@ function downloadDailyCSV(){
     csv += row(p.text, p.elephant ? 'Yes' : 'No', p.qty);
   });
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Master_Stock_${dateStr}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  downloadMasterFullSnapshot();
+  saveTextFile(`Master_Stock_${dateStr}.csv`, csv, 'text/csv;charset=utf-8;', true)
+    .catch(e=> alert(`Couldn't save the list:\n\n${e && e.message ? e.message : e}`))
+    .then(()=> downloadMasterFullSnapshot());
   return dateStr;
 }
 
@@ -4959,23 +4973,16 @@ function showFreshFileWarningIfNeeded(){
    against." Doesn't touch anything the tablet already has a real count
    for; only fills genuine blanks.
 ========================================================================= */
-document.getElementById('exportStockRefBtn').onclick = ()=>{
+document.getElementById('exportStockRefBtn').onclick = async ()=>{
   const ref = {};
   stock.forEach(item=>{
     const qty = item.gasTracking ? (item.fullQty||0)+(item.emptyQty||0)+(item.inUseQty||0) : (item.qty||0);
     ref[item.sku] = qty;
   });
   const payload = { _refType: 'leader-master-stock-reference', _exportedAt: new Date().toISOString(), ref };
-  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0,10);
-  a.href = url;
-  a.download = `leader-master-stock-reference-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  try{ await saveTextFile(`leader-master-stock-reference-${stamp}.json`, JSON.stringify(payload), 'application/json', true); }
+  catch(e){ alert(`Export failed:\n\n${e && e.message ? e.message : e}`); return; }
   alert(`Exported ${Object.keys(ref).length} items. On the tablet: open the Full Count screen and use "📥 Import Stock Reference" to load this file.`);
 };
 
@@ -5138,7 +5145,7 @@ function renderStockCountResults(query){
   });
 }
 
-document.getElementById('scExportPendingBtn').onclick = ()=>{
+document.getElementById('scExportPendingBtn').onclick = async ()=>{
   let unapplied = pendingCounts.filter(r=>!r.applied);
   if(unapplied.length === 0){
     if(pendingCounts.length === 0){ alert('No counts saved yet.'); return; }
@@ -5152,16 +5159,11 @@ document.getElementById('scExportPendingBtn').onclick = ()=>{
     _exportedAt: new Date().toISOString(),
     records: unapplied
   };
-  const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
   const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-  a.href = url;
-  a.download = `leader-master-pending-counts-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Only mark as sent once the file really saved — a failed save must
+  // leave them pending so they're included next time.
+  try{ await saveTextFile(`leader-master-pending-counts-${stamp}.json`, JSON.stringify(payload), 'application/json', true); }
+  catch(e){ alert(`Export failed — nothing marked as sent:\n\n${e && e.message ? e.message : e}`); return; }
   const exportedAt = payload._exportedAt;
   unapplied.forEach(r=>{ r.applied = true; r.exportedAt = exportedAt; });
   savePendingCounts();
