@@ -390,7 +390,8 @@
       <label style="font-size:12.5px;">Count taken at:
         <input type="datetime-local" id="scCountedAt" style="margin-left:6px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;">
       </label>
-      <input type="text" id="scSearch" placeholder="Search by name or SKU…" style="flex:1; min-width:200px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:8px 10px; font-size:13px;">
+      <select id="scGroup" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></select>
+      <input type="text" id="scSearch" placeholder="…or search by name or SKU" style="flex:1; min-width:200px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:8px 10px; font-size:13px;">
       <button class="btn primary" id="scExportPendingBtn" style="white-space:nowrap;">📤 Export Pending Counts (<span id="scPendingCount">0</span>)</button>
     </div>
     <div id="scResultsWrap"></div>
@@ -5031,19 +5032,31 @@ function laptopActivitySinceCount(sku, countedAtISO){
 function openStockCountModal(){
   document.getElementById('scCountedAt').value = toDatetimeLocalValue(new Date());
   document.getElementById('scSearch').value = '';
+  const sel = document.getElementById('scGroup');
+  const groups = [...new Set(stock.map(i=>i.cat))].sort();
+  sel.innerHTML = `<option value="">— Pick a group to count —</option>` + groups.map(g=>`<option value="${g}">${GROUP_DISPLAY_NAMES[g]||g}</option>`).join('');
   renderStockCountResults('');
   updateScPendingBadge();
   document.getElementById('stockCountModal').style.display = 'flex';
 }
 document.getElementById('stockCountBtn').onclick = openStockCountModal;
 document.getElementById('stockCountCloseBtn').onclick = ()=> document.getElementById('stockCountModal').style.display = 'none';
-document.getElementById('scSearch').addEventListener('input', e=> renderStockCountResults(e.target.value));
+document.getElementById('scSearch').addEventListener('input', e=>{ document.getElementById('scGroup').value = ''; renderStockCountResults(e.target.value); });
+document.getElementById('scGroup').addEventListener('change', ()=>{ document.getElementById('scSearch').value = ''; renderStockCountResults(''); });
 
 function renderStockCountResults(query){
   const wrap = document.getElementById('scResultsWrap');
   const q = (query||'').trim().toLowerCase();
-  if(!q){ wrap.innerHTML = `<div class="sub" style="margin:0;">Type a part name or SKU to count it…</div>`; return; }
-  const matches = stock.filter(i=> i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)).slice(0, 25);
+  const group = document.getElementById('scGroup').value;
+  let matches;
+  if(q){
+    matches = stock.filter(i=> i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q)).slice(0, 25);
+  } else if(group){
+    matches = stock.filter(i=> i.cat === group).sort((a,b)=> a.name.localeCompare(b.name));
+  } else {
+    wrap.innerHTML = `<div class="sub" style="margin:0;">Pick a group to list every item in it, or search for one part. Type a qty and press Enter to save and jump to the next item.</div>`;
+    return;
+  }
   if(matches.length === 0){ wrap.innerHTML = `<div class="sub" style="margin:0;">No matches.</div>`; return; }
   wrap.innerHTML = `
     <table>
@@ -5067,6 +5080,16 @@ function renderStockCountResults(query){
       </tbody>
     </table>
   `;
+  const qtyInputs = [...wrap.querySelectorAll('[data-sc-qty]')];
+  qtyInputs.forEach((inp, idx)=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const nextSku = qtyInputs[idx+1] ? qtyInputs[idx+1].dataset.scQty : null;
+      wrap.querySelector(`[data-sc-save="${inp.dataset.scQty}"]`).click();
+      if(nextSku){ const n = wrap.querySelector(`[data-sc-qty="${nextSku}"]`); if(n) n.focus(); }
+    });
+  });
   wrap.querySelectorAll('[data-sc-save]').forEach(btn=>{
     btn.onclick = ()=>{
       const sku = btn.dataset.scSave;

@@ -4589,7 +4589,22 @@ function verifyAgainstBackupFile(file){
   reader.onload = ()=>{
     let snapshot;
     try{ snapshot = JSON.parse(reader.result); }catch(e){ alert("That doesn't look like a valid backup file."); return; }
-    if(!snapshot || snapshot._backupType !== 'leader-stores-full-backup' || !snapshot.data){ alert("That doesn't look like a Leader Stores backup file."); return; }
+    // The "Export & Share Full Current State" file holds the actual stock
+    // quantities (older backups don't) — compare those item by item.
+    if(snapshot && snapshot._stateType === 'leader-stores-full-state' && snapshot.state){
+      const skus = Object.keys(snapshot.state);
+      const diffs = skus.filter(sku=> Number(qtyOnHand[sku]) !== Number(snapshot.state[sku].qty));
+      const totalThen = skus.reduce((a,k)=> a + (Number(snapshot.state[k].qty)||0), 0);
+      const totalNow = Object.values(qtyOnHand).reduce((a,b)=> a + (Number(b)||0), 0);
+      const exportedAt = snapshot._exportedAt ? new Date(snapshot._exportedAt).toLocaleString('en-ZA') : 'unknown time';
+      let msg = `Full State from ${exportedAt}\n\n${skus.length - diffs.length} of ${skus.length} items have exactly the same Qty on Hand.`;
+      msg += `\n\nItems with Qty on Hand: ${skus.length}  →  ${Object.keys(qtyOnHand).length}`;
+      msg += `\nTotal units on hand: ${totalThen}  →  ${totalNow}`;
+      if(diffs.length) msg += `\n\nDifferent now (expected only if stock moved after the export):\n` + diffs.slice(0,15).map(k=> `${snapshot.state[k].name}: ${snapshot.state[k].qty} → ${qtyOnHand[k] ?? 'none'}`).join('\n') + (diffs.length > 15 ? `\n…and ${diffs.length-15} more` : '');
+      alert(msg);
+      return;
+    }
+    if(!snapshot || snapshot._backupType !== 'leader-stores-full-backup' || !snapshot.data){ alert("That doesn't look like a Leader Stores backup or Full State file."); return; }
     const keys = Object.keys(snapshot.data);
     const differ = keys.filter(k=> localStorage.getItem(k) !== snapshot.data[k]);
     const missing = keys.filter(k=> localStorage.getItem(k) === null);
