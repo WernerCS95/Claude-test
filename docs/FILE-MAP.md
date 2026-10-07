@@ -17,6 +17,8 @@ Line numbers below are approximate — they'll drift a little every time somethi
 | Parts Issued (slips) | `LOG_KEY`, `state.log`, `editLogEntry`, `submitBtn` onclick | ~3953 onward |
 | Manual Sync Code (fallback for live sync) | `RECENT_TXN_LOG_KEY`, `copyManualSyncCodeBtn` | ~7737 |
 | Live sync to Master List | `SUPABASE_URL`, `queueTransaction`, `applyRemoteTransaction`, `pullMissedTransactions` | ~7790–7900 (near the very end of the file) |
+| Import Counts (from Master List Stock Count) | `importPendingCounts`, `activitySinceCount`, `applyImportedCount`, `APPLIED_COUNT_IDS_KEY`, `importCountsPreviewModal` (HTML) | right after `importStockReference` |
+| Backup / Restore / Verify | `BACKUP_LOCALSTORAGE_KEYS`, `downloadFullSnapshot`, `restoreFromSnapshotFile`, `verifyAgainstBackupFile` | search for `BACKUP_LOCALSTORAGE_KEYS` |
 
 Order Lists and most Admin/Reports screens live in **`master-list.html`**, not here — the terminal is a capture device, Master List is where planning/reporting happens.
 
@@ -35,6 +37,10 @@ Order Lists and most Admin/Reports screens live in **`master-list.html`**, not h
 | Catalog gap-filling (new items, missing fields) | `syncMissingCatalogFields` | ~519 |
 | Manual Sync Code (paste-in fallback) | `pasteManualSyncBtn`, `applyManualSyncBtn` | search for `pasteManualSyncBtn` |
 | Live sync from terminal | `SUPABASE_URL`, `queueMasterTransaction`, `applyRemoteStockTransaction` | ~3886–3990 (near the end of the file) |
+| Price Compare (supplier prices, preferred supplier) | `SUPPLIER_PRICES_KEY`, `SUPPLIER_SETTINGS_KEY`, `buyFromInfoForSku`, `priceCompareModal` (HTML) | search for `SUPPLIER PRICE COMPARISON` |
+| Stock Count (count entry + Export Pending Counts) | `PENDING_COUNTS_KEY`, `renderStockCountResults`, `laptopActivitySinceCount`, `scExportPendingBtn` | search for `STOCK COUNT ======` |
+| Stock Level Report (read-only, by supplier) | `STOCK_LEVEL_BELOW_MIN_INCLUSIVE`, `isBelowMin`, `buildStockLevelReportData`, `printStockLevelReport` | right after the Stock Count section |
+| Backup / Restore / Verify | `MASTER_BACKUP_LOCALSTORAGE_KEYS`, `downloadMasterFullSnapshot`, `masterDataCounts`, `verifyMasterBackupBtn` | search for `MASTER_BACKUP_LOCALSTORAGE_KEYS` |
 
 ## Quick orientation rule
 

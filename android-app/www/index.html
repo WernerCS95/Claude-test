@@ -517,6 +517,8 @@
       <input type="file" id="restoreBackupFileInput" accept="application/json" style="display:none;">
       <input type="file" id="mergeCatalogFileInput" accept="application/json" style="display:none;">
       <input type="file" id="importStockRefFileInput" accept="application/json" style="display:none;">
+      <input type="file" id="importCountsFileInput" accept="application/json" style="display:none;">
+      <input type="file" id="verifyBackupFileInput" accept="application/json" style="display:none;">
     </div>
   </div>
   <div style="padding:20px; max-width:900px; margin:0 auto;">
@@ -1021,7 +1023,22 @@
     <div class="sub">Tools for a full stock count — printing sheets, entering results, and syncing the reference numbers.</div>
     <button class="clock-btn" id="printFullCountBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🖨 Print Full Count Sheet</button>
     <button class="clock-btn" id="enterFullCountBtn" style="width:100%; margin-bottom:8px; border-color:var(--success); color:var(--success); text-align:left; padding:12px 14px;">📝 Enter Full Count Results</button>
-    <button class="clock-btn" id="importStockRefBtn" style="width:100%; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📥 Import Stock Reference</button>
+    <button class="clock-btn" id="importStockRefBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📥 Import Stock Reference</button>
+    <button class="clock-btn" id="importCountsBtn" style="width:100%; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📥 Import Counts</button>
+  </div>
+</div>
+
+<!-- Import Counts preview — real physical counts from the laptop's Stock
+     Count screen, applied here as dated spot checks after you confirm. -->
+<div class="modal-bg" id="importCountsPreviewModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:700px; width:95%; max-height:88vh; overflow-y:auto;">
+    <h3 style="margin:0 0 6px;">📥 Import Counts — Preview</h3>
+    <div class="sub" style="margin-bottom:10px;">Nothing applied yet. Review, then Apply.</div>
+    <div id="importCountsPreviewBody"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="clock-btn" id="importCountsApplyBtn" style="border-color:var(--success); color:var(--success); padding:10px 16px;">Apply</button>
+      <button class="clock-btn" id="importCountsCancelBtn" style="border-color:var(--steel); color:var(--steel); padding:10px 16px;">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1039,6 +1056,7 @@
     <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
     <button class="clock-btn" id="downloadBackupNowBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">💾 Download Backup Now</button>
+    <button class="clock-btn" id="verifyBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🔎 Verify Against Backup</button>
     <button class="clock-btn" id="restoreBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--danger); color:var(--danger); text-align:left; padding:12px 14px;">🛟 Restore Backup</button>
     <button class="clock-btn" id="mergeCatalogBtn" style="width:100%; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🔗 Merge Catalog From Another Device</button>
   </div>
@@ -4452,7 +4470,15 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   'leader-stores-vehicle-registry-v1', 'leader-stores-diesel-meter-v1', 'leader-stores-diesel-makes-v1',
   'leader-stores-diesel-regs-v1', 'leader-stores-item-order-v1', 'leader-stores-item-names-v1',
   'leader-stores-item-category-v1', 'leader-stores-skip-bolt-anim-v1',
-  'leader-stores-nameplate-qty-v1', 'leader-stores-nameplate-client-map-v1', 'leader-stores-nameplate-moves-v1'
+  'leader-stores-nameplate-qty-v1', 'leader-stores-nameplate-client-map-v1', 'leader-stores-nameplate-moves-v1',
+  // Added later — were never in the backup, so a "backup" silently left out
+  // the actual stock on hand. Restore writes back whatever keys a file has,
+  // so older backups without these still restore exactly as before.
+  'leader-stores-qty-on-hand-v1', 'leader-stores-spot-check-history-v1', 'leader-stores-retired-items-v1',
+  'leader-stores-sync-outbox-v1', 'leader-stores-sync-applied-v1', 'leader-stores-sync-last-pull-v1',
+  'leader-stores-pull-checkpoint-reset-v1', 'leader-stores-recovery-seeded-2026-08-26',
+  'leader-stores-chassis-calendar-v1', 'leader-stores-report-notes-v1', 'leader-stores-scheduler-jobs',
+  'leader-stores-device-name-v1', 'leader-stores-applied-counts-v1'
 ];
 
 // Blob + <a download> writes nothing at all inside the Android WebView —
@@ -4537,6 +4563,56 @@ document.getElementById('downloadBackupNowBtn').onclick = ()=>{
 document.getElementById('restoreBackupFileInput').addEventListener('change', function(){
   if(this.files && this.files[0]) restoreFromSnapshotFile(this.files[0]);
   this.value = ''; // allow picking the same file again later if needed
+});
+
+// Read-only check: does this tablet's data still match a backup file?
+// Used right after installing an update over the top — writes nothing.
+function terminalDataCounts(get){
+  const parse = (k, fallback)=>{ try{ const v = get(k); return v === null || v === undefined ? null : JSON.parse(v); }catch(e){ return fallback; } };
+  const qty = parse('leader-stores-qty-on-hand-v1', null);
+  const log = parse('leader-stores-log-v1', null);
+  const grn = parse('leader-stores-goods-received-v1', null);
+  const spot = parse('leader-stores-spot-check-history-v1', null);
+  const outbox = parse('leader-stores-sync-outbox-v1', null);
+  const n = v=> v === null ? 'not in file' : v;
+  return {
+    'Items with Qty on Hand': n(qty && Object.keys(qty).length),
+    'Total units on hand': n(qty && Object.values(qty).reduce((a,b)=> a + (Number(b)||0), 0)),
+    'Parts Issued slips': n(log && log.length),
+    'Goods Received lines': n(grn && grn.length),
+    'Spot check history': n(spot && spot.length),
+    'Unsent sync transactions': n(outbox && outbox.length)
+  };
+}
+function verifyAgainstBackupFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let snapshot;
+    try{ snapshot = JSON.parse(reader.result); }catch(e){ alert("That doesn't look like a valid backup file."); return; }
+    if(!snapshot || snapshot._backupType !== 'leader-stores-full-backup' || !snapshot.data){ alert("That doesn't look like a Leader Stores backup file."); return; }
+    const keys = Object.keys(snapshot.data);
+    const differ = keys.filter(k=> localStorage.getItem(k) !== snapshot.data[k]);
+    const missing = keys.filter(k=> localStorage.getItem(k) === null);
+    const before = terminalDataCounts(k=> snapshot.data[k] === undefined ? null : snapshot.data[k]);
+    const now = terminalDataCounts(k=> localStorage.getItem(k));
+    const savedAt = snapshot._savedAt ? new Date(snapshot._savedAt).toLocaleString('en-ZA') : 'unknown time';
+    let msg = `Backup from ${savedAt}\n\n${keys.length - differ.length} of ${keys.length} saved sections match exactly.`;
+    if(missing.length) msg += `\n\n⚠ MISSING on this tablet now: ${missing.join(', ')}`;
+    const changed = differ.filter(k=> !missing.includes(k));
+    if(changed.length) msg += `\n\nChanged since the backup (expected if anything was done after it): ${changed.join(', ')}`;
+    msg += `\n\nBACKUP  →  NOW`;
+    Object.keys(now).forEach(label=>{ msg += `\n${label}: ${before[label]}  →  ${now[label]}`; });
+    alert(msg);
+  };
+  reader.readAsText(file);
+}
+document.getElementById('verifyBackupBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  document.getElementById('verifyBackupFileInput').click();
+};
+document.getElementById('verifyBackupFileInput').addEventListener('change', function(){
+  if(this.files && this.files[0]) verifyAgainstBackupFile(this.files[0]);
+  this.value = '';
 });
 
 // "Merge catalog" — the partial-restore mode. Pulls in another device's
@@ -6068,6 +6144,164 @@ document.getElementById('importStockRefFileInput').addEventListener('change', fu
   if(this.files && this.files[0]) importStockReference(this.files[0]);
   this.value = '';
 });
+
+/* ====================== IMPORT COUNTS (from Master List Stock Count) ======================
+   A real physical count entered on the laptop's Stock Count screen,
+   carried over here as a dated spot check — so the existing "a spot check
+   always wins over an older delivery/issue" rule applies using the actual
+   count date, not today's date. Separate duplicate-guard key from the
+   live-sync one (APPLIED_COUNT_IDS_KEY), since this is a one-way file
+   transfer, not the Supabase channel — a record can never be applied twice
+   even across repeated imports of the same exported file.
+========================================================================= */
+const APPLIED_COUNT_IDS_KEY = 'leader-stores-applied-counts-v1';
+let appliedCountIds = new Set();
+function loadAppliedCountIds(){
+  try{ appliedCountIds = new Set(JSON.parse(localStorage.getItem(APPLIED_COUNT_IDS_KEY)) || []); }
+  catch(e){ appliedCountIds = new Set(); }
+}
+function saveAppliedCountIds(){
+  try{ localStorage.setItem(APPLIED_COUNT_IDS_KEY, JSON.stringify(Array.from(appliedCountIds))); }catch(e){}
+}
+loadAppliedCountIds();
+
+// Same effect as a local spot check (setQtyOnHand + recordSpotCheckHistory)
+// but dated to when the physical count actually happened, not to right
+// now — added as its own function rather than changing setQtyOnHand/
+// recordSpotCheckHistory, since those are used everywhere else and must
+// keep defaulting to "now".
+function applyImportedCount(sku, countedQty, newQty, countedAtISO, countedBy){
+  qtyOnHand[sku] = newQty;
+  saveQtyOnHand();
+  const item = ITEMS.find(i=>i.id===sku);
+  const d = new Date(countedAtISO);
+  spotCheckHistory.unshift({
+    sku, name: item ? item.name : sku, qty: countedQty,
+    date: d.toISOString().slice(0,10),
+    time: d.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    checker: countedBy || 'Master List import'
+  });
+  if(spotCheckHistory.length > 1000) spotCheckHistory.length = 1000;
+  saveSpotCheckHistory();
+}
+
+// Stock movement recorded on THIS tablet after the physical count — the
+// count is a snapshot of that moment, so anything issued/received since
+// must still apply on top instead of being wiped. Slips carry their exact
+// capture time in _id ("e" + ms); deliveries use their delivery date, and
+// for a same-day delivery the capture time in batchId ("grn" + ms).
+function activitySinceCount(sku, countedAtISO){
+  const countMs = new Date(countedAtISO).getTime();
+  const countDay = countedAtISO.slice(0,10);
+  let delta = 0;
+  (state.log || []).forEach(entry=>{
+    const m = /^e(\d{10,})$/.exec(entry._id || '');
+    const ts = m ? Number(m[1]) : new Date(`${entry.date}T${entry.time || '00:00'}`).getTime();
+    if(!(ts > countMs)) return;
+    (entry.lines || []).forEach(line=>{
+      if(line.isKit && line.components){
+        line.components.forEach(c=>{ if(c.sku === sku) delta -= (Number(c.qty)||0) * (Number(line.qty)||0); });
+      } else if(line.itemId === sku){
+        delta -= Number(line.qty) || 0;
+      }
+    });
+  });
+  (goodsReceived || []).forEach(g=>{
+    const link = getBoxUnitLink(g.sku);
+    const target = link ? link.realSku : g.sku;
+    if(target !== sku || !g.date) return;
+    let after;
+    if(g.date > countDay) after = true;
+    else if(g.date < countDay) after = false;
+    else { const m = /^grn(\d+)$/.exec(g.batchId || ''); after = m ? Number(m[1]) > countMs : false; }
+    if(after) delta += (Number(g.qty) || 0) * (link ? link.factor : 1);
+  });
+  return delta;
+}
+
+let importCountsPreviewRecords = [];
+function importPendingCounts(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let payload;
+    try{ payload = JSON.parse(reader.result); }
+    catch(e){ alert("That doesn't look like a valid counts file."); return; }
+    if(!payload || payload._refType !== 'leader-master-pending-counts' || !Array.isArray(payload.records)){
+      alert("That doesn't look like a Master List pending-counts export.");
+      return;
+    }
+    const alreadyApplied = payload.records.filter(r=> appliedCountIds.has(r.id)).length;
+    importCountsPreviewRecords = payload.records
+      .filter(r=> !appliedCountIds.has(r.id))
+      .map(r=>{
+        const item = ITEMS.find(i=>i.id===r.itemId);
+        if(!item) return null;
+        const since = activitySinceCount(r.itemId, r.countedAt);
+        return { ...r, itemName: item.name, currentQty: qtyOnHand[r.itemId], since, newQty: Number(r.qty) + since };
+      })
+      .filter(Boolean);
+    const notFound = payload.records.length - alreadyApplied - importCountsPreviewRecords.length;
+    renderImportCountsPreview(alreadyApplied, notFound);
+    document.getElementById('importCountsPreviewModal').style.display = 'flex';
+  };
+  reader.readAsText(file);
+}
+document.getElementById('importCountsBtn').onclick = ()=> document.getElementById('importCountsFileInput').click();
+document.getElementById('importCountsFileInput').addEventListener('change', function(){
+  if(this.files && this.files[0]) importPendingCounts(this.files[0]);
+  this.value = '';
+});
+
+function renderImportCountsPreview(alreadyApplied, notFound){
+  const wrap = document.getElementById('importCountsPreviewBody');
+  if(importCountsPreviewRecords.length === 0){
+    wrap.innerHTML = `<div class="sub">Nothing new to apply.${alreadyApplied ? ` ${alreadyApplied} already applied earlier.` : ''}${notFound ? ` ${notFound} item(s) not found on this tablet.` : ''}</div>`;
+    document.getElementById('importCountsApplyBtn').style.display = 'none';
+    return;
+  }
+  document.getElementById('importCountsApplyBtn').style.display = '';
+  wrap.innerHTML = `
+    ${alreadyApplied || notFound ? `<div class="sub" style="margin-bottom:8px;">${alreadyApplied ? `${alreadyApplied} already applied earlier — skipped. ` : ''}${notFound ? `${notFound} item(s) not found on this tablet — skipped.` : ''}</div>` : ''}
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+      <thead><tr><th style="text-align:left;">Item</th><th style="text-align:left;">Counted at</th><th style="text-align:right;">Current (tablet)</th><th style="text-align:right;">Counted</th><th style="text-align:right;">Tablet activity after count</th><th style="text-align:right;">Will be set to</th><th style="text-align:right;">Difference</th></tr></thead>
+      <tbody>
+        ${importCountsPreviewRecords.map(r=>{
+          const current = r.currentQty === undefined ? 0 : r.currentQty;
+          const diff = r.newQty - current;
+          const diffStr = (diff > 0 ? '+' : '') + diff;
+          return `<tr>
+            <td style="padding:4px 6px;">${r.itemName}</td>
+            <td style="padding:4px 6px; font-size:11px;">${new Date(r.countedAt).toLocaleString('en-ZA')}</td>
+            <td style="text-align:right; padding:4px 6px;">${r.currentQty === undefined ? 'Not yet counted' : r.currentQty}</td>
+            <td style="text-align:right; padding:4px 6px;">${r.qty}</td>
+            <td style="text-align:right; padding:4px 6px;">${r.since ? (r.since > 0 ? '+' : '') + r.since : '—'}</td>
+            <td style="text-align:right; padding:4px 6px; font-weight:700;">${r.newQty}</td>
+            <td style="text-align:right; padding:4px 6px; color:${diff===0?'inherit':(diff>0?'var(--success)':'var(--danger)')};">${diffStr}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+document.getElementById('importCountsApplyBtn').onclick = ()=>{
+  let applied = 0;
+  importCountsPreviewRecords.forEach(r=>{
+    if(appliedCountIds.has(r.id)) return; // defensive — already caught above, but never apply twice
+    applyImportedCount(r.itemId, Number(r.qty), r.newQty, r.countedAt, r.countedBy);
+    appliedCountIds.add(r.id);
+    applied++;
+  });
+  saveAppliedCountIds();
+  importCountsPreviewRecords = [];
+  document.getElementById('importCountsPreviewModal').style.display = 'none';
+  renderGrid();
+  alert(`Applied ${applied} count(s) as dated spot checks.`);
+};
+document.getElementById('importCountsCancelBtn').onclick = ()=>{
+  importCountsPreviewRecords = [];
+  document.getElementById('importCountsPreviewModal').style.display = 'none';
+};
 
 // Upload to Master List only ever sends *incremental* activity — new
 // lines since the last sync. That's the right tool for routine syncing,
