@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>
+// Inside the combined Leader Stores app this page runs in a frame. Android
+// only answers native calls (save file, share) made from the app's top
+// page, so use the top page's native bridge instead of this frame's own.
+// Opened on its own (not in a frame), this does nothing.
+try{
+  if(window.parent !== window && window.parent.Capacitor){
+    try{ window.Capacitor = window.parent.Capacitor; }
+    catch(e){ Object.defineProperty(window, 'Capacitor', { value: window.parent.Capacitor, configurable: true, writable: true }); }
+  }
+}catch(e){}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Leader Master Stock List — Simulation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">

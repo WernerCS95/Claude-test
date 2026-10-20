@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Leader Stores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  ONE APP, TWO SECTIONS.
+  Input = stores-terminal.html, Admin = master-list.html — each runs
+  unchanged in its own frame, so their code and styles never collide.
+  Both frames load at startup and stay loaded, so each keeps syncing
+  exactly as the two separate apps did. They share this app's storage,
+  which is safe: every Input key starts "leader-stores-", every Admin key
+  "leader-master-", and this shell only adds "leader-shell-".
+-->
+<style>
+  :root{
+    --void:#EEF1F4; --panel:#FFFFFF; --panel-line:#DCE0E5;
+    --gold:#B8862E; --steel:#3D5F92; --text:#1A1D21; --text-muted:#5B6169;
+    --bar-h:46px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0; height:100%; overflow:hidden; background:var(--void); font-family:'Inter',system-ui,sans-serif; color:var(--text);}
+  .shell-bar{
+    position:fixed; top:0; left:0; right:0; height:var(--bar-h);
+    display:flex; align-items:center; gap:14px; padding:0 14px;
+    background:var(--panel); border-bottom:1px solid var(--panel-line); z-index:10;
+  }
+  .shell-brand{font-family:'Oswald',sans-serif; font-weight:600; font-size:17px; letter-spacing:.5px; color:var(--steel);}
+  .shell-switch{display:flex; border:1px solid var(--panel-line); border-radius:8px; overflow:hidden;}
+  .shell-switch button{
+    font:600 14px 'Inter',sans-serif; padding:8px 22px; border:0; background:var(--panel);
+    color:var(--text-muted); cursor:pointer; min-width:110px;
+  }
+  .shell-switch button + button{border-left:1px solid var(--panel-line);}
+  .shell-switch button.active{background:var(--steel); color:#fff;}
+  .shell-hint{margin-left:auto; font-size:11.5px; color:var(--text-muted);}
+  .section{
+    position:fixed; top:var(--bar-h); left:0; right:0; bottom:0; width:100%;
+    height:calc(100% - var(--bar-h)); border:0; background:var(--void);
+  }
+  /* Hidden with visibility, not display:none — the hidden section keeps a
+     real size, so anything it lays out or measures in the background is
+     correct when you switch back. */
+  .section.hidden{visibility:hidden; pointer-events:none; z-index:0;}
+  .section.shown{visibility:visible; z-index:1;}
+</style>
+</head>
+<body>
+  <div class="shell-bar">
+    <div class="shell-brand">LEADER STORES</div>
+    <div class="shell-switch">
+      <button id="shellInputBtn" data-section="input">📥 Input</button>
+      <button id="shellAdminBtn" data-section="admin">🛠 Admin</button>
+    </div>
+    <div class="shell-hint" id="shellHint"></div>
+  </div>
+
+  <iframe class="section hidden" id="sectionInput" src="stores-terminal.html" title="Input"
+          allow="camera; clipboard-read; clipboard-write"></iframe>
+  <iframe class="section hidden" id="sectionAdmin" src="master-list.html" title="Admin"
+          allow="camera; clipboard-read; clipboard-write"></iframe>
+
+<script>
+  const SHELL_SECTION_KEY = 'leader-shell-section-v1';
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const frames = { input: document.getElementById('sectionInput'), admin: document.getElementById('sectionAdmin') };
+
+  function showSection(name){
+    Object.keys(frames).forEach(k=>{
+      frames[k].classList.toggle('shown', k === name);
+      frames[k].classList.toggle('hidden', k !== name);
+    });
+    document.getElementById('shellInputBtn').classList.toggle('active', name === 'input');
+    document.getElementById('shellAdminBtn').classList.toggle('active', name === 'admin');
+    try{ localStorage.setItem(SHELL_SECTION_KEY, name); }catch(e){}
+    try{ frames[name].contentWindow.focus(); }catch(e){}
+  }
+
+  document.querySelectorAll('.shell-switch button').forEach(btn=>{
+    btn.onclick = ()=> showSection(btn.dataset.section);
+  });
+
+  // Tablet (Android) is the capture device, laptop is admin — that's the
+  // starting section until a choice is made; after that, the last section
+  // used on this device opens.
+  let start = null;
+  try{ start = localStorage.getItem(SHELL_SECTION_KEY); }catch(e){}
+  if(start !== 'input' && start !== 'admin') start = isNative ? 'input' : 'admin';
+  showSection(start);
+  document.getElementById('shellHint').textContent = isNative ? 'Tablet — capture' : 'Laptop — admin';
+</script>
+</body>
+</html>

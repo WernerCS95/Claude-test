@@ -4,6 +4,16 @@ Both real source files live at the repo root: **`stores-terminal.html`** (the ta
 
 Line numbers below are approximate — they'll drift a little every time something's added above them — but the **function/constant names are exact** and are the reliable way to find your way back if a line number is off by a few dozen. Use your editor's "Find" (Ctrl+F) on the bold name in each row.
 
+## `app.html` — the combined app (since 2026-10-20)
+
+One app on both devices: a thin shell with an **Input | Admin** switch at the top.
+**Input** loads `stores-terminal.html`, **Admin** loads `master-list.html`, each
+unchanged in its own frame (no shared code or styles, no name clashes). Both
+frames stay loaded, so each keeps syncing as before. Storage is shared and safe:
+Input keys start `leader-stores-`, Admin keys `leader-master-`, the shell only
+adds `leader-shell-section-v1` (which section opens). Both source files start with
+a small shim that borrows the shell's Android bridge when running in a frame.
+
 ## `stores-terminal.html` (tablet/floor terminal)
 
 | Feature | What to search for | Roughly where |
