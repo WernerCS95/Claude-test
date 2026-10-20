@@ -49,3 +49,16 @@ When a line is edited or deleted in the laptop's Review Queue, the laptop sends
 an adjustment and the tablet's Qty on Hand is corrected to match. The slip as
 shown in the tablet's own Today's Log still shows what was originally posted.
 The laptop's ledger, Issued History and Override Log hold the corrected record.
+
+## 7. Don't open the old separate apps once 2.3 is in (noted 2026-10-20)
+
+Aftermarket deliveries sync as "not our stock" lines that only 2.3 understands.
+The old stand-alone Leader Master List app (kept on the tablet as a fallback)
+would file one as a stock item called AFTERMARKET with qty 0 if it were opened.
+Harmless to stock, but untidy — once 2.3 is checked on both devices, uninstall
+the old Leader Master List app from the tablet (its data is already in Admin).
+
+## 8. Aftermarket deliveries can't be edited or deleted yet (noted 2026-10-20)
+
+Recorded aftermarket deliveries are a register only. A mistake currently needs a
+new corrective entry. Edit/delete can be added if needed.

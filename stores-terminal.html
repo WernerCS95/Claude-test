@@ -523,6 +523,7 @@ try{
       <button class="clock-btn" id="slipGridBtn" style="border-color:var(--steel); color:#fff; background:var(--steel);">📝 Slip Grid</button>
       <button class="clock-btn" id="spotCheckBtn" style="border-color:var(--success); color:var(--success);">🔍 Spot Check</button>
       <button class="clock-btn" id="goodsReceivedBtn" style="border-color:var(--steel); color:var(--steel);">📥 Goods Received</button>
+      <button class="clock-btn" id="aftermarketBtn" style="border-color:#7A4FA0; color:#7A4FA0;">📦 Aftermarket Delivery</button>
       <button class="clock-btn" id="newPartBtn" style="border-color:var(--gold); color:var(--gold);">+ New Part</button>
       <button class="clock-btn" id="fullCountMenuBtn" style="border-color:var(--gold); color:var(--gold);">🖨 Full Count ▾</button>
       <button class="clock-btn" id="uploadMasterBtnMain" style="border-color:var(--gold); color:var(--gold);">⬆ Upload to Master List</button>
@@ -1443,11 +1444,46 @@ try{
   </div>
 </div>
 
+<!-- Aftermarket Delivery — goods received on behalf of the Aftermarket
+     department. Recorded only: never added to our stock, order lists or
+     reports. Aftermarket's own order numbers. Kept fully separate from GRNs. -->
+<div class="modal-bg" id="aftermarketModal">
+  <div class="addjob-card" style="max-width:860px;">
+    <h3 style="color:#7A4FA0;">📦 Aftermarket Delivery</h3>
+    <div class="sub">Received for the Aftermarket department — <b>recorded only, not our stock</b>. Our Qty on Hand doesn't change. A shared delivery (e.g. 50 for us, 20 for them) goes in twice: ours through 📥 Goods Received, theirs here.</div>
+    <div class="addjob-row2">
+      <div class="addjob-field"><label>Date</label><input type="date" id="amDate"></div>
+      <div class="addjob-field"><label>Supplier</label><input type="text" id="amSupplier" list="amSupplierList" placeholder="e.g. TSE Big Max"></div>
+    </div>
+    <datalist id="amSupplierList"></datalist>
+    <div class="addjob-row2">
+      <div class="addjob-field"><label>Aftermarket Order No. <span style="color:var(--text-faint); font-weight:400;">(their number)</span></label><input type="text" id="amOrderNo" placeholder="their PO / order no"></div>
+      <div class="addjob-field"><label>Delivery Note / GRN No. <span style="color:var(--text-faint); font-weight:400;">(optional)</span></label><input type="text" id="amGrnNo"></div>
+    </div>
+    <div class="addjob-row2">
+      <div class="addjob-field"><label>Invoice No. <span style="color:var(--text-faint); font-weight:400;">(optional)</span></label><input type="text" id="amInvoiceNo"></div>
+      <div class="addjob-field"><label>Received by</label><input type="text" id="amReceivedBy" placeholder="Name"></div>
+    </div>
+    <div class="ajrows-label" style="margin-top:6px;">Items — pick from their history or our catalog, or type a new one</div>
+    <datalist id="amItemList"></datalist>
+    <div id="amLines"></div>
+    <button class="clock-btn" id="amAddLineBtn" style="border-color:#7A4FA0; color:#7A4FA0; margin-top:4px;">+ Add line</button>
+    <div class="addjob-field" style="margin-top:12px;"><label>Notes <span style="color:var(--text-faint); font-weight:400;">(optional)</span></label><input type="text" id="amNotes"></div>
+    <div class="addjob-actions">
+      <button class="addjob-cancel" id="amCancelBtn">Close</button>
+      <button class="addjob-save" id="amSaveBtn" style="background:#7A4FA0; border-color:#7A4FA0;">Record Aftermarket Delivery</button>
+    </div>
+    <div class="ajrows-label" style="margin-top:18px;">Recent aftermarket deliveries</div>
+    <div id="amRecent" style="max-height:30vh; overflow-y:auto;"></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="goodsReceivedModal">
   <div class="addjob-card">
     <h3>📥 Goods Received</h3>
     <div class="sub">Matches the paper Goods Received Note pad — this adds to stock (opposite of an issue or a spot check), and logs against the order number when there is one.</div>
     <span id="viewGoodsReceivedHistoryLink" style="display:inline-block; margin-bottom:14px; font-size:11px; color:var(--steel); text-decoration:underline; cursor:pointer;">📋 View Goods Received History</span>
+    <span id="grnToAftermarketLink" style="display:inline-block; margin:0 0 14px 14px; font-size:11px; color:#7A4FA0; text-decoration:underline; cursor:pointer;">📦 For Aftermarket? Log it here instead (not our stock)</span>
 
     <div class="addjob-row2">
       <div class="addjob-field">
@@ -4538,7 +4574,8 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   'leader-stores-sync-outbox-v1', 'leader-stores-sync-applied-v1', 'leader-stores-sync-last-pull-v1',
   'leader-stores-pull-checkpoint-reset-v1', 'leader-stores-recovery-seeded-2026-08-26',
   'leader-stores-chassis-calendar-v1', 'leader-stores-report-notes-v1', 'leader-stores-scheduler-jobs',
-  'leader-stores-device-name-v1', 'leader-stores-applied-counts-v1'
+  'leader-stores-device-name-v1', 'leader-stores-applied-counts-v1',
+  'leader-stores-slip-grid-draft-v1', 'leader-stores-aftermarket-deliveries-v1', 'leader-stores-aftermarket-items-v1'
 ];
 
 // Blob + <a download> writes nothing at all inside the Android WebView —
@@ -8445,6 +8482,126 @@ document.getElementById('submitBtn').onclick = ()=>{
   renderGrid(); // tiles must redraw now — otherwise Qty on Hand looks stuck at the old number until something else happens to refresh the grid
 };
 
+/* ====================== AFTERMARKET DELIVERIES (record only) ======================
+   Goods that arrive for the Aftermarket department. They're received here
+   but are NOT our stock: Qty on Hand never changes, nothing goes on our
+   order lists, issues or reports. Aftermarket's own order numbers.
+   Synced to the laptop flagged meta.aftermarket with a zero stock change,
+   and every receiving section files them in the aftermarket register
+   instead of touching stock (see applyRemoteTransaction).
+========================================================================= */
+const AFTERMARKET_DELIVERIES_KEY = 'leader-stores-aftermarket-deliveries-v1';
+const AFTERMARKET_ITEMS_KEY = 'leader-stores-aftermarket-items-v1';
+let aftermarketDeliveries = [];
+try{ aftermarketDeliveries = JSON.parse(localStorage.getItem(AFTERMARKET_DELIVERIES_KEY)) || []; }catch(e){ aftermarketDeliveries = []; }
+if(!Array.isArray(aftermarketDeliveries)) aftermarketDeliveries = [];
+function saveAftermarketDeliveries(){ try{ localStorage.setItem(AFTERMARKET_DELIVERIES_KEY, JSON.stringify(aftermarketDeliveries)); }catch(e){} }
+function loadAftermarketItems(){ try{ return JSON.parse(localStorage.getItem(AFTERMARKET_ITEMS_KEY)) || []; }catch(e){ return []; } }
+function rememberAftermarketItems(names){
+  const list = loadAftermarketItems();
+  names.forEach(n=>{ const i = list.findIndex(x=> x.toLowerCase() === n.toLowerCase()); if(i >= 0) list.splice(i,1); list.unshift(n); });
+  try{ localStorage.setItem(AFTERMARKET_ITEMS_KEY, JSON.stringify(list.slice(0, 500))); }catch(e){}
+}
+function amEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// Files a synced aftermarket line (from any device) — never touches stock.
+function fileAftermarketTxn(txn){
+  const m = txn.meta || {};
+  let d = aftermarketDeliveries.find(x=> x.id === m.amDeliveryId);
+  if(!d){
+    d = { id: m.amDeliveryId || txn.id, date: m.date || (txn.created_at||'').slice(0,10), supplier: m.supplier || '', orderNo: m.orderNo || '',
+          grnNo: m.grnNo || '', invoiceNo: m.invoiceNo || '', receivedBy: m.receivedBy || '', notes: m.notes || '',
+          lines: [], device: txn.source_device || '', createdAt: txn.created_at || '' };
+    aftermarketDeliveries.unshift(d);
+  }
+  if(!d.lines.some(l=> l.txnId === txn.id)) d.lines.push({ txnId: txn.id, name: m.name || '', partNo: m.partNo || '', qty: Number(m.qty) || 0 });
+  saveAftermarketDeliveries();
+}
+
+function amLineRow(i, l){
+  return `<div class="ajrow" style="display:grid; grid-template-columns:1fr 150px 100px 36px; gap:8px; align-items:center; margin-bottom:6px;" data-am-line="${i}">
+    <input type="text" list="amItemList" data-am-name="${i}" value="${amEsc(l.name)}" placeholder="Item">
+    <input type="text" data-am-part="${i}" value="${amEsc(l.partNo)}" placeholder="Part no (optional)">
+    <input type="number" step="any" min="0" data-am-qty="${i}" value="${amEsc(l.qty)}" placeholder="Qty" style="text-align:right;">
+    <button class="ajrow-remove" data-am-del="${i}" title="Remove line">✕</button>
+  </div>`;
+}
+let amDraftLines = [];
+function amRenderLines(){
+  const wrap = document.getElementById('amLines');
+  wrap.innerHTML = amDraftLines.map((l,i)=> amLineRow(i,l)).join('');
+  wrap.querySelectorAll('[data-am-name]').forEach(el=> el.oninput = ()=>{ amDraftLines[Number(el.dataset.amName)].name = el.value; });
+  wrap.querySelectorAll('[data-am-part]').forEach(el=> el.oninput = ()=>{ amDraftLines[Number(el.dataset.amPart)].partNo = el.value; });
+  wrap.querySelectorAll('[data-am-qty]').forEach(el=> el.oninput = ()=>{ amDraftLines[Number(el.dataset.amQty)].qty = el.value; });
+  wrap.querySelectorAll('[data-am-del]').forEach(el=> el.onclick = ()=>{ amDraftLines.splice(Number(el.dataset.amDel),1); if(!amDraftLines.length) amDraftLines.push({name:'',partNo:'',qty:''}); amRenderLines(); });
+}
+function amRenderRecent(){
+  const wrap = document.getElementById('amRecent');
+  if(!aftermarketDeliveries.length){ wrap.innerHTML = `<div class="log-empty">None recorded yet.</div>`; return; }
+  wrap.innerHTML = aftermarketDeliveries.slice(0, 30).map(d=>`
+    <div class="ajrow" style="flex-direction:column; align-items:stretch; gap:2px; margin-bottom:6px;">
+      <div style="font-size:12.5px; font-weight:600;">${amEsc(d.date)} · ${amEsc(d.supplier || '—')}${d.orderNo ? ` · Order ${amEsc(d.orderNo)}` : ''}${d.grnNo ? ` · GRN ${amEsc(d.grnNo)}` : ''}</div>
+      <div style="font-size:12px; color:var(--text-muted);">${d.lines.map(l=> `${amEsc(l.name)}${l.partNo ? ' ('+amEsc(l.partNo)+')' : ''} × ${amEsc(l.qty)}`).join(' · ')}</div>
+    </div>`).join('');
+}
+function openAftermarketModal(){
+  document.getElementById('amDate').value = new Date().toISOString().slice(0,10);
+  ['amSupplier','amOrderNo','amGrnNo','amInvoiceNo','amNotes'].forEach(id=> document.getElementById(id).value = '');
+  document.getElementById('amReceivedBy').value = state.worker ? state.worker.name : '';
+  const suppliers = [...new Set([...aftermarketDeliveries.map(d=>d.supplier), ...loadGrnSuppliers()].filter(Boolean))];
+  document.getElementById('amSupplierList').innerHTML = suppliers.map(x=>`<option value="${amEsc(x)}"></option>`).join('');
+  // Their own history first, then our catalog names — so a shared part
+  // (fire extinguishers) is recorded under the same name on both sides.
+  const names = [...new Set([...loadAftermarketItems(), ...ITEMS.filter(i=> i.name && !isRetired(i.id)).map(i=> displayName(i))])];
+  document.getElementById('amItemList').innerHTML = names.map(n=>`<option value="${amEsc(n)}"></option>`).join('');
+  amDraftLines = Array.from({length: 4}, ()=>({ name:'', partNo:'', qty:'' }));
+  amRenderLines();
+  amRenderRecent();
+  document.getElementById('aftermarketModal').classList.add('show');
+}
+document.getElementById('aftermarketBtn').onclick = openAftermarketModal;
+document.getElementById('grnToAftermarketLink').onclick = ()=>{ document.getElementById('goodsReceivedModal').classList.remove('show'); openAftermarketModal(); };
+document.getElementById('amCancelBtn').onclick = ()=> document.getElementById('aftermarketModal').classList.remove('show');
+document.getElementById('amAddLineBtn').onclick = ()=>{ amDraftLines.push({ name:'', partNo:'', qty:'' }); amRenderLines(); };
+document.getElementById('amSaveBtn').onclick = ()=>{
+  const supplier = document.getElementById('amSupplier').value.trim();
+  const problems = [];
+  const lines = [];
+  amDraftLines.forEach((l,i)=>{
+    const name = (l.name||'').trim(), qty = Number(String(l.qty).replace(',', '.'));
+    if(!name && String(l.qty).trim() === '' && !(l.partNo||'').trim()) return;
+    if(!name) problems.push(`Line ${i+1}: item name missing`);
+    else if(!(qty > 0)) problems.push(`Line ${i+1}: qty above 0 needed`);
+    else lines.push({ name, partNo: (l.partNo||'').trim(), qty });
+  });
+  if(!supplier) problems.unshift('Supplier missing');
+  if(!lines.length && !problems.length) problems.push('Add at least one item and qty');
+  if(problems.length){ alert(`Not recorded yet:\n\n${problems.join('\n')}`); return; }
+  const now = new Date();
+  const d = {
+    id: 'am' + now.getTime(),
+    date: document.getElementById('amDate').value || now.toISOString().slice(0,10),
+    supplier, orderNo: document.getElementById('amOrderNo').value.trim(),
+    grnNo: document.getElementById('amGrnNo').value.trim(), invoiceNo: document.getElementById('amInvoiceNo').value.trim(),
+    receivedBy: document.getElementById('amReceivedBy').value.trim(), notes: document.getElementById('amNotes').value.trim(),
+    lines: [], device: getDeviceName() || '', createdAt: now.toISOString()
+  };
+  lines.forEach(l=>{
+    const txnId = newTxnId();
+    d.lines.push(Object.assign({ txnId }, l));
+    // Zero stock change, flagged aftermarket — the laptop files it in its
+    // aftermarket register; nothing anywhere adds it to stock.
+    if(typeof queueTransaction === 'function') queueTransaction({ id: txnId, item_id: 'AFTERMARKET', type: 'delivery', delta_qty: 0,
+      meta: { aftermarket: true, amDeliveryId: d.id, name: l.name, partNo: l.partNo, qty: l.qty, date: d.date, supplier: d.supplier,
+              orderNo: d.orderNo, grnNo: d.grnNo, invoiceNo: d.invoiceNo, receivedBy: d.receivedBy, notes: d.notes, item_name: l.name } });
+  });
+  aftermarketDeliveries.unshift(d);
+  saveAftermarketDeliveries();
+  rememberAftermarketItems(lines.map(l=>l.name));
+  if(typeof showToast === 'function') showToast(`Aftermarket delivery recorded — ${lines.length} line${lines.length===1?'':'s'}. Our stock unchanged.`);
+  openAftermarketModal(); // clear for the next one, stay on the screen
+};
+
 /* ====================== SLIP GRID (batch capture of paper slips) ======================
    One block per paper requisition slip. Only Item + Qty are required.
    The grid stays open for a whole pile; Post shows a summary, then books
@@ -9870,6 +10027,7 @@ function mirrorRemoteLogEntry(txn){
 
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
+  if(txn.meta && txn.meta.aftermarket){ fileAftermarketTxn(txn); markApplied(txn.id); return; } // not our stock — record only
   if(txn.type === 'spot_check'){
     // Incoming correction/count from another device (normally the laptop).
     // It's a snapshot as of when it was recorded there: slips this tablet

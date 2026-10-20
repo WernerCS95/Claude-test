@@ -148,6 +148,7 @@ try{
       <button class="btn" id="reviewQueueBtn" style="border-color:var(--steel); color:#fff; background:var(--steel);">🧾 Review Queue <span id="rqBadge" style="display:none; background:var(--danger); color:#fff; border-radius:10px; padding:1px 7px; margin-left:4px; font-size:11px;"></span></button>
       <button class="btn" id="overrideLogBtn" style="border-color:var(--steel); color:var(--steel);">📜 Override Log</button>
       <button class="btn" id="issuedHistoryBtn" style="border-color:var(--gold); color:var(--gold);">📈 Issued History</button>
+      <button class="btn" id="aftermarketBtn" style="border-color:#7A4FA0; color:#7A4FA0;">📦 Aftermarket Deliveries</button>
       <span style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-faint);">
         Cycle count size:
         <input type="number" min="1" id="cycleCountBatchInput" style="width:55px; background:var(--void); color:var(--gold); font-weight:700; border:1px solid var(--panel-line); border-radius:4px; padding:4px 6px; text-align:center;">
@@ -490,6 +491,26 @@ try{
   </div>
 </div>
 
+<!-- Aftermarket Deliveries — received on the Aftermarket department's
+     behalf. Register only: never in our stock, value, order lists or reports. -->
+<div class="modal-bg" id="aftermarketModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1150px; width:97%; max-height:92vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:10px;">
+      <h3 style="margin:0; color:#7A4FA0;">📦 Aftermarket Deliveries</h3>
+      <div><button class="btn primary" id="amPrintBtn" style="background:#7A4FA0; border-color:#7A4FA0;">🖨 Print register</button> <button class="btn" id="amCloseBtn">Close</button></div>
+    </div>
+    <div class="sub" style="margin-bottom:10px;">Received for Aftermarket — record only. Not in our stock, stock value, order lists or reports. Their own order numbers.</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; padding:10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel-raised);">
+      <label style="font-size:12px;">Supplier<br><input type="text" id="amfSupplier" style="width:170px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Their order no<br><input type="text" id="amfOrder" style="width:120px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Item<br><input type="text" id="amfItem" style="width:170px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">From<br><input type="date" id="amfFrom" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;"></label>
+      <label style="font-size:12px;">To<br><input type="date" id="amfTo" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;"></label>
+    </div>
+    <div id="amBody"></div>
+  </div>
+</div>
+
 <!-- Price Compare — same part, multiple suppliers, without duplicate stock items -->
 <div class="modal-bg" id="priceCompareModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
   <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1100px; width:97%; max-height:92vh; overflow-y:auto;">
@@ -648,6 +669,8 @@ const STOCK_KEY = 'leader-master-stock-v1';
 // Review Queue state and the laptop Override Log (see REVIEW QUEUE section)
 const REVIEW_KEY = 'leader-master-review-v1';
 const OVERRIDE_LOG_KEY = 'leader-master-override-log-v1';
+// Aftermarket deliveries received on their behalf — record only, never our stock
+const AFTERMARKET_KEY = 'leader-master-aftermarket-deliveries-v1';
 // Stock Count records awaiting carry-over to the terminal (see STOCK COUNT section)
 const PENDING_COUNTS_KEY = 'leader-master-pending-counts-v1';
 const LEDGER_KEY = 'leader-master-ledger-v1';
@@ -4447,7 +4470,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,
   NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY,
   SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY, SUPPLIER_SETTINGS_KEY,
-  PENDING_COUNTS_KEY, REVIEW_KEY, OVERRIDE_LOG_KEY,
+  PENDING_COUNTS_KEY, REVIEW_KEY, OVERRIDE_LOG_KEY, AFTERMARKET_KEY,
   // Previously left out of the backup. Restore writes back whatever keys a
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
@@ -5742,6 +5765,101 @@ document.getElementById('ihPrintBtn').onclick = printIssuedHistory;
 document.getElementById('ihClearBtn').onclick = ()=>{ ['ihItem','ihJob','ihWho','ihFrom','ihTo'].forEach(id=> document.getElementById(id).value = ''); renderIssuedHistory(); };
 ['ihItem','ihJob','ihWho','ihFrom','ihTo'].forEach(id=> document.getElementById(id).addEventListener('input', renderIssuedHistory));
 
+/* ====================== AFTERMARKET DELIVERIES REGISTER (laptop) ======================
+   Deliveries received on the Aftermarket department's behalf, captured on
+   the tablet (Input -> Aftermarket Delivery) and synced here flagged
+   meta.aftermarket with a zero stock change. Filed in their own register —
+   never added to stock, value, order lists, issued history or reports.
+========================================================================= */
+let aftermarketDeliveries = [];
+function loadAftermarket(){
+  try{ aftermarketDeliveries = JSON.parse(localStorage.getItem(AFTERMARKET_KEY)) || []; }catch(e){ aftermarketDeliveries = []; }
+  if(!Array.isArray(aftermarketDeliveries)) aftermarketDeliveries = [];
+}
+function saveAftermarket(){ try{ localStorage.setItem(AFTERMARKET_KEY, JSON.stringify(aftermarketDeliveries)); }catch(e){} }
+function fileAftermarketLine(txn){
+  const m = txn.meta || {};
+  let d = aftermarketDeliveries.find(x=> x.id === m.amDeliveryId);
+  if(!d){
+    d = { id: m.amDeliveryId || txn.id, date: m.date || (txn.created_at||'').slice(0,10), supplier: m.supplier || '', orderNo: m.orderNo || '',
+          grnNo: m.grnNo || '', invoiceNo: m.invoiceNo || '', receivedBy: m.receivedBy || '', notes: m.notes || '',
+          lines: [], device: txn.source_device || '', receivedAt: txn.created_at || '' };
+    aftermarketDeliveries.push(d);
+  }
+  if(!d.lines.some(l=> l.txnId === txn.id)) d.lines.push({ txnId: txn.id, name: m.name || m.item_name || '', partNo: m.partNo || '', qty: Number(m.qty) || 0 });
+  saveAftermarket();
+}
+function amFilters(){
+  return { supplier: amVal('amfSupplier'), order: amVal('amfOrder'), item: amVal('amfItem'),
+           from: document.getElementById('amfFrom').value, to: document.getElementById('amfTo').value };
+}
+function amVal(id){ return document.getElementById(id).value.trim().toLowerCase(); }
+function amFiltered(f){
+  return aftermarketDeliveries.filter(d=>{
+    if(f.supplier && !(d.supplier||'').toLowerCase().includes(f.supplier)) return false;
+    if(f.order && !String(d.orderNo||'').toLowerCase().includes(f.order)) return false;
+    if(f.item && !d.lines.some(l=> (l.name||'').toLowerCase().includes(f.item) || (l.partNo||'').toLowerCase().includes(f.item))) return false;
+    if(f.from && (d.date||'') < f.from) return false;
+    if(f.to && (d.date||'') > f.to) return false;
+    return true;
+  }).sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.receivedAt||'').localeCompare(a.receivedAt||''));
+}
+function amFilterText(f){
+  const raw = id=> document.getElementById(id).value.trim(); // as typed, not lower-cased
+  return [f.supplier && `supplier "${raw('amfSupplier')}"`, f.order && `their order "${raw('amfOrder')}"`, f.item && `item "${raw('amfItem')}"`,
+          (f.from || f.to) && `${f.from || 'start'} to ${f.to || 'today'}`].filter(Boolean).join(' · ') || 'all aftermarket deliveries';
+}
+function renderAftermarket(){
+  const f = amFilters();
+  const list = amFiltered(f);
+  const body = document.getElementById('amBody');
+  if(!list.length){ body.innerHTML = `<div class="empty">${aftermarketDeliveries.length ? 'No aftermarket deliveries match these filters.' : 'No aftermarket deliveries recorded yet. They\'re captured on the tablet: Input → 📦 Aftermarket Delivery.'}</div>`; return; }
+  const lines = list.reduce((a,d)=> a + d.lines.length, 0);
+  body.innerHTML = `<div class="sub" style="margin-bottom:8px;">${list.length} deliver${list.length===1?'y':'ies'} · ${lines} line(s) · ${rqEsc(amFilterText(f))}</div>` +
+    list.map(d=>`
+    <div style="border:1px solid var(--panel-line); border-left:4px solid #7A4FA0; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+      <div style="font-weight:600; margin-bottom:6px;">${rqEsc(d.date)} · ${rqEsc(d.supplier || '—')}${d.orderNo ? ` · Their order <b>${rqEsc(d.orderNo)}</b>` : ''}${d.grnNo ? ` · GRN ${rqEsc(d.grnNo)}` : ''}${d.invoiceNo ? ` · Inv ${rqEsc(d.invoiceNo)}` : ''}
+        <span class="sub" style="margin-left:6px;">${d.receivedBy ? 'received by ' + rqEsc(d.receivedBy) : ''}</span></div>
+      <table><thead><tr><th>Item</th><th>Part no</th><th class="right">Qty</th></tr></thead><tbody>
+        ${d.lines.map(l=>`<tr><td>${rqEsc(l.name)}</td><td class="sku">${rqEsc(l.partNo || '')}</td><td class="right num">${rqEsc(l.qty)}</td></tr>`).join('')}
+      </tbody></table>
+      ${d.notes ? `<div class="sub" style="margin-top:4px;">${rqEsc(d.notes)}</div>` : ''}
+    </div>`).join('');
+}
+function printAftermarket(){
+  const f = amFilters();
+  const list = amFiltered(f).slice().reverse();
+  if(!list.length){ alert('Nothing to print with these filters.'); return; }
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const navy = [31, 78, 120];
+  doc.setFontSize(14); doc.setTextColor(...navy);
+  doc.text('Leader Trailer Bodies', pageWidth - 14, 12, { align: 'right' });
+  doc.setFontSize(17); doc.text('Aftermarket Deliveries Received', 14, 16);
+  doc.setFontSize(10); doc.setTextColor(90, 97, 105);
+  doc.text(`${amFilterText(f)}   ·   Received by Stores on Aftermarket's behalf — not Stores stock   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, 14, 22, { maxWidth: pageWidth - 28 });
+  const rows = [];
+  list.forEach(d=> d.lines.forEach((l, i)=> rows.push([ i===0 ? d.date : '', i===0 ? (d.supplier||'') : '', i===0 ? (d.orderNo||'') : '', i===0 ? (d.grnNo||'') : '', l.name, l.partNo || '', String(l.qty), i===0 ? (d.receivedBy||'') : '' ])));
+  doc.setFontSize(11); doc.setTextColor(255,255,255); doc.setFillColor(...navy);
+  doc.rect(14, 30, pageWidth - 28, 6, 'F'); doc.text('Deliveries', 16, 34.3);
+  doc.autoTable({ startY: 36, margin: { left: 14, right: 14 }, theme: 'grid',
+    head: [['Date', 'Supplier', 'Their order', 'GRN / DN', 'Item', 'Part no', 'Qty', 'Received by']], body: rows,
+    headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 8.5, lineColor: [185,194,204] },
+    bodyStyles: { fontSize: 8, textColor: [26,29,33] }, columnStyles: { 6: { halign: 'right', fontStyle: 'bold' } } });
+  let y = doc.lastAutoTable.finalY + 20;
+  if(y > 280){ doc.addPage(); y = 30; }
+  doc.setFontSize(9); doc.setTextColor(91, 97, 105); doc.setDrawColor(26, 29, 33);
+  [['Received by (Stores)', 14], ['Handed over to (Aftermarket)', 82], ['Date', 150]].forEach(([label, x])=>{
+    doc.line(x, y, x + 55, y);
+    doc.text(label, x, y + 4);
+  });
+  savePdfOutput(doc, 'aftermarket-deliveries');
+}
+document.getElementById('aftermarketBtn').onclick = ()=>{ renderAftermarket(); document.getElementById('aftermarketModal').style.display = 'flex'; };
+document.getElementById('amCloseBtn').onclick = ()=> document.getElementById('aftermarketModal').style.display = 'none';
+document.getElementById('amPrintBtn').onclick = printAftermarket;
+['amfSupplier','amfOrder','amfItem','amfFrom','amfTo'].forEach(id=> document.getElementById(id).addEventListener('input', renderAftermarket));
+
 /* ==========================================================================
    KIT SCHEDULER — Chassis + Finals production calendar (Master List add-on)
    Standalone: local data only, no server, no live sync. Job data comes from
@@ -6002,6 +6120,7 @@ loadSupplierSettings();
 loadPendingCounts();
 loadReviewState();
 loadOverrideLog();
+loadAftermarket();
 removeAdvanceHarnessingOnce();
 render();
 showFreshFileWarningIfNeeded();
@@ -6168,6 +6287,7 @@ function applyRemoteStockTransaction(txn){
   // in by paste-import can't get counted a second time when live sync
   // catches up and finds the same transaction in Supabase.
   if(!txn || !txn.id || syncAppliedIds.has(txn.id) || loadImportedLineIds().has(txn.id)) return;
+  if(txn.meta && txn.meta.aftermarket){ fileAftermarketLine(txn); markSyncApplied(txn.id); return; } // not our stock — register only
   let item = stock.find(s=>s.sku===txn.item_id);
   if(!item){
     item = {
@@ -6226,6 +6346,15 @@ const SYNC_TXN_LABEL = { delivery: 'Delivery', issue: 'Parts Issued', spot_check
 function showSyncToast(txn, itemName){
   const wrap = document.getElementById('syncToastWrap');
   if(!wrap) return;
+  if(txn.meta && txn.meta.aftermarket){
+    // Not our stock — say so, never "+0" on a stock line.
+    const el = document.createElement('div');
+    el.className = 'sync-toast';
+    el.innerHTML = `<div class="sync-toast-title" style="color:#7A4FA0;">Aftermarket delivery (not our stock) — from ${rqEsc(txn.source_device || 'tablet')}</div><div>${rqEsc(txn.meta.name || '')} × ${rqEsc(txn.meta.qty)}${txn.meta.orderNo ? ' · their order ' + rqEsc(txn.meta.orderNo) : ''}</div>`;
+    wrap.appendChild(el);
+    setTimeout(()=> el.remove(), 6000);
+    return;
+  }
   const label = SYNC_TXN_LABEL[txn.type] || 'Stock Update';
   let detail;
   if(txn.type === 'spot_check'){
@@ -6265,7 +6394,8 @@ function startRealtimeStockSync(){
       renderSpotCheckLedger();
       if(txn.source_device !== 'Master List'){
         showSyncToast(txn, (item && item.name) || txn.item_id);
-        flashStockRow(txn.item_id);
+        if(!(txn.meta && txn.meta.aftermarket)) flashStockRow(txn.item_id);
+        else if(document.getElementById('aftermarketModal').style.display === 'flex') renderAftermarket();
       }
       // Deliberately NOT advancing SYNC_LAST_PULL_KEY here. Live delivery
       // order isn't guaranteed to match when things actually happened —
