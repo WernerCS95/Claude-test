@@ -38,15 +38,20 @@ function createWindow(){
     }
   });
 
-  win.loadURL('app://leaderapp/master-list.html');
+  // One app since the merge: app.html is the shell, with stores-terminal.html
+  // (Input) and master-list.html (Admin) inside it. Same app://leaderapp
+  // origin as before, so the existing Master List data is exactly where it was.
+  win.loadURL('app://leaderapp/app.html');
 
   if(DEV_MODE){
     win.webContents.openDevTools();
-    const watchedFile = path.join(__dirname, 'master-list.html');
-    fs.watch(watchedFile, { persistent: true }, (eventType)=>{
-      if(eventType === 'change') win.webContents.reloadIgnoringCache();
+    ['app.html', 'stores-terminal.html', 'master-list.html'].forEach(name=>{
+      const watchedFile = path.join(__dirname, name);
+      fs.watch(watchedFile, { persistent: true }, (eventType)=>{
+        if(eventType === 'change') win.webContents.reloadIgnoringCache();
+      });
+      console.log('[DEV MODE] Watching for changes: ' + watchedFile);
     });
-    console.log('[DEV MODE] Watching for changes: ' + watchedFile);
   }
 }
 
@@ -63,11 +68,11 @@ app.whenReady().then(() => {
     // same safety net as before, still always served from app://leaderapp
     // so the storage origin stays exactly as fixed as it always was.
     let relPath = decodeURIComponent(reqUrl.pathname);
-    if(!relPath || relPath === '/') relPath = '/master-list.html';
+    if(!relPath || relPath === '/') relPath = '/app.html';
     const resolved = path.normalize(path.join(__dirname, relPath));
     const filePath = (resolved.startsWith(__dirname) && fs.existsSync(resolved) && fs.statSync(resolved).isFile())
       ? resolved
-      : path.join(__dirname, 'master-list.html');
+      : path.join(__dirname, 'app.html');
     return net.fetch(url.pathToFileURL(filePath).toString());
   });
 

@@ -7,34 +7,39 @@ Follow this in order, every time, even for a "tiny" change. The stale-build bug 
 - [ ] **Confirm which file you actually edited.** All real editing happens in the two root files: `stores-terminal.html` and `master-list.html`. If you (or Claude Code) edited a copy inside `desktop-app/`, `android-app/www/`, etc. directly instead, stop — copy your change into the root file first, so there's one true source.
 - [ ] **If you used Dev Mode's Capacitor setup** (`docs/DEV-MODE.md`), check `android-app/capacitor.config.json` and `master-list-android-app/capacitor.config.json` right now — neither should have a `"server"` key in it. If one does, delete that whole `"server": { ... }` block before continuing, or the app you ship will try to load from your laptop forever.
 
-## 1. Copy the source file into every wrapper
+## 1. Copy the source files into the two app wrappers
 
-Each app has its own copy that the real build uses — these must be byte-for-byte identical to the root file, always:
+Since 2026-10-20 there is **one app** (`app.html` shell + `stores-terminal.html` Input + `master-list.html` Admin), built two ways. These copies must be byte-for-byte identical to the root files, always:
 
 | Root file | Copy into |
 |---|---|
-| `master-list.html` | `desktop-app/master-list.html` |
-| `master-list.html` | `master-list-android-app/www/index.html` |
-| `stores-terminal.html` | `desktop-terminal-app/stores-terminal.html` |
-| `stores-terminal.html` | `android-app/www/index.html` |
+| `app.html` | `desktop-app/app.html` **and** `android-app/www/index.html` |
+| `stores-terminal.html` | `desktop-app/stores-terminal.html` **and** `android-app/www/stores-terminal.html` |
+| `master-list.html` | `desktop-app/master-list.html` **and** `android-app/www/master-list.html` |
+| `vendor/*.js` | `desktop-app/vendor/` **and** `android-app/www/vendor/` |
 
-In PowerShell, from the repo root:
+In Command Prompt, from the repo root:
 ```
-Copy-Item master-list.html desktop-app\master-list.html
-Copy-Item master-list.html master-list-android-app\www\index.html
-Copy-Item stores-terminal.html desktop-terminal-app\stores-terminal.html
-Copy-Item stores-terminal.html android-app\www\index.html
+copy /Y app.html desktop-app\app.html
+copy /Y stores-terminal.html desktop-app\stores-terminal.html
+copy /Y master-list.html desktop-app\master-list.html
+copy /Y app.html android-app\www\index.html
+copy /Y stores-terminal.html android-app\www\stores-terminal.html
+copy /Y master-list.html android-app\www\master-list.html
+xcopy /Y /I vendor android-app\www\vendor
 ```
 
-**Verify the copy actually happened** (this is the step that was skipped before, causing the stale build):
+**Verify the copies** (this is the step that was skipped before, causing the stale build):
 ```
-Compare-Object (Get-Content master-list.html) (Get-Content desktop-app\master-list.html)
+fc /B master-list.html android-app\www\master-list.html
 ```
-No output = identical, good. Any output listed = they differ, something went wrong — don't proceed until this comes back empty. Repeat for the other three pairs.
+"no differences encountered" = good. Repeat for each pair.
+
+`desktop-terminal-app/` and `master-list-android-app/` are **retired** — kept only as a fallback to the pre-merge apps. Don't build them for normal use.
 
 ## 2. Build each app
 
-**Master List (.exe):**
+**Laptop (.exe)** — installs over "Leader Master List" (same app id, same data):
 ```
 cd desktop-app
 npm install
@@ -42,38 +47,27 @@ npm run dist
 cd ..
 ```
 
-**Stores Terminal desktop (.exe):**
-```
-cd desktop-terminal-app
-npm install
-npm run dist
-cd ..
-```
-
-**Stores Terminal (.apk):**
+**Tablet (.apk)** — installs over "Leader Stores Terminal" (same app id, same data):
 ```
 cd android-app
 npm install
 npx cap sync android
 npx cap open android
 ```
-In Android Studio: **Build → Build App Bundle(s)/APK(s) → Build APK(s)**. Wait for the Build tab at the bottom to say `BUILD SUCCESSFUL` — don't proceed on a build you didn't personally see finish.
+In Android Studio: **Build → Build App Bundle(s)/APK(s) → Build APK(s)**. Wait for `BUILD SUCCESSFUL` — don't proceed on a build you didn't personally see finish. Build on the **same PC** as previous APKs (the signing key lives there).
 
-**Master List (.apk):** same as above, inside `master-list-android-app` instead.
+## 3. Prove the build isn't stale — do this before trusting either one
 
-## 3. Prove the build isn't stale — do this before trusting any of the four
-
-For the two `.exe` files, check the installer's timestamp is from just now, not an old cached one:
+For the `.exe`, check the installer's timestamp is from just now, not an old cached one:
 ```
-Get-Item desktop-app\dist\"Leader Master List Setup 1.0.0.exe" | Select-Object LastWriteTime
-Get-Item desktop-terminal-app\dist\"Leader Stores Terminal Setup 1.0.0.exe" | Select-Object LastWriteTime
+dir desktop-app\dist\*.exe
 ```
+The newest installer is `Leader Master List Setup <version>.exe` (2.0.0 for the merge build).
 If `LastWriteTime` isn't within the last few minutes, the build didn't actually run — go back to step 2.
 
-For the two `.apk` files, same idea:
+For the `.apk`, same idea:
 ```
-Get-Item android-app\android\app\build\outputs\apk\debug\app-debug.apk | Select-Object LastWriteTime
-Get-Item master-list-android-app\android\app\build\outputs\apk\debug\app-debug.apk | Select-Object LastWriteTime
+dir android-app\android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
 **The strongest check, once installed:** open the app (desktop or tablet), open its console (Electron: `Ctrl+Shift+I`; tablet: `chrome://inspect`, see `CHROME-DEBUGGING.md`), and in the Console tab type:

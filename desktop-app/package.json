@@ -1,8 +1,8 @@
 {
   "name": "leader-master-list",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Leader Trailer Bodies - Master List (Windows desktop app)",
+  "description": "Leader Trailer Bodies - Leader Stores (Input + Admin), Windows desktop app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -17,6 +17,8 @@
     },
     "files": [
       "main.js",
+      "app.html",
+      "stores-terminal.html",
       "master-list.html",
       "build/icon.png",
       "vendor/**"
