@@ -27,9 +27,18 @@ the right. Seen once; not reproduced. If it happens again, note what was done ju
 before (file picker, rotation, keyboard) — likely the shell needs to re-measure the
 screen when the tablet resizes or rotates.
 
-## 4. Live sync not yet confirmed working (noted 2026-10-20)
+## 4. Live sync — RESOLVED 2026-10-20
 
-Both the Supabase live sync and the file/paste-code transfer are active. Which one
-actually carries the data between tablet and laptop hasn't been tested. Must be
-tested before Phase 1c (exact-time overrides): tablet Spot Check -> laptop should
-show a corner pop-up within a minute.
+Tested: a tablet Spot Check showed on the laptop within a minute. The Supabase
+live sync is the channel actually carrying data.
+
+## 5. A slip uploaded late can be missed by a device that was closed (noted 2026-10-20)
+
+`created_at` on a synced transaction is when it was entered on its device. A
+device that was closed asks only for transactions newer than the last one it saw.
+So: tablet offline, slips entered, laptop app opened and pulls newer rows,
+tablet comes online later and uploads the older-dated slips — the laptop's
+"newer than" pull can skip them. While both apps are open, the live channel
+catches them regardless. Fix needs a server-side "received at" column on
+`stock_transactions` (small database change) and pulling by that instead.
+Ask before changing the database.

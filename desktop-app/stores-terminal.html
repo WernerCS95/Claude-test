@@ -6206,7 +6206,8 @@ function applyImportedCount(sku, countedQty, newQty, countedAtISO, countedBy){
     sku, name: item ? item.name : sku, qty: countedQty,
     date: d.toISOString().slice(0,10),
     time: d.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    checker: countedBy || 'Master List import'
+    checker: countedBy || 'Master List import',
+    at: countedAtISO
   });
   if(spotCheckHistory.length > 1000) spotCheckHistory.length = 1000;
   saveSpotCheckHistory();
@@ -6225,6 +6226,7 @@ function activitySinceCount(sku, countedAtISO){
     const m = /^e(\d{10,})$/.exec(entry._id || '');
     const ts = m ? Number(m[1]) : new Date(`${entry.date}T${entry.time || '00:00'}`).getTime();
     if(!(ts > countMs)) return;
+    if(entry.date && entry.date < countDay) return; // dated before the count — already in it
     (entry.lines || []).forEach(line=>{
       if(line.isKit && line.components){
         line.components.forEach(c=>{ if(c.sku === sku) delta -= (Number(c.qty)||0) * (Number(line.qty)||0); });
@@ -6479,19 +6481,66 @@ function recordSpotCheckHistory(sku, qty){
     sku, name: item ? item.name : sku, qty,
     date: now.toISOString().slice(0,10),
     time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    checker: state.worker ? state.worker.name : null
+    checker: state.worker ? state.worker.name : null,
+    at: now.toISOString()
   });
   if(spotCheckHistory.length > 1000) spotCheckHistory.length = 1000;
   saveSpotCheckHistory();
 }
-function getMostRecentSpotCheckDate(sku){
-  let latest = null;
+// Exact-time override rule (Phase 1c) — mirror of the laptop's. A spot
+// check / laptop correction stamped with "at" supersedes any transaction
+// RECORDED before that moment (txn.created_at = when it was entered on its
+// device), never one recorded after. Entries without "at" (older history)
+// keep the original day rule.
+function isSupersededByOverride(sku, txn){
+  const txnMs = Date.parse(txn.created_at || '');
+  const txnDay = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
+  let latestExact = null, latestExactDay = null, latestLegacyDay = null;
   spotCheckHistory.forEach(e=>{
-    if(e.sku === sku && (!latest || e.date > latest)) latest = e.date;
+    if(e.sku !== sku || e.superseded) return;
+    const ms = e.at ? Date.parse(e.at) : NaN;
+    if(!isNaN(ms)){ if(latestExact === null || ms > latestExact){ latestExact = ms; latestExactDay = e.at.slice(0,10); } }
+    else if(e.date && (!latestLegacyDay || e.date > latestLegacyDay)) latestLegacyDay = e.date;
   });
-  return latest;
+  if(latestExact !== null && !isNaN(txnMs) && txnMs < latestExact) return true;
+  // Entered after it, but dated an earlier day (e.g. yesterday's paper slip
+  // typed in later) — that stock left before the count/correction, so it's
+  // already reflected in it.
+  if(latestExactDay && txnDay && txnDay < latestExactDay) return true;
+  if(latestLegacyDay && txnDay && latestLegacyDay > txnDay) return true;
+  return false;
 }
-
+// Net stock movement this tablet RECORDED after a moment (ms): slips by
+// their capture time ("e"+ms id), deliveries by their capture time
+// ("grn"+ms batch id). Used when a laptop correction arrives, so slips
+// entered here after the correction still apply on top of it.
+function tabletActivityRecordedAfter(sku, ms){
+  const day = new Date(ms).toISOString().slice(0,10);
+  let delta = 0;
+  (state.log || []).forEach(entry=>{
+    const m = /^e(\d{10,})$/.exec(entry._id || '');
+    const ts = m ? Number(m[1]) : new Date(`${entry.date}T${entry.time || '00:00'}`).getTime();
+    if(!(ts > ms)) return;
+    if(entry.date && entry.date < day) return; // dated before the correction's day — already reflected
+    (entry.lines || []).forEach(line=>{
+      if(line.isKit && line.components){
+        line.components.forEach(c=>{ if(c.sku === sku) delta -= (Number(c.qty)||0) * (Number(line.qty)||0); });
+      } else if(line.itemId === sku){
+        delta -= Number(line.qty) || 0;
+      }
+    });
+  });
+  (goodsReceived || []).forEach(g=>{
+    const m = /^grn(\d+)$/.exec(g.batchId || '');
+    if(!m || !(Number(m[1]) > ms)) return;
+    if(g.date && g.date < day) return;
+    const link = getBoxUnitLink(g.sku);
+    const target = link ? link.realSku : g.sku;
+    if(target !== sku) return;
+    delta += (Number(g.qty) || 0) * (link ? link.factor : 1);
+  });
+  return delta;
+}
 /* ====================== VEHICLE SERVICE TRACKER ======================
    Rides on top of the odometer readings already captured at each Diesel
    fill-up — no separate data entry needed day to day, just register a
@@ -9453,18 +9502,35 @@ function mirrorRemoteLogEntry(txn){
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
   if(txn.type === 'spot_check'){
-    setQtyOnHand(txn.item_id, Number(txn.absolute_qty));
+    // Incoming correction/count from another device (normally the laptop).
+    // It's a snapshot as of when it was recorded there: slips this tablet
+    // recorded after that moment still apply on top; anything recorded
+    // before it is already reflected. A correction older than one this
+    // tablet already has is logged but doesn't change the qty.
+    const item = ITEMS.find(i=>i.id===txn.item_id);
+    const atMs = Date.parse(txn.created_at || '');
+    const superseded = isSupersededByOverride(txn.item_id, txn);
+    if(!superseded){
+      const since = isNaN(atMs) ? 0 : tabletActivityRecordedAfter(txn.item_id, atMs);
+      qtyOnHand[txn.item_id] = Number(txn.absolute_qty) + since;
+      saveQtyOnHand();
+    }
+    const d = isNaN(atMs) ? new Date() : new Date(atMs);
+    spotCheckHistory.unshift({
+      sku: txn.item_id, name: item ? item.name : ((txn.meta && txn.meta.item_name) || txn.item_id), qty: Number(txn.absolute_qty),
+      date: d.toISOString().slice(0,10),
+      time: d.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+      checker: (txn.source_device || 'Other device') + (superseded ? ' — older than a later correction, not applied' : ''),
+      at: txn.created_at || undefined,
+      superseded: superseded || undefined
+    });
+    if(spotCheckHistory.length > 1000) spotCheckHistory.length = 1000;
+    saveSpotCheckHistory();
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
-    const latestSpotCheck = getMostRecentSpotCheckDate(txn.item_id);
-    // The real event date (when it happened), not created_at (when it
-    // synced) — a delivery/issue captured offline and synced days later
-    // must still compare against the date it actually happened, or this
-    // "did a physical count already cover this" check compares against
-    // the wrong day. Older rows synced before this fix have no meta.date
-    // to fall back on — created_at is the best available answer for those.
-    const txnDate = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
-    const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
-    if(!supersededBySpotCheck){
+    // created_at is when it was recorded on its own device (set at capture,
+    // not at sync) — so a slip captured offline and synced later still
+    // compares by when it was entered.
+    if(!isSupersededByOverride(txn.item_id, txn)){
       adjustQtyOnHand(txn.item_id, Number(txn.delta_qty));
     }
     if(txn.type === 'delivery' || txn.type === 'issue'){

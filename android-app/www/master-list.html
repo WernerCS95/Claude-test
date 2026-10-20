@@ -1975,9 +1975,10 @@ function saveOneSpotCheckRow(sku, tr){
   spotLedger.push({
     sku: item.sku, name: item.name, before, after, diff: after - before,
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    checker: 'Master List (on screen)', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
+    checker: 'Master List (on screen)', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7),
+    at: now.toISOString()
   });
-  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: after, meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: after, created_at: now.toISOString(), meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
   return true;
 }
 
@@ -3166,9 +3167,10 @@ document.getElementById('correctTankBtn').onclick = async ()=>{
   spotLedger.push({
     sku: item.sku, name: item.name, before, after: newLevel, diff,
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
+    checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7),
+    at: now.toISOString()
   });
-  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, created_at: now.toISOString(), meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
   saveState();
   render();
   if(Math.abs(diff) > 0){
@@ -3198,9 +3200,10 @@ document.getElementById('correctGeneratorTankBtn').onclick = async ()=>{
   spotLedger.push({
     sku: item.sku, name: item.name, before, after: newLevel, diff,
     date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-    checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7)
+    checker: 'Tank reading', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7),
+    at: now.toISOString()
   });
-  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: newLevel, created_at: now.toISOString(), meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10) } });
   saveState();
   render();
   if(Math.abs(diff) > 0){
@@ -4579,7 +4582,8 @@ function importFullStateFromTablet(file){
         sku: item.sku, name: item.name, cat: item.cat,
         before, after: newQty, diff: newQty - before,
         date: dateStr, time: timeStr, checker: 'Tablet Sync (Full State)',
-        _id: 'ts'+Date.now()+Math.random().toString(36).slice(2,7)
+        _id: 'ts'+Date.now()+Math.random().toString(36).slice(2,7),
+        at: payload._exportedAt || undefined
       });
       updated++;
     });
@@ -5132,6 +5136,7 @@ function renderStockCountResults(query){
       // against older terminal activity that syncs in later.
       spotLedger.push({
         _id: 'stockcount-' + sku + '-' + countedAt,
+        at: countedAt,
         sku, name: item.name,
         before: beforeQty, after: newQty, diff: newQty - beforeQty,
         date: countedAt.slice(0,10),
@@ -5662,7 +5667,7 @@ function saveMasterOutbox(list){
 function queueMasterTransaction(txn){
   txn.id = newMasterTxnId();
   txn.source_device = 'Master List';
-  txn.created_at = new Date().toISOString();
+  txn.created_at = txn.created_at || new Date().toISOString(); // a correction passes its own moment, so its log entry and synced copy match exactly
   markSyncApplied(txn.id); // this device already applied it locally — never re-apply when it echoes back
   const outbox = loadMasterOutbox();
   outbox.push(txn);
@@ -5694,13 +5699,31 @@ async function flushMasterOutbox(){
 // Same latest-spot-check-wins rule as the terminal: a delivery/issue
 // dated before the most recent spot check for that item is superseded
 // by it and should not be applied on top.
-function mostRecentSpotCheckDateFor(sku){
-  let latest = null;
+// Exact-time override rule (Phase 1c). A spot check or laptop correction
+// stamped with "at" supersedes any transaction RECORDED before that moment
+// (txn.created_at = when it was entered on its device) — and nothing
+// recorded after it. Older history entries have no "at"; for those the
+// original day rule still applies (only a strictly later day supersedes).
+function isSupersededByOverride(sku, txn){
+  const txnMs = Date.parse(txn.created_at || '');
+  const txnDay = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
+  let latestExact = null, latestExactDay = null, latestLegacyDay = null;
   spotLedger.forEach(e=>{
-    const d = e.date || (e.timestamp || '').slice(0,10);
-    if(e.sku === sku && d && (!latest || d > latest)) latest = d;
+    if(e.sku !== sku || e.superseded) return;
+    const ms = e.at ? Date.parse(e.at) : NaN;
+    if(!isNaN(ms)){ if(latestExact === null || ms > latestExact){ latestExact = ms; latestExactDay = e.at.slice(0,10); } }
+    else {
+      const d = e.date || (e.timestamp || '').slice(0,10);
+      if(d && (!latestLegacyDay || d > latestLegacyDay)) latestLegacyDay = d;
+    }
   });
-  return latest;
+  if(latestExact !== null && !isNaN(txnMs) && txnMs < latestExact) return true;
+  // Entered after it, but dated an earlier day (e.g. yesterday's paper slip
+  // typed in later) — that stock left before the count/correction, so it's
+  // already reflected in it.
+  if(latestExactDay && txnDay && txnDay < latestExactDay) return true;
+  if(latestLegacyDay && txnDay && latestLegacyDay > txnDay) return true;
+  return false;
 }
 
 // Rebuilds the "Parts Issued" / "Goods Received" history views from
@@ -5734,12 +5757,13 @@ function addHistoryFromRemoteTransaction(txn, itemName, beforeQty){
     // Previously never recorded here at all — a live spot check from the
     // terminal updated the qty but left no trace in the Spot Check Log,
     // so it looked like nothing had synced even when it had.
-    const afterQty = Number(txn.absolute_qty);
+    const afterQty = txn._superseded ? beforeQty : Number(txn.absolute_qty);
     spotLedger.push({
       _id: txn.id, sku: txn.item_id, name: itemName,
       before: beforeQty, after: afterQty, diff: afterQty - beforeQty,
-      date: dateStr, time: timeStr,
-      checker: meta.checker || meta.worker || ''
+      date: dateStr, time: timeStr, at: txn.created_at || undefined,
+      checker: (meta.checker || meta.worker || (txn._superseded ? txn.source_device : '') || '') + (txn._superseded ? ` — counted ${Number(txn.absolute_qty)}, older than the laptop correction, not applied` : ''),
+      superseded: !!txn._superseded || undefined
     });
   }
 }
@@ -5763,12 +5787,12 @@ function applyRemoteStockTransaction(txn){
   }
   const beforeQty = item.qty;
   if(txn.type === 'spot_check'){
-    item.qty = Number(txn.absolute_qty);
+    // A count recorded before the latest laptop override arrives late —
+    // the laptop's figure is final, so it's logged but doesn't change qty.
+    if(isSupersededByOverride(txn.item_id, txn)) txn._superseded = true;
+    else item.qty = Number(txn.absolute_qty);
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
-    const latestSpotCheck = mostRecentSpotCheckDateFor(txn.item_id);
-    const txnDate = (txn.meta && txn.meta.date) || (txn.created_at || '').slice(0,10);
-    const supersededBySpotCheck = latestSpotCheck && latestSpotCheck > txnDate;
-    if(!supersededBySpotCheck){
+    if(!isSupersededByOverride(txn.item_id, txn)){
       item.qty = Math.max(0, (item.qty || 0) + Number(txn.delta_qty));
     }
   }
