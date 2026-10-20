@@ -9053,6 +9053,7 @@ function renderLog(){
           <span class="log-time num">${entry.time}</span>
         </div>
         <div class="log-items">${itemsHtml}</div>
+        ${(entry.laptopNotes || []).map(n=>`<div style="margin-top:4px; font-size:11.5px; color:#7A4FA0; background:#F3ECF8; border-radius:6px; padding:4px 8px;">✎ Corrected on laptop ${new Date(n.at).toLocaleString('en-ZA', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}: ${n.text}</div>`).join('')}
         <div style="display:flex; gap:8px; margin-top:6px;">
           <button class="clock-btn" data-edit-id="${entry._id}" style="font-size:10px; padding:4px 10px;">Edit</button>
           <button class="clock-btn" data-delete-id="${entry._id}" style="font-size:10px; padding:4px 10px; border-color:var(--danger); color:var(--danger);">✕ Delete</button>
@@ -10004,9 +10005,9 @@ function loadAppliedIds(){
 let syncAppliedIds = loadAppliedIds();
 function markApplied(id){
   syncAppliedIds.add(id);
-  // Cap growth — only the most recent 5000 ids are needed to dedupe realtime/catch-up overlap.
-  if(syncAppliedIds.size > 5000){
-    syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-5000));
+  // Cap growth — the catch-up re-reads the last 7 days, so this must comfortably cover a week of transactions.
+  if(syncAppliedIds.size > 20000){
+    syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-20000));
   }
   try{ localStorage.setItem(SYNC_APPLIED_IDS_KEY, JSON.stringify(Array.from(syncAppliedIds))); }catch(e){}
 }
@@ -10108,6 +10109,21 @@ function mirrorRemoteLogEntry(txn){
   }
 }
 
+// A laptop correction to one of this tablet's slip lines (Review Queue
+// edit/delete) carries the id of that exact line. Pin a note on the
+// original slip in Today's Log, so the log explains where the stock went.
+function pinLaptopCorrectionNote(txn){
+  const m = txn.meta || {};
+  if(!m.ledgerId || !m.note) return;
+  const entry = state.log.find(e=> (e.lines || []).some(l=> l._txnId === m.ledgerId || (l.components || []).some(c=> c._txnId === m.ledgerId)));
+  if(!entry) return;
+  entry.laptopNotes = entry.laptopNotes || [];
+  if(m.noteId && entry.laptopNotes.some(n=> n.id === m.noteId)) return; // an item move sends two adjustments — one note
+  entry.laptopNotes.push({ id: m.noteId || txn.id, at: txn.created_at || new Date().toISOString(), text: m.note });
+  saveLog();
+  renderLog();
+}
+
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
   if(txn.meta && txn.meta.aftermarket){ fileAftermarketTxn(txn); markApplied(txn.id); return; } // not our stock — record only
@@ -10137,6 +10153,7 @@ function applyRemoteTransaction(txn){
     if(spotCheckHistory.length > 1000) spotCheckHistory.length = 1000;
     saveSpotCheckHistory();
   } else if(txn.type === 'delivery' || txn.type === 'issue' || txn.type === 'adjustment'){
+    if(txn.type === 'adjustment') pinLaptopCorrectionNote(txn);
     // created_at is when it was recorded on its own device (set at capture,
     // not at sync) — so a slip captured offline and synced later still
     // compares by when it was entered.
@@ -10166,20 +10183,41 @@ function applyRemoteTransaction(txn){
   renderGrid();
 }
 
-async function pullMissedTransactions(){
-  if(!supabaseClient) return;
-  let since;
-  try{ since = localStorage.getItem(SYNC_LAST_PULL_KEY) || '1970-01-01T00:00:00Z'; }catch(e){ since = '1970-01-01T00:00:00Z'; }
-  try{
+// Catch-up asks for everything since 7 days BEFORE the last catch-up
+// point, not just after it: a transaction captured offline and uploaded
+// late carries its earlier capture time, so a plain "newer than" query
+// could skip it. Already-applied ids are ignored, so the overlap never
+// double-counts. Paged, because the server returns at most 1000 rows.
+const PULL_OVERLAP_MS = 7 * 86400000, PULL_PAGE = 1000;
+async function fetchTransactionsForCatchUp(checkpoint){
+  const since = checkpoint ? new Date(Date.parse(checkpoint) - PULL_OVERLAP_MS).toISOString() : '1970-01-01T00:00:00Z';
+  const all = [];
+  for(let from = 0; from <= 100000; from += PULL_PAGE){
     const { data, error } = await supabaseClient
       .from('stock_transactions')
       .select('*')
       .gt('created_at', since)
-      .order('created_at', { ascending: true });
-    if(error){ console.error('Sync pull failed', error); return; }
-    (data || []).forEach(applyRemoteTransaction);
-    if(data && data.length){
-      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PULL_PAGE - 1);
+    if(error) throw error;
+    all.push(...(data || []));
+    if(!data || data.length < PULL_PAGE) break;
+  }
+  return all;
+}
+function laterTime(a, b){ return !a ? b : !b ? a : (Date.parse(a) >= Date.parse(b) ? a : b); }
+
+async function pullMissedTransactions(){
+  if(!supabaseClient) return;
+  let checkpoint = null;
+  try{ checkpoint = localStorage.getItem(SYNC_LAST_PULL_KEY); }catch(e){}
+  try{
+    const data = await fetchTransactionsForCatchUp(checkpoint);
+    data.forEach(applyRemoteTransaction);
+    if(data.length){
+      // Only ever moves forward — the overlap must not drag it backwards.
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, laterTime(checkpoint, data[data.length - 1].created_at)); }catch(e){}
     }
   }catch(e){ console.error('Sync pull failed — offline?', e); }
 }

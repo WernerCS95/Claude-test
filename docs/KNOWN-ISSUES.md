@@ -32,23 +32,22 @@ screen when the tablet resizes or rotates.
 Tested: a tablet Spot Check showed on the laptop within a minute. The Supabase
 live sync is the channel actually carrying data.
 
-## 5. A slip uploaded late can be missed by a device that was closed (noted 2026-10-20)
+## 5. A slip uploaded late can be missed by a device that was closed — RESOLVED in 2.4 (2026-10-20)
 
-`created_at` on a synced transaction is when it was entered on its device. A
-device that was closed asks only for transactions newer than the last one it saw.
-So: tablet offline, slips entered, laptop app opened and pulls newer rows,
-tablet comes online later and uploads the older-dated slips — the laptop's
-"newer than" pull can skip them. While both apps are open, the live channel
-catches them regardless. Fix needs a server-side "received at" column on
-`stock_transactions` (small database change) and pulling by that instead.
-Ask before changing the database.
+Each catch-up now re-reads the last 7 days of transactions (paged, 1000 at a
+time) instead of only "newer than the last one seen". Anything already applied
+is skipped by its id, so nothing counts twice; a late-uploaded slip up to 7 days
+old is picked up. The catch-up point only ever moves forward. No database change.
+The laptop also skips a transaction already in its ledgers (second guard).
+Limit: a device that stays offline more than 7 days *after* the slip was entered
+still needs the live channel or a backup check.
 
-## 6. Laptop review edits: tablet stock is corrected, the tablet's own slip record isn't (noted 2026-10-20)
+## 6. Laptop review edits shown on the tablet's slip — RESOLVED in 2.4 (2026-10-20)
 
-When a line is edited or deleted in the laptop's Review Queue, the laptop sends
-an adjustment and the tablet's Qty on Hand is corrected to match. The slip as
-shown in the tablet's own Today's Log still shows what was originally posted.
-The laptop's ledger, Issued History and Override Log hold the corrected record.
+When a line is edited, moved to another item or deleted in the laptop's Review
+Queue, the adjustment carries a short note. The tablet pins it on the original
+slip in Today's Log: "✎ Corrected on laptop <date>: <what changed>" (purple).
+The original slip lines stay as posted; the note explains where the stock went.
 
 ## 7. Old separate apps — RESOLVED at the 2.3 install (2026-10-20)
 

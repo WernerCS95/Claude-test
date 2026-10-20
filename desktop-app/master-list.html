@@ -5495,18 +5495,22 @@ function rqSlipLabel(r){
 }
 
 // Puts stock back (if this line was ever counted) and tells the tablet.
-function rqAdjust(sku, delta, reason, ledgerId){
+// note/noteId: a plain-English line ("Masking Tape: qty 4 -> 3") the tablet
+// pins on the original slip in its Today's Log, so it shows where stock
+// went. One noteId per correction (an item move sends two adjustments).
+function rqAdjust(sku, delta, reason, ledgerId, note, noteId){
   if(!delta) return;
   let item = stock.find(s=>s.sku===sku);
   if(!item) return;
   item.qty = Math.max(0, (item.qty || 0) + delta);
   if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: sku, type: 'adjustment', delta_qty: delta,
-    meta: { item_name: item.name, item_cat: item.cat, date: new Date().toISOString().slice(0,10), reason, ledgerId } });
+    meta: { item_name: item.name, item_cat: item.cat, date: new Date().toISOString().slice(0,10), reason, ledgerId, note, noteId } });
 }
+function rqNoteId(){ return 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2,7); }
 
 function deleteLedgerLine(row, where){
   if(row.deleted) return;
-  if(!row.notApplied) rqAdjust(row.sku, Number(row.qty) || 0, 'Laptop deleted an issued line', row._id);
+  if(!row.notApplied) rqAdjust(row.sku, Number(row.qty) || 0, 'Laptop deleted an issued line', row._id, `${row.name} ×${row.qty} — line deleted`, rqNoteId());
   row.deleted = true; row.deletedAt = new Date().toISOString();
   logOverride({ action: 'Delete line', where, sku: row.sku, item: row.name, field: 'qty', oldValue: row.qty, newValue: 0,
     ref: `${row.date || ''} · ${rqSlipLabel(row)}`, ledgerId: row._id, stockChanged: !row.notApplied });
@@ -5515,7 +5519,7 @@ function deleteLedgerLine(row, where){
 function editLedgerQty(row, newQty){
   const oldQty = Number(row.qty) || 0;
   if(newQty === oldQty) return false;
-  if(!row.notApplied) rqAdjust(row.sku, oldQty - newQty, 'Laptop corrected an issued qty', row._id);
+  if(!row.notApplied) rqAdjust(row.sku, oldQty - newQty, 'Laptop corrected an issued qty', row._id, `${row.name}: qty ${oldQty} → ${newQty}`, rqNoteId());
   row.qty = newQty; row.editedAt = new Date().toISOString();
   logOverride({ action: 'Edit qty', where: 'Review Queue', sku: row.sku, item: row.name, field: 'qty', oldValue: oldQty, newValue: newQty,
     ref: `${row.date || ''} · ${rqSlipLabel(row)}`, ledgerId: row._id, stockChanged: !row.notApplied });
@@ -5529,8 +5533,9 @@ function editLedgerItem(row, newSku){
   const qty = Number(row.qty) || 0;
   const oldSku = row.sku, oldName = row.name;
   if(!row.notApplied){
-    rqAdjust(oldSku, qty, 'Laptop moved an issued line to another item', row._id);
-    rqAdjust(newSku, -qty, 'Laptop moved an issued line to another item', row._id);
+    const note = `${oldName} → ${newItem.name} (×${qty})`, noteId = rqNoteId();
+    rqAdjust(oldSku, qty, 'Laptop moved an issued line to another item', row._id, note, noteId);
+    rqAdjust(newSku, -qty, 'Laptop moved an issued line to another item', row._id, note, noteId);
   }
   row.sku = newSku; row.name = newItem.name; row.editedAt = new Date().toISOString();
   logOverride({ action: 'Edit item', where: 'Review Queue', sku: newSku, item: newItem.name, field: 'item', oldValue: `${oldName} (${oldSku})`, newValue: `${newItem.name} (${newSku})`,
@@ -6279,7 +6284,7 @@ let syncAppliedIds = (function(){
 })();
 function markSyncApplied(id){
   syncAppliedIds.add(id);
-  if(syncAppliedIds.size > 5000) syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-5000));
+  if(syncAppliedIds.size > 20000) syncAppliedIds = new Set(Array.from(syncAppliedIds).slice(-20000));
   try{ localStorage.setItem(SYNC_APPLIED_IDS_KEY, JSON.stringify(Array.from(syncAppliedIds))); }catch(e){}
 }
 
@@ -6409,6 +6414,13 @@ function applyRemoteStockTransaction(txn){
   // catches up and finds the same transaction in Supabase.
   if(!txn || !txn.id || syncAppliedIds.has(txn.id) || loadImportedLineIds().has(txn.id)) return;
   if(txn.meta && txn.meta.aftermarket){ fileAftermarketLine(txn); markSyncApplied(txn.id); return; } // not our stock — register only
+  // Second guard against double-counting, independent of the applied-ids
+  // memory: if this exact transaction is already in this laptop's own
+  // history, it was applied before.
+  const inHistory = txn.type === 'issue' ? ledger.some(r=> r._id === txn.id)
+                  : txn.type === 'delivery' ? goodsReceivedLedger.some(r=> r._id === txn.id)
+                  : txn.type === 'spot_check' ? spotLedger.some(r=> r._id === txn.id) : false;
+  if(inHistory){ markSyncApplied(txn.id); return; }
   let item = stock.find(s=>s.sku===txn.item_id);
   if(!item){
     item = {
@@ -6436,25 +6448,46 @@ function applyRemoteStockTransaction(txn){
   markSyncApplied(txn.id);
 }
 
-async function pullMissedStockTransactions(){
-  if(!supabaseClient) return;
-  let since;
-  try{ since = localStorage.getItem(SYNC_LAST_PULL_KEY) || '1970-01-01T00:00:00Z'; }catch(e){ since = '1970-01-01T00:00:00Z'; }
-  try{
+// Catch-up asks for everything since 7 days BEFORE the last catch-up
+// point, not just after it: a transaction captured offline and uploaded
+// late carries its earlier capture time, so a plain "newer than" query
+// could skip it. Already-applied ids are ignored, so the overlap never
+// double-counts. Paged, because the server returns at most 1000 rows.
+const PULL_OVERLAP_MS = 7 * 86400000, PULL_PAGE = 1000;
+async function fetchTransactionsForCatchUp(checkpoint){
+  const since = checkpoint ? new Date(Date.parse(checkpoint) - PULL_OVERLAP_MS).toISOString() : '1970-01-01T00:00:00Z';
+  const all = [];
+  for(let from = 0; from <= 100000; from += PULL_PAGE){
     const { data, error } = await supabaseClient
       .from('stock_transactions')
       .select('*')
       .gt('created_at', since)
-      .order('created_at', { ascending: true });
-    if(error){ console.error('Sync pull failed', error); return; }
-    if(data && data.length){
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PULL_PAGE - 1);
+    if(error) throw error;
+    all.push(...(data || []));
+    if(!data || data.length < PULL_PAGE) break;
+  }
+  return all;
+}
+function laterTime(a, b){ return !a ? b : !b ? a : (Date.parse(a) >= Date.parse(b) ? a : b); }
+
+async function pullMissedStockTransactions(){
+  if(!supabaseClient) return;
+  let checkpoint = null;
+  try{ checkpoint = localStorage.getItem(SYNC_LAST_PULL_KEY); }catch(e){}
+  try{
+    const data = await fetchTransactionsForCatchUp(checkpoint);
+    if(data.length){
       data.forEach(applyRemoteStockTransaction);
       saveState();
       render();
       renderLedger();
       renderGoodsReceivedLedger();
       renderSpotCheckLedger();
-      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, data[data.length - 1].created_at); }catch(e){}
+      // Only ever moves forward — the overlap must not drag it backwards.
+      try{ localStorage.setItem(SYNC_LAST_PULL_KEY, laterTime(checkpoint, data[data.length - 1].created_at)); }catch(e){}
     }
   }catch(e){ console.error('Sync pull failed — offline?', e); }
 }

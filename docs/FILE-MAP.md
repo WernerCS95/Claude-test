@@ -26,7 +26,7 @@ a small shim that borrows the shell's Android bridge when running in a frame.
 | Goods Received (deliveries in) | `loadGoodsReceived`, `openGoodsReceivedModal`, `renderGoodsReceivedHistory` | ~2624–2660 (storage/open), ~5731 (history list) |
 | Parts Issued (slips) | `LOG_KEY`, `state.log`, `editLogEntry`, `submitBtn` onclick | ~3953 onward |
 | Manual Sync Code (fallback for live sync) | `RECENT_TXN_LOG_KEY`, `copyManualSyncCodeBtn` | ~7737 |
-| Live sync to Master List | `SUPABASE_URL`, `queueTransaction`, `applyRemoteTransaction`, `pullMissedTransactions` | ~7790–7900 (near the very end of the file) |
+| Live sync to Master List | `SUPABASE_URL`, `queueTransaction`, `applyRemoteTransaction`, `pullMissedTransactions`, `fetchTransactionsForCatchUp` (7-day overlap, paged), `pinLaptopCorrectionNote` (laptop-correction note on a Today's Log slip) | ~7790–7900 (near the very end of the file) |
 | Override rule (incoming laptop correction + tablet activity after it) | `isSupersededByOverride`, `tabletActivityRecordedAfter` (read `spotCheckHistory[].at`) | right after `recordSpotCheckHistory` |
 | Aftermarket Delivery (record only, not our stock) | `aftermarketModal` (HTML), `AFTERMARKET_DELIVERIES_KEY`, `AFTERMARKET_ITEMS_KEY`, `fileAftermarketTxn`, `amStartEdit`, `amDelete`, `amSendReplaceOrDelete`; guard at top of `applyRemoteTransaction` | just above `SLIP GRID` |
 | Slip Grid (batch capture of paper slips) | `slipGridScreen` (HTML), `SLIP_GRID_KEY`, `sgRender`, `sgReviewBeforePost`, `sgPostAll`, `sgEligible` | just above `RENDER: LOG` |
@@ -49,8 +49,8 @@ Order Lists and most Admin/Reports screens live in **`master-list.html`**, not h
 | Admin menu (New Day, Retired Items, Supplier Codes, Full Reset) | `adminMenuModal` (HTML) | ~161–172 |
 | Catalog gap-filling (new items, missing fields) | `syncMissingCatalogFields` | ~519 |
 | Manual Sync Code (paste-in fallback) | `pasteManualSyncBtn`, `applyManualSyncBtn` | search for `pasteManualSyncBtn` |
-| Live sync from terminal | `SUPABASE_URL`, `queueMasterTransaction`, `applyRemoteStockTransaction` | ~3886–3990 (near the end of the file) |
-| Review Queue (tablet batches: edit / delete / mark reviewed) | `reviewQueueModal` (HTML), `REVIEW_KEY`, `rqBatches`, `renderReviewQueue`, `editLedgerQty`, `editLedgerItem`, `deleteLedgerLine` | search for `REVIEW QUEUE + OVERRIDE LOG` |
+| Live sync from terminal | `SUPABASE_URL`, `queueMasterTransaction`, `applyRemoteStockTransaction`, `pullMissedStockTransactions`, `fetchTransactionsForCatchUp` (7-day overlap, paged) | ~3886–3990 (near the end of the file) |
+| Review Queue (tablet batches: edit / delete / mark reviewed) | `reviewQueueModal` (HTML), `REVIEW_KEY`, `rqBatches`, `renderReviewQueue`, `editLedgerQty`, `editLedgerItem`, `deleteLedgerLine`, `rqAdjust` (sends note + noteId to the tablet) | search for `REVIEW QUEUE + OVERRIDE LOG` |
 | Override Log (every laptop change: old, new, when) | `OVERRIDE_LOG_KEY`, `logOverride`, `renderOverrideLog` | same section |
 | Aftermarket Deliveries register (record only, print) | `aftermarketModal` (HTML), `AFTERMARKET_KEY`, `fileAftermarketLine`, `amrOpenEdit`, `amrSaveEdit`, `amrDelete`, `printAftermarket`; guard at top of `applyRemoteStockTransaction` | search for `AFTERMARKET DELIVERIES REGISTER` |
 | Issued History / tally (filters, totals, print) | `issuedHistoryModal` (HTML), `ihRows`, `ihTotals`, `printIssuedHistory` | search for `ISSUED HISTORY / TALLY` |
