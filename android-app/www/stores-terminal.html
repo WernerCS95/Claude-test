@@ -1450,6 +1450,7 @@ try{
 <div class="modal-bg" id="aftermarketModal">
   <div class="addjob-card" style="max-width:860px;">
     <h3 style="color:#7A4FA0;">📦 Aftermarket Delivery</h3>
+    <div id="amEditBanner" style="display:none; background:#F3ECF8; border:1px solid #7A4FA0; color:#5A3780; border-radius:8px; padding:8px 12px; margin-bottom:10px; font-size:13px;">✎ Editing a recorded delivery — <b>Save changes</b> replaces it here and on the laptop. <span id="amCancelEdit" style="text-decoration:underline; cursor:pointer;">Cancel edit</span></div>
     <div class="sub">Received for the Aftermarket department — <b>recorded only, not our stock</b>. Our Qty on Hand doesn't change. A shared delivery (e.g. 50 for us, 20 for them) goes in twice: ours through 📥 Goods Received, theirs here.</div>
     <div class="addjob-row2">
       <div class="addjob-field"><label>Date</label><input type="date" id="amDate"></div>
@@ -8505,9 +8506,21 @@ function rememberAftermarketItems(names){
 function amEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 // Files a synced aftermarket line (from any device) — never touches stock.
+// An edit/delete arrives as one "replace this delivery" message; the newest
+// edit wins. A deleted delivery is kept as a marker so a late original
+// line can't bring it back.
 function fileAftermarketTxn(txn){
   const m = txn.meta || {};
   let d = aftermarketDeliveries.find(x=> x.id === m.amDeliveryId);
+  if(m.amAction === 'replace' || m.amAction === 'delete'){
+    if(d && d.editedAt && m.editedAt && d.editedAt >= m.editedAt) return; // a newer edit is already here
+    const rec = m.amAction === 'delete' ? { id: m.amDeliveryId, deleted: true, editedAt: m.editedAt, lines: [] }
+                                        : Object.assign({}, m.delivery, { id: m.amDeliveryId, editedAt: m.editedAt });
+    if(d){ Object.keys(d).forEach(k=> delete d[k]); Object.assign(d, rec); } else aftermarketDeliveries.unshift(rec);
+    saveAftermarketDeliveries();
+    return;
+  }
+  if(d && (d.deleted || (d.editedAt && txn.created_at && txn.created_at < d.editedAt))) return; // superseded by an edit
   if(!d){
     d = { id: m.amDeliveryId || txn.id, date: m.date || (txn.created_at||'').slice(0,10), supplier: m.supplier || '', orderNo: m.orderNo || '',
           grnNo: m.grnNo || '', invoiceNo: m.invoiceNo || '', receivedBy: m.receivedBy || '', notes: m.notes || '',
@@ -8537,14 +8550,67 @@ function amRenderLines(){
 }
 function amRenderRecent(){
   const wrap = document.getElementById('amRecent');
-  if(!aftermarketDeliveries.length){ wrap.innerHTML = `<div class="log-empty">None recorded yet.</div>`; return; }
-  wrap.innerHTML = aftermarketDeliveries.slice(0, 30).map(d=>`
+  const live = aftermarketDeliveries.filter(d=> !d.deleted);
+  if(!live.length){ wrap.innerHTML = `<div class="log-empty">None recorded yet.</div>`; return; }
+  wrap.innerHTML = live.slice(0, 30).map(d=>`
     <div class="ajrow" style="flex-direction:column; align-items:stretch; gap:2px; margin-bottom:6px;">
-      <div style="font-size:12.5px; font-weight:600;">${amEsc(d.date)} · ${amEsc(d.supplier || '—')}${d.orderNo ? ` · Order ${amEsc(d.orderNo)}` : ''}${d.grnNo ? ` · GRN ${amEsc(d.grnNo)}` : ''}</div>
-      <div style="font-size:12px; color:var(--text-muted);">${d.lines.map(l=> `${amEsc(l.name)}${l.partNo ? ' ('+amEsc(l.partNo)+')' : ''} × ${amEsc(l.qty)}`).join(' · ')}</div>
+      <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+        <div style="font-size:12.5px; font-weight:600;">${amEsc(d.date)} · ${amEsc(d.supplier || '—')}${d.orderNo ? ` · Order ${amEsc(d.orderNo)}` : ''}${d.grnNo ? ` · GRN ${amEsc(d.grnNo)}` : ''}${d.editedAt ? ' <span style="color:#7A4FA0; font-weight:400;">(edited)</span>' : ''}</div>
+        <div style="white-space:nowrap;">
+          <button class="ajrow-remove" data-am-edit="${amEsc(d.id)}" style="font-size:11px; padding:4px 10px; border:1px solid #7A4FA0; color:#7A4FA0; background:none; border-radius:6px;">✎ Edit</button>
+          <button class="ajrow-remove" data-am-delete="${amEsc(d.id)}" style="font-size:11px; padding:4px 10px; border:1px solid var(--danger); color:var(--danger); background:none; border-radius:6px;">🗑 Delete</button>
+        </div>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted);">${(d.lines||[]).map(l=> `${amEsc(l.name)}${l.partNo ? ' ('+amEsc(l.partNo)+')' : ''} × ${amEsc(l.qty)}`).join(' · ')}</div>
     </div>`).join('');
+  wrap.querySelectorAll('[data-am-edit]').forEach(b=> b.onclick = ()=> amStartEdit(b.dataset.amEdit));
+  wrap.querySelectorAll('[data-am-delete]').forEach(b=> b.onclick = ()=> amDelete(b.dataset.amDelete));
+}
+
+// Edit / delete — synced to the other device as one "replace" / "delete"
+// message for the whole delivery (never touches stock).
+let amEditingId = null;
+function amSendReplaceOrDelete(action, d){
+  const editedAt = new Date().toISOString();
+  const delivery = action === 'replace' ? { date: d.date, supplier: d.supplier, orderNo: d.orderNo, grnNo: d.grnNo, invoiceNo: d.invoiceNo,
+    receivedBy: d.receivedBy, notes: d.notes, device: d.device, createdAt: d.createdAt, lines: d.lines.map(l=>({ name: l.name, partNo: l.partNo, qty: l.qty })) } : null;
+  if(typeof queueTransaction === 'function') queueTransaction({ id: newTxnId(), item_id: 'AFTERMARKET', type: 'delivery', delta_qty: 0,
+    meta: { aftermarket: true, amAction: action, amDeliveryId: d.id, editedAt, delivery, date: d.date, item_name: action === 'delete' ? 'Aftermarket delivery deleted' : 'Aftermarket delivery edited' } });
+  return editedAt;
+}
+function amStartEdit(id){
+  const d = aftermarketDeliveries.find(x=> x.id === id && !x.deleted);
+  if(!d) return;
+  amEditingId = id;
+  document.getElementById('amDate').value = d.date || '';
+  document.getElementById('amSupplier').value = d.supplier || '';
+  document.getElementById('amOrderNo').value = d.orderNo || '';
+  document.getElementById('amGrnNo').value = d.grnNo || '';
+  document.getElementById('amInvoiceNo').value = d.invoiceNo || '';
+  document.getElementById('amReceivedBy').value = d.receivedBy || '';
+  document.getElementById('amNotes').value = d.notes || '';
+  amDraftLines = (d.lines || []).map(l=>({ name: l.name, partNo: l.partNo || '', qty: String(l.qty) }));
+  amDraftLines.push({ name:'', partNo:'', qty:'' });
+  amRenderLines();
+  document.getElementById('amSaveBtn').textContent = 'Save changes';
+  document.getElementById('amEditBanner').style.display = 'block';
+  document.querySelector('#aftermarketModal .addjob-card').scrollTop = 0;
+}
+function amDelete(id){
+  const d = aftermarketDeliveries.find(x=> x.id === id && !x.deleted);
+  if(!d) return;
+  if(!confirm(`Delete this aftermarket delivery?\n\n${d.date} · ${d.supplier}${d.orderNo ? ' · order '+d.orderNo : ''}\n${(d.lines||[]).map(l=> l.name+' × '+l.qty).join('\n')}\n\nRecord only — our stock is not affected. Also removed on the laptop.`)) return;
+  const editedAt = amSendReplaceOrDelete('delete', d);
+  Object.keys(d).forEach(k=> delete d[k]);
+  Object.assign(d, { id, deleted: true, editedAt, lines: [] });
+  saveAftermarketDeliveries();
+  if(amEditingId === id) openAftermarketModal(); else amRenderRecent();
+  if(typeof showToast === 'function') showToast('Aftermarket delivery deleted.');
 }
 function openAftermarketModal(){
+  amEditingId = null;
+  document.getElementById('amSaveBtn').textContent = 'Record Aftermarket Delivery';
+  document.getElementById('amEditBanner').style.display = 'none';
   document.getElementById('amDate').value = new Date().toISOString().slice(0,10);
   ['amSupplier','amOrderNo','amGrnNo','amInvoiceNo','amNotes'].forEach(id=> document.getElementById(id).value = '');
   document.getElementById('amReceivedBy').value = state.worker ? state.worker.name : '';
@@ -8562,6 +8628,7 @@ function openAftermarketModal(){
 document.getElementById('aftermarketBtn').onclick = openAftermarketModal;
 document.getElementById('grnToAftermarketLink').onclick = ()=>{ document.getElementById('goodsReceivedModal').classList.remove('show'); openAftermarketModal(); };
 document.getElementById('amCancelBtn').onclick = ()=> document.getElementById('aftermarketModal').classList.remove('show');
+document.getElementById('amCancelEdit').onclick = openAftermarketModal;
 document.getElementById('amAddLineBtn').onclick = ()=>{ amDraftLines.push({ name:'', partNo:'', qty:'' }); amRenderLines(); };
 document.getElementById('amSaveBtn').onclick = ()=>{
   const supplier = document.getElementById('amSupplier').value.trim();
@@ -8578,6 +8645,22 @@ document.getElementById('amSaveBtn').onclick = ()=>{
   if(!lines.length && !problems.length) problems.push('Add at least one item and qty');
   if(problems.length){ alert(`Not recorded yet:\n\n${problems.join('\n')}`); return; }
   const now = new Date();
+  if(amEditingId){
+    const d = aftermarketDeliveries.find(x=> x.id === amEditingId && !x.deleted);
+    if(!d){ openAftermarketModal(); return; }
+    Object.assign(d, {
+      date: document.getElementById('amDate').value || d.date, supplier,
+      orderNo: document.getElementById('amOrderNo').value.trim(), grnNo: document.getElementById('amGrnNo').value.trim(),
+      invoiceNo: document.getElementById('amInvoiceNo').value.trim(), receivedBy: document.getElementById('amReceivedBy').value.trim(),
+      notes: document.getElementById('amNotes').value.trim(), lines: lines.map(l=> Object.assign({ txnId: newTxnId() }, l))
+    });
+    d.editedAt = amSendReplaceOrDelete('replace', d);
+    saveAftermarketDeliveries();
+    rememberAftermarketItems(lines.map(l=>l.name));
+    if(typeof showToast === 'function') showToast('Aftermarket delivery updated — here and on the laptop. Our stock unchanged.');
+    openAftermarketModal();
+    return;
+  }
   const d = {
     id: 'am' + now.getTime(),
     date: document.getElementById('amDate').value || now.toISOString().slice(0,10),

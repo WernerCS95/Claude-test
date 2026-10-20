@@ -511,6 +511,29 @@ try{
   </div>
 </div>
 
+<div class="modal-bg" id="amrEditModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; z-index:320;">
+  <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:820px; width:96%; max-height:90vh; overflow-y:auto;">
+    <h3 style="margin:0 0 4px; color:#7A4FA0;">✎ Edit aftermarket delivery</h3>
+    <div class="sub" style="margin-bottom:10px;">Record only — our stock isn't affected. Saving replaces it here and on the tablet, and goes in the Override Log.</div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin-bottom:12px;">
+      <label style="font-size:12px;">Date<br><input type="date" id="amrDate" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;"></label>
+      <label style="font-size:12px;">Supplier<br><input id="amrSupplier" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Their order no<br><input id="amrOrder" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Delivery note / GRN<br><input id="amrGrn" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Invoice no<br><input id="amrInvoice" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+      <label style="font-size:12px;">Received by<br><input id="amrReceivedBy" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+    </div>
+    <datalist id="amrItemList"></datalist>
+    <table><thead><tr><th>Item</th><th>Part no</th><th class="right">Qty</th><th></th></tr></thead><tbody id="amrLines"></tbody></table>
+    <button class="btn" id="amrAddLineBtn" style="margin-top:6px; border-color:#7A4FA0; color:#7A4FA0;">+ Add line</button>
+    <label style="font-size:12px; display:block; margin-top:10px;">Notes<br><input id="amrNotes" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;"></label>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button class="btn primary" id="amrSaveBtn" style="background:#7A4FA0; border-color:#7A4FA0;">Save changes</button>
+      <button class="btn" id="amrCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Price Compare — same part, multiple suppliers, without duplicate stock items -->
 <div class="modal-bg" id="priceCompareModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
   <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1100px; width:97%; max-height:92vh; overflow-y:auto;">
@@ -5780,6 +5803,18 @@ function saveAftermarket(){ try{ localStorage.setItem(AFTERMARKET_KEY, JSON.stri
 function fileAftermarketLine(txn){
   const m = txn.meta || {};
   let d = aftermarketDeliveries.find(x=> x.id === m.amDeliveryId);
+  // Edit/delete from either device: one "replace this delivery" message,
+  // newest edit wins; deleted deliveries stay as a marker so a late
+  // original line can't bring them back.
+  if(m.amAction === 'replace' || m.amAction === 'delete'){
+    if(d && d.editedAt && m.editedAt && d.editedAt >= m.editedAt) return;
+    const rec = m.amAction === 'delete' ? { id: m.amDeliveryId, deleted: true, editedAt: m.editedAt, lines: [] }
+                                        : Object.assign({}, m.delivery, { id: m.amDeliveryId, editedAt: m.editedAt });
+    if(d){ Object.keys(d).forEach(k=> delete d[k]); Object.assign(d, rec); } else aftermarketDeliveries.push(rec);
+    saveAftermarket();
+    return;
+  }
+  if(d && (d.deleted || (d.editedAt && txn.created_at && txn.created_at < d.editedAt))) return;
   if(!d){
     d = { id: m.amDeliveryId || txn.id, date: m.date || (txn.created_at||'').slice(0,10), supplier: m.supplier || '', orderNo: m.orderNo || '',
           grnNo: m.grnNo || '', invoiceNo: m.invoiceNo || '', receivedBy: m.receivedBy || '', notes: m.notes || '',
@@ -5796,6 +5831,7 @@ function amFilters(){
 function amVal(id){ return document.getElementById(id).value.trim().toLowerCase(); }
 function amFiltered(f){
   return aftermarketDeliveries.filter(d=>{
+    if(d.deleted) return false;
     if(f.supplier && !(d.supplier||'').toLowerCase().includes(f.supplier)) return false;
     if(f.order && !String(d.orderNo||'').toLowerCase().includes(f.order)) return false;
     if(f.item && !d.lines.some(l=> (l.name||'').toLowerCase().includes(f.item) || (l.partNo||'').toLowerCase().includes(f.item))) return false;
@@ -5813,18 +5849,100 @@ function renderAftermarket(){
   const f = amFilters();
   const list = amFiltered(f);
   const body = document.getElementById('amBody');
-  if(!list.length){ body.innerHTML = `<div class="empty">${aftermarketDeliveries.length ? 'No aftermarket deliveries match these filters.' : 'No aftermarket deliveries recorded yet. They\'re captured on the tablet: Input → 📦 Aftermarket Delivery.'}</div>`; return; }
+  if(!list.length){ body.innerHTML = `<div class="empty">${aftermarketDeliveries.some(d=>!d.deleted) ? 'No aftermarket deliveries match these filters.' : 'No aftermarket deliveries recorded yet. They\'re captured on the tablet: Input → 📦 Aftermarket Delivery.'}</div>`; return; }
   const lines = list.reduce((a,d)=> a + d.lines.length, 0);
   body.innerHTML = `<div class="sub" style="margin-bottom:8px;">${list.length} deliver${list.length===1?'y':'ies'} · ${lines} line(s) · ${rqEsc(amFilterText(f))}</div>` +
     list.map(d=>`
     <div style="border:1px solid var(--panel-line); border-left:4px solid #7A4FA0; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
-      <div style="font-weight:600; margin-bottom:6px;">${rqEsc(d.date)} · ${rqEsc(d.supplier || '—')}${d.orderNo ? ` · Their order <b>${rqEsc(d.orderNo)}</b>` : ''}${d.grnNo ? ` · GRN ${rqEsc(d.grnNo)}` : ''}${d.invoiceNo ? ` · Inv ${rqEsc(d.invoiceNo)}` : ''}
-        <span class="sub" style="margin-left:6px;">${d.receivedBy ? 'received by ' + rqEsc(d.receivedBy) : ''}</span></div>
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:6px;">
+        <div style="font-weight:600;">${rqEsc(d.date)} · ${rqEsc(d.supplier || '—')}${d.orderNo ? ` · Their order <b>${rqEsc(d.orderNo)}</b>` : ''}${d.grnNo ? ` · GRN ${rqEsc(d.grnNo)}` : ''}${d.invoiceNo ? ` · Inv ${rqEsc(d.invoiceNo)}` : ''}
+          <span class="sub" style="margin-left:6px;">${d.receivedBy ? 'received by ' + rqEsc(d.receivedBy) : ''}${d.editedAt ? ' · edited ' + new Date(d.editedAt).toLocaleString('en-ZA') : ''}</span></div>
+        <div style="white-space:nowrap;"><button class="btn" data-amr-edit="${rqEsc(d.id)}" style="padding:4px 10px; font-size:11.5px; border-color:#7A4FA0; color:#7A4FA0;">✎ Edit</button> <button class="btn" data-amr-del="${rqEsc(d.id)}" style="padding:4px 10px; font-size:11.5px; border-color:var(--danger); color:var(--danger);">🗑 Delete</button></div>
+      </div>
       <table><thead><tr><th>Item</th><th>Part no</th><th class="right">Qty</th></tr></thead><tbody>
         ${d.lines.map(l=>`<tr><td>${rqEsc(l.name)}</td><td class="sku">${rqEsc(l.partNo || '')}</td><td class="right num">${rqEsc(l.qty)}</td></tr>`).join('')}
       </tbody></table>
       ${d.notes ? `<div class="sub" style="margin-top:4px;">${rqEsc(d.notes)}</div>` : ''}
     </div>`).join('');
+  body.querySelectorAll('[data-amr-edit]').forEach(b=> b.onclick = ()=> amrOpenEdit(b.dataset.amrEdit));
+  body.querySelectorAll('[data-amr-del]').forEach(b=> b.onclick = ()=> amrDelete(b.dataset.amrDel));
+}
+
+function amrSummary(d){ return `${d.date} · ${d.supplier}${d.orderNo ? ' · order ' + d.orderNo : ''} · ` + (d.lines||[]).map(l=> `${l.name}${l.partNo ? ' ('+l.partNo+')' : ''} ×${l.qty}`).join(', '); }
+function amrSend(action, d, editedAt){
+  const delivery = action === 'replace' ? { date: d.date, supplier: d.supplier, orderNo: d.orderNo, grnNo: d.grnNo, invoiceNo: d.invoiceNo,
+    receivedBy: d.receivedBy, notes: d.notes, device: d.device, receivedAt: d.receivedAt, lines: d.lines.map(l=>({ name: l.name, partNo: l.partNo, qty: l.qty })) } : null;
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: 'AFTERMARKET', type: 'delivery', delta_qty: 0,
+    meta: { aftermarket: true, amAction: action, amDeliveryId: d.id, editedAt, delivery, date: d.date, item_name: action === 'delete' ? 'Aftermarket delivery deleted' : 'Aftermarket delivery edited' } });
+}
+function amrDelete(id){
+  const d = aftermarketDeliveries.find(x=> x.id === id && !x.deleted);
+  if(!d) return;
+  if(!confirm(`Delete this aftermarket delivery?\n\n${amrSummary(d)}\n\nRecord only — our stock is not affected. Also removed on the tablet, and logged in the Override Log.`)) return;
+  const editedAt = new Date().toISOString();
+  const before = amrSummary(d);
+  amrSend('delete', d, editedAt);
+  Object.keys(d).forEach(k=> delete d[k]);
+  Object.assign(d, { id, deleted: true, editedAt, lines: [] });
+  saveAftermarket();
+  logOverride({ at: editedAt, action: 'Delete aftermarket delivery', where: 'Aftermarket Deliveries', item: '', field: 'delivery', oldValue: before, newValue: 'deleted', stockChanged: false });
+  renderAftermarket();
+}
+let amrEditingId = null;
+function amrLineRow(l, i){
+  return `<tr data-amr-line="${i}">
+    <td><input list="amrItemList" data-amr-name="${i}" value="${rqEsc(l.name)}" style="width:100%; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:5px 7px;"></td>
+    <td><input data-amr-part="${i}" value="${rqEsc(l.partNo||'')}" style="width:130px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:5px 7px;"></td>
+    <td><input type="number" step="any" min="0" data-amr-qty="${i}" value="${rqEsc(l.qty)}" style="width:80px; text-align:right; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:5px 7px;"></td>
+    <td><button class="row-delete-btn" data-amr-rm="${i}">✕</button></td></tr>`;
+}
+let amrLines = [];
+function amrRenderLines(){
+  const tb = document.getElementById('amrLines');
+  tb.innerHTML = amrLines.map(amrLineRow).join('');
+  tb.querySelectorAll('[data-amr-name]').forEach(el=> el.oninput = ()=>{ amrLines[Number(el.dataset.amrName)].name = el.value; });
+  tb.querySelectorAll('[data-amr-part]').forEach(el=> el.oninput = ()=>{ amrLines[Number(el.dataset.amrPart)].partNo = el.value; });
+  tb.querySelectorAll('[data-amr-qty]').forEach(el=> el.oninput = ()=>{ amrLines[Number(el.dataset.amrQty)].qty = el.value; });
+  tb.querySelectorAll('[data-amr-rm]').forEach(el=> el.onclick = ()=>{ amrLines.splice(Number(el.dataset.amrRm), 1); amrRenderLines(); });
+}
+function amrOpenEdit(id){
+  const d = aftermarketDeliveries.find(x=> x.id === id && !x.deleted);
+  if(!d) return;
+  amrEditingId = id;
+  [['amrDate','date'],['amrSupplier','supplier'],['amrOrder','orderNo'],['amrGrn','grnNo'],['amrInvoice','invoiceNo'],['amrReceivedBy','receivedBy'],['amrNotes','notes']]
+    .forEach(([el, k])=> document.getElementById(el).value = d[k] || '');
+  amrLines = (d.lines||[]).map(l=>({ name: l.name, partNo: l.partNo || '', qty: l.qty }));
+  const names = [...new Set([...aftermarketDeliveries.flatMap(x=> (x.lines||[]).map(l=> l.name)), ...stock.map(i=> i.name)].filter(Boolean))];
+  document.getElementById('amrItemList').innerHTML = names.map(n=> `<option value="${rqEsc(n)}"></option>`).join('');
+  amrRenderLines();
+  document.getElementById('amrEditModal').style.display = 'flex';
+}
+function amrSaveEdit(){
+  const d = aftermarketDeliveries.find(x=> x.id === amrEditingId && !x.deleted);
+  if(!d) return;
+  const v = id=> document.getElementById(id).value.trim();
+  const problems = [], lines = [];
+  amrLines.forEach((l, i)=>{
+    const name = (l.name||'').trim(), qty = Number(String(l.qty).replace(',', '.'));
+    if(!name && String(l.qty).trim() === '' && !(l.partNo||'').trim()) return;
+    if(!name) problems.push(`Line ${i+1}: item name missing`);
+    else if(!(qty > 0)) problems.push(`Line ${i+1}: qty above 0 needed`);
+    else lines.push({ name, partNo: (l.partNo||'').trim(), qty });
+  });
+  if(!v('amrSupplier')) problems.unshift('Supplier missing');
+  if(!lines.length && !problems.length) problems.push('At least one item and qty needed — use Delete to remove the whole delivery');
+  if(problems.length){ alert(`Not saved:\n\n${problems.join('\n')}`); return; }
+  const before = amrSummary(d);
+  Object.assign(d, { date: v('amrDate') || d.date, supplier: v('amrSupplier'), orderNo: v('amrOrder'), grnNo: v('amrGrn'), invoiceNo: v('amrInvoice'),
+    receivedBy: v('amrReceivedBy'), notes: v('amrNotes'), lines: lines.map(l=> Object.assign({ txnId: 'edit-' + Math.random().toString(36).slice(2,9) }, l)) });
+  const after = amrSummary(d);
+  if(after === before){ alert('Nothing changed.'); return; }
+  d.editedAt = new Date().toISOString();
+  amrSend('replace', d, d.editedAt);
+  saveAftermarket();
+  logOverride({ at: d.editedAt, action: 'Edit aftermarket delivery', where: 'Aftermarket Deliveries', item: '', field: 'delivery', oldValue: before, newValue: after, stockChanged: false });
+  document.getElementById('amrEditModal').style.display = 'none';
+  renderAftermarket();
 }
 function printAftermarket(){
   const f = amFilters();
@@ -5858,6 +5976,9 @@ function printAftermarket(){
 document.getElementById('aftermarketBtn').onclick = ()=>{ renderAftermarket(); document.getElementById('aftermarketModal').style.display = 'flex'; };
 document.getElementById('amCloseBtn').onclick = ()=> document.getElementById('aftermarketModal').style.display = 'none';
 document.getElementById('amPrintBtn').onclick = printAftermarket;
+document.getElementById('amrSaveBtn').onclick = amrSaveEdit;
+document.getElementById('amrCancelBtn').onclick = ()=> document.getElementById('amrEditModal').style.display = 'none';
+document.getElementById('amrAddLineBtn').onclick = ()=>{ amrLines.push({ name:'', partNo:'', qty:'' }); amrRenderLines(); };
 ['amfSupplier','amfOrder','amfItem','amfFrom','amfTo'].forEach(id=> document.getElementById(id).addEventListener('input', renderAftermarket));
 
 /* ==========================================================================
@@ -6350,7 +6471,12 @@ function showSyncToast(txn, itemName){
     // Not our stock — say so, never "+0" on a stock line.
     const el = document.createElement('div');
     el.className = 'sync-toast';
-    el.innerHTML = `<div class="sync-toast-title" style="color:#7A4FA0;">Aftermarket delivery (not our stock) — from ${rqEsc(txn.source_device || 'tablet')}</div><div>${rqEsc(txn.meta.name || '')} × ${rqEsc(txn.meta.qty)}${txn.meta.orderNo ? ' · their order ' + rqEsc(txn.meta.orderNo) : ''}</div>`;
+    const m = txn.meta;
+    const what = m.amAction === 'delete' ? 'Aftermarket delivery deleted' : m.amAction === 'replace' ? 'Aftermarket delivery edited' : 'Aftermarket delivery (not our stock)';
+    const detail = m.amAction === 'replace' && m.delivery ? `${rqEsc(m.delivery.supplier || '')}${m.delivery.orderNo ? ' · their order ' + rqEsc(m.delivery.orderNo) : ''}`
+                 : m.amAction === 'delete' ? 'removed from the register'
+                 : `${rqEsc(m.name || '')} × ${rqEsc(m.qty)}${m.orderNo ? ' · their order ' + rqEsc(m.orderNo) : ''}`;
+    el.innerHTML = `<div class="sync-toast-title" style="color:#7A4FA0;">${what} — from ${rqEsc(txn.source_device || 'tablet')}</div><div>${detail}</div>`;
     wrap.appendChild(el);
     setTimeout(()=> el.remove(), 6000);
     return;

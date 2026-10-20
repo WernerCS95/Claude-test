@@ -18,6 +18,9 @@ uninstall first or says "App not installed": STOP and send a screenshot.
 8. Input → **⚙ More → 💾 Download Backup Now** and **📤 Export & Share Full Current State**; Admin → **💾 Backup & Share**
 9. Install **leader-stores-2.3.apk** from Drive → **Update**
 10. Input → **🔎 Verify Against Backup** (Full State file) · Admin → **🔎 Verify Against Backup** (Master List backup)
+11. **Remove the old app — one app from now on.** Only once step 10 matches: Android Settings → Apps →
+    **Leader Master List** → Uninstall. ⚠ Uninstall *Leader Master List* only — **never Leader Stores
+    Terminal**: that's the new app with all your data (Input + Admin). If unsure which is which, stop and ask.
 
 ## New since 2.0
 - **Tablet, Input → 📝 Slip Grid:** capture a pile of paper slips, Post, carry on.
@@ -26,4 +29,5 @@ uninstall first or says "App not installed": STOP and send a screenshot.
 - **Laptop, Admin → 📈 Issued History:** filter by item / job / name / dates, totals, print.
 - **Tablet, Input → 📦 Aftermarket Delivery:** record goods received for Aftermarket — their own order no, not our stock.
 - **Laptop, Admin → 📦 Aftermarket Deliveries:** their register, filters, print with Received by / Handed over to.
+- Aftermarket deliveries can be **edited or deleted** on either device; it syncs to the other.
 - Exact-time overrides (1c): a laptop correction is final; tablet slips entered after it still count.

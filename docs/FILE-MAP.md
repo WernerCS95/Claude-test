@@ -28,7 +28,7 @@ a small shim that borrows the shell's Android bridge when running in a frame.
 | Manual Sync Code (fallback for live sync) | `RECENT_TXN_LOG_KEY`, `copyManualSyncCodeBtn` | ~7737 |
 | Live sync to Master List | `SUPABASE_URL`, `queueTransaction`, `applyRemoteTransaction`, `pullMissedTransactions` | ~7790–7900 (near the very end of the file) |
 | Override rule (incoming laptop correction + tablet activity after it) | `isSupersededByOverride`, `tabletActivityRecordedAfter` (read `spotCheckHistory[].at`) | right after `recordSpotCheckHistory` |
-| Aftermarket Delivery (record only, not our stock) | `aftermarketModal` (HTML), `AFTERMARKET_DELIVERIES_KEY`, `AFTERMARKET_ITEMS_KEY`, `fileAftermarketTxn`; guard at top of `applyRemoteTransaction` | just above `SLIP GRID` |
+| Aftermarket Delivery (record only, not our stock) | `aftermarketModal` (HTML), `AFTERMARKET_DELIVERIES_KEY`, `AFTERMARKET_ITEMS_KEY`, `fileAftermarketTxn`, `amStartEdit`, `amDelete`, `amSendReplaceOrDelete`; guard at top of `applyRemoteTransaction` | just above `SLIP GRID` |
 | Slip Grid (batch capture of paper slips) | `slipGridScreen` (HTML), `SLIP_GRID_KEY`, `sgRender`, `sgReviewBeforePost`, `sgPostAll`, `sgEligible` | just above `RENDER: LOG` |
 | Import Counts (from Master List Stock Count) | `importPendingCounts`, `activitySinceCount`, `applyImportedCount`, `APPLIED_COUNT_IDS_KEY`, `importCountsPreviewModal` (HTML) | right after `importStockReference` |
 | Backup / Restore / Verify | `BACKUP_LOCALSTORAGE_KEYS`, `downloadFullSnapshot`, `restoreFromSnapshotFile`, `verifyAgainstBackupFile` | search for `BACKUP_LOCALSTORAGE_KEYS` |
@@ -52,7 +52,7 @@ Order Lists and most Admin/Reports screens live in **`master-list.html`**, not h
 | Live sync from terminal | `SUPABASE_URL`, `queueMasterTransaction`, `applyRemoteStockTransaction` | ~3886–3990 (near the end of the file) |
 | Review Queue (tablet batches: edit / delete / mark reviewed) | `reviewQueueModal` (HTML), `REVIEW_KEY`, `rqBatches`, `renderReviewQueue`, `editLedgerQty`, `editLedgerItem`, `deleteLedgerLine` | search for `REVIEW QUEUE + OVERRIDE LOG` |
 | Override Log (every laptop change: old, new, when) | `OVERRIDE_LOG_KEY`, `logOverride`, `renderOverrideLog` | same section |
-| Aftermarket Deliveries register (record only, print) | `aftermarketModal` (HTML), `AFTERMARKET_KEY`, `fileAftermarketLine`, `printAftermarket`; guard at top of `applyRemoteStockTransaction` | search for `AFTERMARKET DELIVERIES REGISTER` |
+| Aftermarket Deliveries register (record only, print) | `aftermarketModal` (HTML), `AFTERMARKET_KEY`, `fileAftermarketLine`, `amrOpenEdit`, `amrSaveEdit`, `amrDelete`, `printAftermarket`; guard at top of `applyRemoteStockTransaction` | search for `AFTERMARKET DELIVERIES REGISTER` |
 | Issued History / tally (filters, totals, print) | `issuedHistoryModal` (HTML), `ihRows`, `ihTotals`, `printIssuedHistory` | search for `ISSUED HISTORY / TALLY` |
 | Override rule (laptop correction wins, exact time) | `isSupersededByOverride` (reads `spotLedger[].at`) | right above `applyRemoteStockTransaction` |
 | Price Compare (supplier prices, preferred supplier) | `SUPPLIER_PRICES_KEY`, `SUPPLIER_SETTINGS_KEY`, `buyFromInfoForSku`, `priceCompareModal` (HTML) | search for `SUPPLIER PRICE COMPARISON` |

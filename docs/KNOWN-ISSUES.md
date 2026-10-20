@@ -50,15 +50,16 @@ an adjustment and the tablet's Qty on Hand is corrected to match. The slip as
 shown in the tablet's own Today's Log still shows what was originally posted.
 The laptop's ledger, Issued History and Override Log hold the corrected record.
 
-## 7. Don't open the old separate apps once 2.3 is in (noted 2026-10-20)
+## 7. Old separate apps — RESOLVED at the 2.3 install (2026-10-20)
 
-Aftermarket deliveries sync as "not our stock" lines that only 2.3 understands.
-The old stand-alone Leader Master List app (kept on the tablet as a fallback)
-would file one as a stock item called AFTERMARKET with qty 0 if it were opened.
-Harmless to stock, but untidy — once 2.3 is checked on both devices, uninstall
-the old Leader Master List app from the tablet (its data is already in Admin).
+Only the one app runs from 2.3 on. The old stand-alone Leader Master List app on
+the tablet is uninstalled during the 2.3 install, after Admin is verified (its
+data was moved into Admin at the 2.0 install).
 
-## 8. Aftermarket deliveries can't be edited or deleted yet (noted 2026-10-20)
+## 8. Aftermarket edit / delete — RESOLVED (2026-10-20)
 
-Recorded aftermarket deliveries are a register only. A mistake currently needs a
-new corrective entry. Edit/delete can be added if needed.
+Recorded aftermarket deliveries can be edited or deleted on the tablet (Recent
+list on the Aftermarket Delivery screen) and on the laptop (register). The change
+syncs as one replace/delete for the whole delivery; newest edit wins; a deleted
+delivery stays as a marker so late lines can't bring it back. Laptop edits and
+deletes are in the Override Log. Never touches stock.
