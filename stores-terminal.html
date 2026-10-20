@@ -520,6 +520,7 @@ try{
         <span class="sync-label" id="syncLabelMain">All synced</span>
       </div>
       <button class="clock-btn" id="addJobBtn" style="border-color:var(--steel); color:var(--steel);">+ Add Job</button>
+      <button class="clock-btn" id="slipGridBtn" style="border-color:var(--steel); color:#fff; background:var(--steel);">📝 Slip Grid</button>
       <button class="clock-btn" id="spotCheckBtn" style="border-color:var(--success); color:var(--success);">🔍 Spot Check</button>
       <button class="clock-btn" id="goodsReceivedBtn" style="border-color:var(--steel); color:var(--steel);">📥 Goods Received</button>
       <button class="clock-btn" id="newPartBtn" style="border-color:var(--gold); color:var(--gold);">+ New Part</button>
@@ -1039,6 +1040,53 @@ try{
     <button class="clock-btn" id="importCountsBtn" style="width:100%; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📥 Import Counts</button>
   </div>
 </div>
+
+<!-- Slip Grid — batch capture of paper requisition slips. Stays open for a
+     whole pile; Post books every filled line through the normal Parts
+     Issued logic, then clears in place. Unposted work auto-saves. -->
+<div id="slipGridScreen" style="position:fixed; inset:0; background:var(--void); z-index:400; display:none; flex-direction:column;">
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--panel-line);">
+    <div style="font-family:'Oswald',sans-serif; font-size:20px; font-weight:600; color:var(--steel);">📝 SLIP GRID</div>
+    <label style="font-size:14px; display:flex; align-items:center; gap:6px;">Batch date
+      <input type="date" id="sgBatchDate" class="sg-input" style="width:160px;">
+    </label>
+    <span id="sgStatus" style="font-size:12.5px; color:var(--text-faint);"></span>
+    <div style="margin-left:auto; display:flex; gap:8px;">
+      <button class="clock-btn" id="sgAddBtn" style="font-size:16px; padding:11px 20px; border-color:var(--steel); color:var(--steel);">+ More slips</button>
+      <button class="clock-btn" id="sgPostBtn" style="font-size:16px; padding:11px 20px; border-color:var(--success); color:#fff; background:var(--success);">✔ Post</button>
+      <button class="clock-btn" id="sgCloseBtn" style="font-size:16px; padding:11px 20px; border-color:var(--text-muted); color:var(--text-muted);">Close</button>
+    </div>
+  </div>
+  <div id="sgBody" style="flex:1; overflow-y:auto; padding:14px 16px 120px;"></div>
+  <div id="sgPicker" style="display:none; position:fixed; z-index:420; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.18); max-height:300px; overflow-y:auto; min-width:280px;"></div>
+  <div id="sgSummary" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:430; align-items:center; justify-content:center;">
+    <div style="background:var(--panel); border-radius:12px; padding:20px; width:min(720px,94vw); max-height:86vh; overflow-y:auto;">
+      <h3 style="margin:0 0 8px; font-family:'Oswald',sans-serif;">Post these slips?</h3>
+      <div id="sgSummaryBody"></div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="clock-btn" id="sgConfirmPostBtn" style="font-size:16px; border-color:var(--success); color:#fff; background:var(--success); padding:12px 22px;">✔ Post now</button>
+        <button class="clock-btn" id="sgCancelPostBtn" style="font-size:16px; border-color:var(--text-muted); color:var(--text-muted); padding:12px 22px;">Back to the grid</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  .sg-input{font:inherit; font-size:15px; padding:8px 9px; border:1px solid var(--panel-line); border-radius:6px; background:#fff; color:var(--text); box-sizing:border-box; min-width:0;}
+  .sg-input:focus{outline:2px solid var(--steel); outline-offset:-1px;}
+  .sg-input.sg-bad{border-color:var(--danger); background:#FDF1F0;}
+  #sgBody .sg-wrap{display:grid; grid-template-columns:repeat(auto-fill, minmax(560px, 1fr)); gap:14px;}
+  .sg-slip{background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:12px;}
+  .sg-slip.sg-has{border-color:var(--steel);}
+  .sg-slip-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-weight:600; color:var(--text-muted); font-size:13px;}
+  .sg-row{display:grid; gap:8px; margin-bottom:8px;}
+  .sg-row.r1{grid-template-columns:90px 150px 1fr;}
+  .sg-row.r2{grid-template-columns:1fr 1fr 100px;}
+  .sg-line{display:grid; grid-template-columns:22px 1fr 90px; gap:8px; align-items:center; margin-bottom:6px;}
+  .sg-line .n{font-size:12px; color:var(--text-faint); text-align:right;}
+  .sg-lab{font-size:11px; color:var(--text-faint); margin:0 0 2px 2px;}
+  .sg-pick-row{padding:11px 14px; cursor:pointer; border-bottom:1px solid var(--panel-line); display:flex; justify-content:space-between; gap:10px; font-size:15px;}
+  .sg-pick-row:hover,.sg-pick-row.sg-active{background:#EEF3FA;}
+</style>
 
 <!-- Import Counts preview — real physical counts from the laptop's Stock
      Count screen, applied here as dated spot checks after you confirm. -->
@@ -8396,6 +8444,327 @@ document.getElementById('submitBtn').onclick = ()=>{
   renderWorker();
   renderGrid(); // tiles must redraw now — otherwise Qty on Hand looks stuck at the old number until something else happens to refresh the grid
 };
+
+/* ====================== SLIP GRID (batch capture of paper slips) ======================
+   One block per paper requisition slip. Only Item + Qty are required.
+   The grid stays open for a whole pile; Post shows a summary, then books
+   every filled line exactly the way Submit Slip does (same log entry,
+   same stock deduction, same synced transaction per line), clears in
+   place and stays on screen. Unposted work is saved on every keystroke
+   to its own key, so closing/backgrounding/sleeping loses nothing.
+   Corrections after posting go through the normal log edit (in place).
+========================================================================= */
+const SLIP_GRID_KEY = 'leader-stores-slip-grid-draft-v1';
+const SG_LINES = 5, SG_START_SLIPS = 6, SG_MORE_SLIPS = 4;
+
+function sgToday(){
+  const d = new Date(), p = n=> String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function sgEmptySlip(){
+  return { slipNo:'', date:'', jobNo:'', customer:'', name:'', clock:'',
+    lines: Array.from({length: SG_LINES}, ()=>({ itemId:'', text:'', qty:'' })) };
+}
+function sgFreshDraft(batchDate){
+  return { batchDate: batchDate || sgToday(), open: false, slips: Array.from({length: SG_START_SLIPS}, sgEmptySlip) };
+}
+let sgDraft;
+try{ sgDraft = JSON.parse(localStorage.getItem(SLIP_GRID_KEY)) || null; }catch(e){ sgDraft = null; }
+if(!sgDraft || !Array.isArray(sgDraft.slips)) sgDraft = sgFreshDraft();
+
+function sgSave(){
+  try{ localStorage.setItem(SLIP_GRID_KEY, JSON.stringify(sgDraft)); }catch(e){}
+  sgUpdateStatus();
+}
+
+// Items with their own special screen on the tablet (gas bottles, argon,
+// box units, diesel, bolt sizes, kits assembled on the fly) stay on those
+// screens — a plain slip line would skip their own logic.
+function sgEligible(item){
+  if(!item || !item.name || isRetired(item.id)) return false;
+  if(getBoxUnitLink(item.id)) return false;
+  if(item.type === 'dynamic-kit' || item.gasTracking || item.id === LIQUID_ARGON_SKU) return false;
+  if(isBoltItem(item) || item.cat === 'Diesel') return false;
+  return true;
+}
+function sgLineFilled(l){ return !!(l.itemId || (l.text||'').trim() || String(l.qty).trim() !== ''); }
+function sgSlipFilled(sl){ return sl.lines.some(sgLineFilled); }
+
+function sgUpdateStatus(){
+  const slips = sgDraft.slips.filter(sgSlipFilled);
+  const lines = slips.reduce((a,sl)=> a + sl.lines.filter(sgLineFilled).length, 0);
+  const el = document.getElementById('sgStatus');
+  if(el) el.textContent = slips.length ? `Not posted yet: ${slips.length} slip${slips.length===1?'':'s'}, ${lines} line${lines===1?'':'s'} · auto-saved` : 'Nothing captured yet';
+}
+
+function sgEsc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function sgRender(){
+  document.getElementById('sgBatchDate').value = sgDraft.batchDate;
+  const body = document.getElementById('sgBody');
+  body.innerHTML = `<div class="sg-wrap">${sgDraft.slips.map((sl, si)=>`
+    <div class="sg-slip ${sgSlipFilled(sl)?'sg-has':''}" data-sg-slip="${si}">
+      <div class="sg-slip-head"><span>Slip ${si+1}</span></div>
+      <div class="sg-row r1">
+        <div><div class="sg-lab">Slip #</div><input class="sg-input" style="width:100%" data-sg-f="${si}|slipNo" value="${sgEsc(sl.slipNo)}" inputmode="numeric"></div>
+        <div><div class="sg-lab">Date (blank = batch date)</div><input type="date" class="sg-input" style="width:100%" data-sg-f="${si}|date" value="${sgEsc(sl.date)}"></div>
+        <div><div class="sg-lab">Job no</div><input class="sg-input" style="width:100%" data-sg-f="${si}|jobNo" value="${sgEsc(sl.jobNo)}"></div>
+      </div>
+      <div class="sg-row r2">
+        <div><div class="sg-lab">Customer</div><input class="sg-input" style="width:100%" data-sg-f="${si}|customer" value="${sgEsc(sl.customer)}"></div>
+        <div><div class="sg-lab">Name</div><input class="sg-input" style="width:100%" data-sg-f="${si}|name" value="${sgEsc(sl.name)}"></div>
+        <div><div class="sg-lab">Clock no</div><input class="sg-input" style="width:100%" data-sg-f="${si}|clock" value="${sgEsc(sl.clock)}" inputmode="numeric"></div>
+      </div>
+      ${sl.lines.map((l, li)=>{
+        const item = l.itemId ? ITEMS.find(i=>i.id===l.itemId) : null;
+        const text = item ? displayName(item) : (l.text || '');
+        const bad = (!l.itemId && (l.text||'').trim()) ? 'sg-bad' : '';
+        return `<div class="sg-line">
+          <span class="n">${li+1}</span>
+          <input class="sg-input ${bad}" data-sg-item="${si}|${li}" value="${sgEsc(text)}" placeholder="Item — tap to search" autocomplete="off">
+          <input class="sg-input" data-sg-qty="${si}|${li}" value="${sgEsc(l.qty)}" placeholder="Qty" inputmode="decimal" style="text-align:right;">
+        </div>`;
+      }).join('')}
+    </div>`).join('')}</div>`;
+  sgUpdateStatus();
+}
+
+// ---- item picker (catalog only, never free text) ----
+let sgPickTarget = null, sgPickMatches = [], sgPickActive = 0;
+function sgShowPicker(input){
+  const [si, li] = input.dataset.sgItem.split('|').map(Number);
+  sgPickTarget = { si, li, input };
+  const q = input.value.trim().toLowerCase();
+  sgPickMatches = ITEMS.filter(i=> sgEligible(i) && (!q || displayName(i).toLowerCase().includes(q) || i.id.toLowerCase().includes(q))).slice(0, 40);
+  sgPickActive = 0;
+  const pick = document.getElementById('sgPicker');
+  if(!q){ pick.style.display = 'none'; return; }
+  pick.innerHTML = sgPickMatches.length
+    ? sgPickMatches.map((i, idx)=>`<div class="sg-pick-row ${idx===0?'sg-active':''}" data-sg-pick="${i.id}"><span>${sgEsc(displayName(i))}</span><span style="font-size:12px; color:var(--text-faint); white-space:nowrap;">${sgEsc(i.cat)}${i.type==='kit'?' · kit':''}</span></div>`).join('')
+    : `<div style="padding:12px 14px; color:var(--text-faint); font-size:14px;">No catalog item matches. Gas, argon, diesel and bolt sizes are captured on their own screens.</div>`;
+  const r = input.getBoundingClientRect();
+  pick.style.left = Math.max(8, r.left) + 'px';
+  pick.style.width = Math.max(r.width, 320) + 'px';
+  const below = window.innerHeight - r.bottom;
+  if(below < 220 && r.top > below){ pick.style.top = ''; pick.style.bottom = (window.innerHeight - r.top + 4) + 'px'; }
+  else { pick.style.bottom = ''; pick.style.top = (r.bottom + 4) + 'px'; }
+  pick.style.display = 'block';
+}
+function sgHidePicker(){ document.getElementById('sgPicker').style.display = 'none'; sgPickTarget = null; }
+function sgChoose(itemId){
+  if(!sgPickTarget) return;
+  const { si, li, input } = sgPickTarget;
+  const item = ITEMS.find(i=>i.id===itemId);
+  if(!item) return;
+  const line = sgDraft.slips[si].lines[li];
+  line.itemId = item.id; line.text = displayName(item);
+  input.value = displayName(item);
+  input.classList.remove('sg-bad');
+  sgHidePicker();
+  sgMarkSlip(si);
+  sgSave();
+  const qty = document.querySelector(`[data-sg-qty="${si}|${li}"]`);
+  if(qty) qty.focus();
+}
+function sgMarkSlip(si){
+  const el = document.querySelector(`[data-sg-slip="${si}"]`);
+  if(el) el.classList.toggle('sg-has', sgSlipFilled(sgDraft.slips[si]));
+}
+
+function sgOpen(){
+  sgDraft.open = true; sgSave();
+  sgRender();
+  document.getElementById('slipGridScreen').style.display = 'flex';
+}
+function sgClose(){
+  sgHidePicker();
+  sgDraft.open = false; sgSave();
+  document.getElementById('slipGridScreen').style.display = 'none';
+}
+
+(function wireSlipGrid(){
+  const body = document.getElementById('sgBody');
+  const pick = document.getElementById('sgPicker');
+  document.getElementById('slipGridBtn').onclick = sgOpen;
+  document.getElementById('sgCloseBtn').onclick = sgClose;
+  document.getElementById('sgBatchDate').addEventListener('change', e=>{ sgDraft.batchDate = e.target.value || sgToday(); sgSave(); });
+  document.getElementById('sgAddBtn').onclick = ()=>{
+    for(let i=0;i<SG_MORE_SLIPS;i++) sgDraft.slips.push(sgEmptySlip());
+    sgSave(); sgRender();
+    body.scrollTop = body.scrollHeight;
+  };
+
+  body.addEventListener('input', e=>{
+    const t = e.target;
+    if(t.dataset.sgF){
+      const [si, f] = t.dataset.sgF.split('|');
+      sgDraft.slips[Number(si)][f] = t.value;
+      sgSave();
+    } else if(t.dataset.sgItem){
+      const [si, li] = t.dataset.sgItem.split('|').map(Number);
+      const line = sgDraft.slips[si].lines[li];
+      line.itemId = ''; line.text = t.value;
+      sgShowPicker(t);
+      sgMarkSlip(si);
+      sgSave();
+    } else if(t.dataset.sgQty){
+      const [si, li] = t.dataset.sgQty.split('|').map(Number);
+      sgDraft.slips[si].lines[li].qty = t.value;
+      t.classList.remove('sg-bad');
+      sgMarkSlip(si);
+      sgSave();
+    }
+  });
+  body.addEventListener('focusin', e=>{ if(e.target.dataset.sgItem) sgShowPicker(e.target); });
+  body.addEventListener('focusout', e=>{
+    const t = e.target;
+    if(!t.dataset.sgItem) return;
+    setTimeout(()=>{
+      if(sgPickTarget && sgPickTarget.input === t) sgHidePicker();
+      const [si, li] = t.dataset.sgItem.split('|').map(Number);
+      const line = sgDraft.slips[si] && sgDraft.slips[si].lines[li];
+      if(line) t.classList.toggle('sg-bad', !line.itemId && !!(line.text||'').trim());
+    }, 180);
+  });
+  body.addEventListener('keydown', e=>{
+    const t = e.target;
+    if(!t.dataset.sgItem || pick.style.display === 'none' || !sgPickMatches.length) return;
+    const rows = pick.querySelectorAll('[data-sg-pick]');
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      sgPickActive = (sgPickActive + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+      rows.forEach((r,i)=> r.classList.toggle('sg-active', i===sgPickActive));
+      rows[sgPickActive].scrollIntoView({ block:'nearest' });
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      sgChoose(sgPickMatches[sgPickActive].id);
+    } else if(e.key === 'Escape'){ sgHidePicker(); }
+  });
+  // pointerdown, not click — must land before the input's blur hides the list
+  pick.addEventListener('pointerdown', e=>{
+    const row = e.target.closest('[data-sg-pick]');
+    if(!row) return;
+    e.preventDefault();
+    sgChoose(row.dataset.sgPick);
+  });
+  body.addEventListener('scroll', sgHidePicker);
+
+  document.getElementById('sgPostBtn').onclick = sgReviewBeforePost;
+  document.getElementById('sgCancelPostBtn').onclick = ()=> document.getElementById('sgSummary').style.display = 'none';
+  document.getElementById('sgConfirmPostBtn').onclick = sgPostAll;
+
+  sgUpdateStatus();
+  // App was closed/reloaded with the grid open — straight back to it, once
+  // the rest of the page has finished starting up.
+  if(sgDraft.open) setTimeout(sgOpen, 0);
+})();
+
+let sgPending = null;
+function sgReviewBeforePost(){
+  sgHidePicker();
+  const problems = [];
+  const ready = [];
+  sgDraft.slips.forEach((sl, si)=>{
+    const filled = sl.lines.map((l, li)=>({ l, li })).filter(x=> sgLineFilled(x.l));
+    if(!filled.length) return;
+    const good = [];
+    filled.forEach(({ l, li })=>{
+      const q = Number(String(l.qty).replace(',', '.'));
+      if(!l.itemId){ problems.push(`Slip ${si+1}, line ${li+1}: pick the item from the list`); document.querySelector(`[data-sg-item="${si}|${li}"]`)?.classList.add('sg-bad'); }
+      else if(!(q > 0)){ problems.push(`Slip ${si+1}, line ${li+1}: enter a qty above 0`); document.querySelector(`[data-sg-qty="${si}|${li}"]`)?.classList.add('sg-bad'); }
+      else good.push({ itemId: l.itemId, qty: q });
+    });
+    if(good.length) ready.push({ si, sl, lines: good });
+  });
+  if(problems.length){
+    alert(`Fix these first — nothing has been posted:\n\n${problems.slice(0,20).join('\n')}${problems.length>20?`\n…and ${problems.length-20} more`:''}`);
+    return;
+  }
+  if(!ready.length){ alert('Nothing to post — fill in at least one Item and Qty.'); return; }
+
+  const totals = {};
+  let lineCount = 0;
+  ready.forEach(r=> r.lines.forEach(l=>{ lineCount++; totals[l.itemId] = (totals[l.itemId] || 0) + l.qty; }));
+  const byDate = {};
+  ready.forEach(r=>{ const d = r.sl.date || sgDraft.batchDate; byDate[d] = (byDate[d] || 0) + 1; });
+  document.getElementById('sgSummaryBody').innerHTML = `
+    <div style="font-size:15px; margin-bottom:10px;"><b>${ready.length}</b> slip${ready.length===1?'':'s'}, <b>${lineCount}</b> line${lineCount===1?'':'s'} — ${Object.keys(byDate).sort().map(d=>`${d}: ${byDate[d]} slip${byDate[d]===1?'':'s'}`).join(' · ')}</div>
+    <table style="width:100%; border-collapse:collapse; font-size:14px;">
+      <thead><tr><th style="text-align:left; padding:6px; border-bottom:1px solid var(--panel-line);">Item</th><th style="text-align:right; padding:6px; border-bottom:1px solid var(--panel-line);">Total qty</th><th style="text-align:right; padding:6px; border-bottom:1px solid var(--panel-line);">On hand after</th></tr></thead>
+      <tbody>${Object.keys(totals).map(id=>{
+        const item = ITEMS.find(i=>i.id===id);
+        const kit = item && item.type === 'kit';
+        const after = kit ? 'kit — parts deducted' : ((qtyOnHand[id] === undefined ? 0 : qtyOnHand[id]) - totals[id]);
+        return `<tr><td style="padding:6px; border-bottom:1px solid var(--panel-line);">${sgEsc(item ? displayName(item) : id)}</td><td style="text-align:right; padding:6px; border-bottom:1px solid var(--panel-line); font-weight:700;">${totals[id]}</td><td style="text-align:right; padding:6px; border-bottom:1px solid var(--panel-line); ${typeof after==='number' && after<0 ? 'color:var(--danger); font-weight:700;' : ''}">${after}</td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  sgPending = ready;
+  document.getElementById('sgSummary').style.display = 'flex';
+}
+
+// Books the slips exactly like Submit Slip: same entry shape, same stock
+// deduction (kits deduct each component), same queued transaction per
+// line — plus slip #, posting batch and batch date for the laptop's review.
+function sgPostAll(){
+  if(!sgPending) return;
+  const ready = sgPending; sgPending = null;
+  document.getElementById('sgSummary').style.display = 'none';
+  const base = Date.now();
+  const postBatchId = 'pb' + base;
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'});
+  let lineCount = 0;
+  ready.forEach((r, i)=>{
+    const lines = [];
+    r.lines.forEach(l=>{
+      const item = ITEMS.find(x=>x.id===l.itemId);
+      const isKit = item.type === 'kit';
+      const same = !isKit ? lines.find(x=> !x.isKit && x.itemId === item.id) : null;
+      if(same) same.qty += l.qty;
+      else lines.push({ itemId: item.id, name: displayName(item), qty: l.qty, isKit, components: isKit ? JSON.parse(JSON.stringify(item.components || [])) : null });
+    });
+    const entry = {
+      _id: 'e' + (base + i),
+      date: r.sl.date || sgDraft.batchDate,
+      time,
+      worker: (r.sl.name || '').trim(),
+      clock: (r.sl.clock || '').trim() || null,
+      customer: (r.sl.customer || '').trim(),
+      jobNo: (r.sl.jobNo || '').trim(),
+      lines,
+      synced: false,
+      slipNo: (r.sl.slipNo || '').trim() || null,
+      postBatchId,
+      batchDate: sgDraft.batchDate
+    };
+    state.log.unshift(entry);
+    const meta = { date: entry.date, customer: entry.customer, jobNo: entry.jobNo, worker: entry.worker, clock: entry.clock, slipId: entry._id, slipNo: entry.slipNo, postBatchId, batchDate: entry.batchDate };
+    entry.lines.forEach(line=>{
+      lineCount++;
+      if(line.isKit && line.components){
+        line.components.forEach(c=>{
+          adjustQtyOnHand(c.sku, -(c.qty * line.qty));
+          c._txnId = c._txnId || newTxnId();
+          if(typeof queueTransaction === 'function') queueTransaction({ id: c._txnId, item_id: c.sku, type: 'issue', delta_qty: -(c.qty * line.qty), meta: Object.assign({ item_name: c.name }, meta) });
+        });
+      } else {
+        adjustQtyOnHand(line.itemId, -line.qty);
+        line._txnId = line._txnId || newTxnId();
+        if(typeof queueTransaction === 'function') queueTransaction({ id: line._txnId, item_id: line.itemId, type: 'issue', delta_qty: -line.qty, meta: Object.assign({ item_name: line.name }, meta) });
+      }
+    });
+  });
+  saveLog();
+  renderLog();
+  renderGrid();
+  const keepDate = sgDraft.batchDate;
+  sgDraft = sgFreshDraft(keepDate);
+  sgDraft.open = true;
+  sgSave();
+  sgRender();
+  document.getElementById('sgBody').scrollTop = 0;
+  if(typeof showToast === 'function') showToast(`Posted ${ready.length} slip${ready.length===1?'':'s'} (${lineCount} line${lineCount===1?'':'s'}). Grid cleared — ready for the next pile.`);
+}
 
 /* ====================== RENDER: LOG ====================== */
 

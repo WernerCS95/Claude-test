@@ -28,6 +28,7 @@ a small shim that borrows the shell's Android bridge when running in a frame.
 | Manual Sync Code (fallback for live sync) | `RECENT_TXN_LOG_KEY`, `copyManualSyncCodeBtn` | ~7737 |
 | Live sync to Master List | `SUPABASE_URL`, `queueTransaction`, `applyRemoteTransaction`, `pullMissedTransactions` | ~7790–7900 (near the very end of the file) |
 | Override rule (incoming laptop correction + tablet activity after it) | `isSupersededByOverride`, `tabletActivityRecordedAfter` (read `spotCheckHistory[].at`) | right after `recordSpotCheckHistory` |
+| Slip Grid (batch capture of paper slips) | `slipGridScreen` (HTML), `SLIP_GRID_KEY`, `sgRender`, `sgReviewBeforePost`, `sgPostAll`, `sgEligible` | just above `RENDER: LOG` |
 | Import Counts (from Master List Stock Count) | `importPendingCounts`, `activitySinceCount`, `applyImportedCount`, `APPLIED_COUNT_IDS_KEY`, `importCountsPreviewModal` (HTML) | right after `importStockReference` |
 | Backup / Restore / Verify | `BACKUP_LOCALSTORAGE_KEYS`, `downloadFullSnapshot`, `restoreFromSnapshotFile`, `verifyAgainstBackupFile` | search for `BACKUP_LOCALSTORAGE_KEYS` |
 
