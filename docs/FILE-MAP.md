@@ -49,6 +49,9 @@ Order Lists and most Admin/Reports screens live in **`master-list.html`**, not h
 | Catalog gap-filling (new items, missing fields) | `syncMissingCatalogFields` | ~519 |
 | Manual Sync Code (paste-in fallback) | `pasteManualSyncBtn`, `applyManualSyncBtn` | search for `pasteManualSyncBtn` |
 | Live sync from terminal | `SUPABASE_URL`, `queueMasterTransaction`, `applyRemoteStockTransaction` | ~3886–3990 (near the end of the file) |
+| Review Queue (tablet batches: edit / delete / mark reviewed) | `reviewQueueModal` (HTML), `REVIEW_KEY`, `rqBatches`, `renderReviewQueue`, `editLedgerQty`, `editLedgerItem`, `deleteLedgerLine` | search for `REVIEW QUEUE + OVERRIDE LOG` |
+| Override Log (every laptop change: old, new, when) | `OVERRIDE_LOG_KEY`, `logOverride`, `renderOverrideLog` | same section |
+| Issued History / tally (filters, totals, print) | `issuedHistoryModal` (HTML), `ihRows`, `ihTotals`, `printIssuedHistory` | search for `ISSUED HISTORY / TALLY` |
 | Override rule (laptop correction wins, exact time) | `isSupersededByOverride` (reads `spotLedger[].at`) | right above `applyRemoteStockTransaction` |
 | Price Compare (supplier prices, preferred supplier) | `SUPPLIER_PRICES_KEY`, `SUPPLIER_SETTINGS_KEY`, `buyFromInfoForSku`, `priceCompareModal` (HTML) | search for `SUPPLIER PRICE COMPARISON` |
 | Stock Count (count entry + Export Pending Counts) | `PENDING_COUNTS_KEY`, `renderStockCountResults`, `laptopActivitySinceCount`, `scExportPendingBtn` | search for `STOCK COUNT ======` |

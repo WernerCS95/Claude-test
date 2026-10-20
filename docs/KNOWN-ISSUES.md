@@ -42,3 +42,10 @@ tablet comes online later and uploads the older-dated slips — the laptop's
 catches them regardless. Fix needs a server-side "received at" column on
 `stock_transactions` (small database change) and pulling by that instead.
 Ask before changing the database.
+
+## 6. Laptop review edits: tablet stock is corrected, the tablet's own slip record isn't (noted 2026-10-20)
+
+When a line is edited or deleted in the laptop's Review Queue, the laptop sends
+an adjustment and the tablet's Qty on Hand is corrected to match. The slip as
+shown in the tablet's own Today's Log still shows what was originally posted.
+The laptop's ledger, Issued History and Override Log hold the corrected record.
