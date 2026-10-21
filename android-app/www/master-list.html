@@ -6662,7 +6662,16 @@ function psTypeNorm(t){ return psClean(t).toLowerCase().replace(/(\d)\s*m\b/g, '
 function psBaseType(schedType){
   if(psKit.typeMap[schedType] !== undefined) return psKit.typeMap[schedType] || null;
   const n = psTypeNorm(schedType);
-  return PSK_KNOWN_TYPES.find(k=> psTypeNorm(k) === n) || null;
+  const exact = PSK_KNOWN_TYPES.find(k=> psTypeNorm(k) === n);
+  if(exact) return exact;
+  // T + D + F on the schedule = drawbar road train (e.g. NWB, Como "Tridem ST"):
+  // one job, 4 cylinders, the tablet's Drawbar kit
+  return psIsRoadTrainType(schedType) ? 'Drawbar' : null;
+}
+function psIsRoadTrainType(schedType){
+  if(!psSchedule) return false;
+  return Object.values(psSchedule.jobs).some(j=> j.type === schedType &&
+    PS_STAGES.some(st=> j.units[st].some(u=> u.suffix === 'T') && j.units[st].some(u=> u.suffix === 'D')));
 }
 function psCompLines(list){ return list.map(c=> ({ sku: c.sku, qty: c.qty })); }
 // Default lines for one group, from the tablet's tables. null = no definition.
@@ -6764,7 +6773,7 @@ window.psRenderKit = function(body){
     [...types[t].axles].forEach(a=> psKitForJob({ type:t, axles:a }).missing.forEach(m=> miss.add(m)));
     return `<tr data-ps-kit-pick="${psEsc(t)}" style="cursor:pointer; border-bottom:1px solid var(--panel-line); ${t === psKitType ? 'background:var(--panel-raised); font-weight:700;' : ''}">
       <td style="padding:4px 6px;">${psEsc(t)}</td><td style="text-align:right;">${types[t].jobs}</td>
-      <td>${base ? psEsc(base) : '<span style="color:var(--danger);">not matched</span>'}</td>
+      <td>${base ? psEsc(base) + (psKit.typeMap[t] === undefined && base === 'Drawbar' && psIsRoadTrainType(t) ? ' <span class="sub" style="margin:0;">(T+D+F)</span>' : '') : '<span style="color:var(--danger);">not matched</span>'}</td>
       <td style="color:${miss.size ? 'var(--danger)' : 'var(--success)'};">${miss.size ? miss.size + ' not defined' : '✓ all defined'}</td></tr>`;
   }).join('');
   const t = psKitType, base = psBaseType(t);

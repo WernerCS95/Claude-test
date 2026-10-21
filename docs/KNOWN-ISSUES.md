@@ -72,5 +72,6 @@ in Type/Customer/Axles is treated as blank. Flags on this file: 460 F listed
 twice (Chassis and Finals) and 459 has no F — the flag names 459 F as the
 likely intended row. Test case holds: WST 14–20 covered from JOST on hand,
 Como short on JOST from 511, need-by 3 Nov, order by Fri 30 Oct (with 30 on hand).
-Types not matched to a tablet kit yet: Tridem ST (Como/NWB), 20m Ratel (WST),
+T + D + F jobs (NWB, Como "Tridem ST") are drawbar road trains: Drawbar kit by
+default, 4 cylinders per job. Types not matched yet: 20m Ratel (WST),
 53 HWP (Gemini), Sement FD — pick "Kit based on" or fill in under Kit per Type.
