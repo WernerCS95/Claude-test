@@ -4504,7 +4504,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6970,6 +6970,167 @@ window.psRenderAllocation = function(body){
     if(sel.value) psCylSupplier[sel.dataset.psCyl] = sel.value; else delete psCylSupplier[sel.dataset.psCyl];
     psCylSave(); renderKitScheduler();
   });
+};
+
+
+/* ---------- Step 4: shortfall / order list ----------
+   Per short item: qty short, which jobs, supplier (cylinders: the
+   customer's supplier), need-by = earliest need-by still short, lead time
+   in working days (default 2 = 48h, weekends skipped, editable per item),
+   order-by = need-by minus lead time. */
+const PS_LEAD_KEY = 'leader-master-ps-lead-days-v1';
+const PS_DEFAULT_LEAD_DAYS = 2;
+let psLead = {};
+function psLeadLoad(){ try{ psLead = JSON.parse(localStorage.getItem(PS_LEAD_KEY)) || {}; }catch(e){ psLead = {}; } }
+function psLeadSave(){ try{ localStorage.setItem(PS_LEAD_KEY, JSON.stringify(psLead)); }catch(e){} }
+psLeadLoad();
+function psLeadDays(sku){ const v = psLead[sku]; return (v === undefined || v === null || v === '') ? PS_DEFAULT_LEAD_DAYS : Number(v); }
+function psToday(){ const d = new Date(); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function psMinusWorkingDays(ymd, n){
+  const d = new Date(ymd + 'T00:00:00');
+  let left = n;
+  while(left > 0){ d.setDate(d.getDate() - 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
+  return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
+}
+function psSupplierOf(sku){
+  const it = psStockItem(sku);
+  if(it && it.supplier) return it.supplier;
+  const prices = (supplierPrices && supplierPrices[sku]) || [];
+  const latest = prices.slice().sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')))[0];
+  return latest && latest.supplier ? latest.supplier : '';
+}
+// Jobs as "Como: 511, 512 (2) · WST: 581"
+function psJobsText(rows){
+  const by = {};
+  rows.forEach(r=>{ (by[r.group] = by[r.group] || []).push(`${r.nr}${r.short !== r.qty ? ` (${r.short})` : ''}`); });
+  return Object.entries(by).map(([g, list])=> `${g}: ${[...new Set(list)].join(', ')}`).join(' · ');
+}
+function psOrderList(){
+  const plan = psPlan();
+  const today = psToday();
+  const rank = { 'Late':0, 'ORDER TODAY':1, 'Order by':2, 'Covered':3 };
+  const rows = Object.values(plan.items).map(it=>{
+    const shortRows = it.rows.filter(r=> r.short > 0);
+    const noSupplierCyl = it.sku === 'CYL-NO-SUPPLIER';
+    const out = {
+      sku: it.sku, cyl: it.cyl,
+      name: noSupplierCyl ? 'Hydraulic Cylinders — customer supplier not set' : psItemName(it.sku),
+      inStockList: noSupplierCyl || !!psStockItem(it.sku),
+      supplier: it.cyl ? (it.supplier || 'not set') : psSupplierOf(it.sku),
+      onHand: it.onHand, need: it.need, short: it.short,
+      needBy: shortRows.length ? shortRows[0].needBy : null,
+      lead: psLeadDays(it.sku),
+      jobs: psJobsText(shortRows), shortRows,
+      groups: [...new Set(it.rows.map(r=> r.kitGroup))]
+    };
+    if(!out.short){ out.status = 'Covered'; return out; }
+    out.orderBy = psMinusWorkingDays(out.needBy, out.lead);
+    out.status = out.orderBy < today ? 'Late' : out.orderBy === today ? 'ORDER TODAY' : 'Order by';
+    return out;
+  }).sort((a,b)=> rank[a.status] - rank[b.status] || String(a.orderBy||'').localeCompare(String(b.orderBy||'')) || a.name.localeCompare(b.name));
+  return { rows, plan, today };
+}
+function psStatusHtml(r){
+  if(r.status === 'Covered') return '<span style="color:var(--success); font-weight:700;">Covered</span>';
+  if(r.status === 'Late') return '<span style="background:var(--danger); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700;">Late</span>';
+  if(r.status === 'ORDER TODAY') return '<span style="background:var(--gold); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700;">ORDER TODAY</span>';
+  return `<span style="color:var(--steel); font-weight:700;">Order by ${psFmtDay(r.orderBy)}</span>`;
+}
+
+window.psRenderOrders = function(body){
+  const { rows, plan } = psOrderList();
+  const short = rows.filter(r=> r.short > 0), covered = rows.filter(r=> !r.short);
+  const undef = Object.values(plan.undefinedGroups);
+  const tr = r=> `<tr style="border-bottom:1px solid var(--panel-line); vertical-align:top;">
+    <td style="padding:4px 6px; white-space:nowrap;">${psStatusHtml(r)}</td>
+    <td><b>${psEsc(r.name)}</b>${r.inStockList ? '' : ' <span style="color:var(--danger); font-size:11px;">(not in stock list)</span>'}<div class="sub" style="margin:0;">${psEsc(r.sku === 'CYL-NO-SUPPLIER' ? '' : r.sku)}</div></td>
+    <td>${psEsc(r.supplier || '—')}</td>
+    <td style="text-align:right; font-weight:700; color:${r.short ? 'var(--danger)' : 'inherit'};">${r.short || ''}</td>
+    <td style="text-align:right;">${r.onHand}</td><td style="text-align:right;">${r.need}</td>
+    <td style="white-space:nowrap;">${r.needBy ? psFmtDay(r.needBy) : ''}</td>
+    <td style="white-space:nowrap;">${r.orderBy ? psFmtDay(r.orderBy) : ''}</td>
+    <td>${r.sku === 'CYL-NO-SUPPLIER' ? '' : `<input type="number" min="0" step="1" value="${r.lead}" data-ps-lead="${psEsc(r.sku)}" title="Working days (weekends skipped)" style="width:52px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 4px;">`}</td>
+    <td style="font-size:11.5px;">${psEsc(r.jobs)}</td></tr>`;
+  const head = `<thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Status</th><th>Item</th><th>Supplier</th><th style="text-align:right;">Short</th><th style="text-align:right;">On hand</th><th style="text-align:right;">Needed</th><th>Need by</th><th>Order by</th><th>Lead (days)</th><th>Jobs short</th></tr></thead>`;
+  body.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+      <div class="sub" style="margin:0;">Today ${psFmtDay(psToday())}. Order-by = need-by minus lead time in working days (default ${PS_DEFAULT_LEAD_DAYS} = 48h). Laptop on-hand stock, allocated in need-by order.</div>
+      <button class="btn primary" id="psPrintBtn">🖨 Print Order List</button>
+    </div>
+    <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">To order (${short.length})</div>
+    ${short.length ? `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">${head}<tbody>${short.map(tr).join('')}</tbody></table>` : '<div class="sub">Nothing short — everything on the schedule is covered by stock on hand.</div>'}
+    ${undef.length ? `<div style="margin-top:14px; padding:8px 10px; border:1px solid var(--danger); border-radius:6px;">
+      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">Not planned — no kit definition yet (${undef.length})</div>
+      ${undef.map(u=> `<div style="font-size:12px;">${psEsc(u.label)} for <b>${psEsc(u.type || '(no type)')}</b>${u.axles ? ' / ' + psEsc(u.axles) : ''} — ${u.jobs.length} job stage(s)</div>`).join('')}
+      <div class="sub" style="margin:4px 0 0;">Fill these in under 🧰 Kit per Type, or mark them "none".</div></div>` : ''}
+    ${plan.undated.length ? `<div class="sub" style="margin-top:8px;">No date on this schedule, not planned: ${plan.undated.map(u=> `${psEsc(u.nr)} ${psEsc(u.customer)} (${PS_STAGE_LABEL[u.stage]})`).join(', ')}</div>` : ''}
+    <details style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700; color:var(--success);">Covered (${covered.length})</summary>
+      <table style="width:100%; border-collapse:collapse; font-size:12.5px;">${head}<tbody>${covered.map(tr).join('')}</tbody></table></details>`;
+  body.querySelectorAll('[data-ps-lead]').forEach(inp=> inp.onchange = ()=>{
+    const v = inp.value === '' ? '' : Math.max(0, Math.round(Number(inp.value) || 0));
+    if(v === '' || v === PS_DEFAULT_LEAD_DAYS) delete psLead[inp.dataset.psLead]; else psLead[inp.dataset.psLead] = v;
+    psLeadSave(); renderKitScheduler();
+  });
+  document.getElementById('psPrintBtn').onclick = psPrintOrders;
+};
+
+function psPrintOrders(){
+  const { rows, plan } = psOrderList();
+  const short = rows.filter(r=> r.short > 0);
+  if(!short.length){ alert('Nothing short — nothing to print.'); return; }
+  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const navy = [31, 78, 120];
+  doc.setFontSize(14); doc.setTextColor(...navy);
+  doc.text('Leader Trailer Bodies', pageWidth - 14, 12, { align: 'right' });
+  doc.setFontSize(17); doc.text('Kit Order List', 14, 16);
+  doc.setFontSize(10); doc.setTextColor(90, 97, 105);
+  doc.text(`Schedule: ${psSchedule.fileName}   ·   ${short.length} item(s) to order   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, 14, 22, { maxWidth: pageWidth - 28 });
+  let cursorY = 28;
+  const bar = (title)=>{
+    doc.setFontSize(11); doc.setTextColor(255,255,255); doc.setFillColor(...navy);
+    doc.rect(14, cursorY, pageWidth - 28, 6, 'F'); doc.text(title, 16, cursorY + 4.3); cursorY += 6;
+  };
+  const tableStyle = {
+    margin: { left: 14, right: 14 }, theme: 'grid',
+    headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 8.5, lineColor: [185,194,204] },
+    bodyStyles: { fontSize: 8, textColor: [26,29,33] }
+  };
+  const d = s=> s ? new Date(s + 'T00:00:00').toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' }) : '';
+  const bySupplier = {};
+  short.forEach(r=> (bySupplier[r.supplier || '(no supplier)'] = bySupplier[r.supplier || '(no supplier)'] || []).push(r));
+  Object.keys(bySupplier).sort((a,b)=> String(bySupplier[a][0].orderBy).localeCompare(String(bySupplier[b][0].orderBy)) || a.localeCompare(b)).forEach(sup=>{
+    if(cursorY > 175){ doc.addPage(); cursorY = 14; }
+    bar(`Supplier: ${sup}`);
+    doc.autoTable(Object.assign({ startY: cursorY,
+      head: [['Status', 'Item', 'SKU', 'Short', 'On hand', 'Needed', 'Need by', 'Order by', 'Jobs short']],
+      body: bySupplier[sup].map(r=> [r.status === 'Order by' ? 'On time' : r.status, r.name, r.sku === 'CYL-NO-SUPPLIER' ? '' : r.sku, String(r.short), String(r.onHand), String(r.need), d(r.needBy), d(r.orderBy), r.jobs]),
+      columnStyles: { 0: { fontStyle: 'bold' }, 3: { halign: 'right', fontStyle: 'bold', textColor: navy }, 4: { halign: 'right' }, 5: { halign: 'right' }, 8: { cellWidth: 70 } },
+      didParseCell: (h)=>{ if(h.section === 'body' && h.column.index === 0 && (h.cell.raw === 'Late' || h.cell.raw === 'ORDER TODAY')) h.cell.styles.textColor = [178, 34, 34]; }
+    }, tableStyle));
+    cursorY = doc.lastAutoTable.finalY + 6;
+  });
+  const undef = Object.values(plan.undefinedGroups);
+  if(undef.length){
+    if(cursorY > 170){ doc.addPage(); cursorY = 14; }
+    bar('Not planned — no kit definition yet');
+    doc.autoTable(Object.assign({ startY: cursorY, head: [['Group', 'Type', 'Axles', 'Job stages']],
+      body: undef.map(u=> [u.label, u.type || '', u.axles || '', String(u.jobs.length)]) }, tableStyle));
+    cursorY = doc.lastAutoTable.finalY;
+  }
+  let y = cursorY + 18;
+  if(y > 195){ doc.addPage(); y = 30; }
+  doc.setFontSize(9); doc.setTextColor(91, 97, 105); doc.setDrawColor(26, 29, 33);
+  [['Prepared by (Werner)', 14], ['Approved by', 100], ['Date', 186]].forEach(([label, x])=>{
+    doc.line(x, y, x + 60, y);
+    doc.text(label, x, y + 4);
+  });
+  savePdfOutput(doc, 'kit-order-list');
+}
+window.psRenderExtras = function(){
+  const el = document.getElementById('psOrderCount');
+  if(!el) return;
+  try{ const n = psSchedule ? Object.values(psPlan().items).filter(i=> i.short > 0).length : 0; el.textContent = n ? `(${n})` : ''; }catch(e){ el.textContent = ''; }
 };
 
 psLoad();
