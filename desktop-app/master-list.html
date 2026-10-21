@@ -6937,15 +6937,33 @@ function psPlan(){
         const row = { key: job.key, nr: job.nr, customer: job.customer, group: job.group, type: job.type, stage, kitGroup: l.group, needBy, qty: l.qty };
         if(l.cyl){
           const s = psCylSupplierFor(job.group, hist);
-          cylGroups[job.group] = s;
-          row.cyl = true; row.supplier = s.supplier;
-          row.sku = s.supplier ? PS_CYL_SKU[s.supplier] : 'CYL-NO-SUPPLIER';
+          row.cyl = true; row.supplier = s.supplier; row.supplierFrom = s.from;
         } else row.sku = l.sku;
         demand.push(row);
       });
     });
   });
   demand.sort((a,b)=> a.needBy.localeCompare(b.needBy) || (+a.nr - +b.nr) || a.customer.localeCompare(b.customer));
+  // Cylinders: customers in queue order (earliest need-by first). A customer
+  // without a supplier picked gets the one whose stock on the floor can cover
+  // all of it — else the one with most left — so whoever is next in the queue
+  // gets what's there. Still one supplier per customer, never split.
+  const pool = { JOST: psOnHand(PS_CYL_SKU.JOST), Hydroscand: psOnHand(PS_CYL_SKU.Hydroscand) };
+  const cylOrder = [];
+  demand.forEach(d=>{ if(d.cyl && !cylOrder.includes(d.group)) cylOrder.push(d.group); });
+  cylOrder.forEach(g=>{
+    const rows = demand.filter(d=> d.cyl && d.group === g);
+    const need = rows.reduce((a,d)=> a + d.qty, 0);
+    let sup = rows[0].supplier, from = rows[0].supplierFrom;
+    if(!sup){
+      const sups = Object.keys(pool).sort((a,b)=> pool[b] - pool[a]);
+      sup = sups.find(x=> pool[x] >= need) || (pool[sups[0]] > 0 ? sups[0] : null);
+      from = sup ? 'auto' : 'none';
+    }
+    if(sup) pool[sup] -= Math.min(pool[sup], need);
+    cylGroups[g] = { supplier: sup, from };
+    rows.forEach(d=>{ d.supplier = sup; d.sku = sup ? PS_CYL_SKU[sup] : 'CYL-NO-SUPPLIER'; });
+  });
   const items = {};
   demand.forEach(d=>{
     const it = items[d.sku] = items[d.sku] || { sku: d.sku, cyl: !!d.cyl, supplier: d.cyl ? d.supplier : null, onHand: d.sku === 'CYL-NO-SUPPLIER' ? 0 : psOnHand(d.sku), left: null, need: 0, short: 0, rows: [] };
@@ -6962,21 +6980,23 @@ function psPlan(){
 window.psRenderAllocation = function(body){
   const plan = psPlan();
   const hist = psCylHistory();
-  const groups = [...new Set(Object.values(psSchedule.jobs).map(j=> j.group))].sort((a,b)=> a.localeCompare(b));
+  const firstNeed = g=> (plan.demand.find(d=> d.cyl && d.group === g) || {}).needBy || '9999';
+  const groups = [...new Set(Object.values(psSchedule.jobs).map(j=> j.group))].sort((a,b)=> firstNeed(a).localeCompare(firstNeed(b)) || a.localeCompare(b));
   const cylRows = groups.map(g=>{
-    const s = psCylSupplierFor(g, hist);
+    const s = plan.cylGroups[g] || psCylSupplierFor(g, hist);
     const h = hist[g];
     const needs = plan.demand.filter(d=> d.cyl && d.group === g);
     const need = needs.reduce((a,d)=> a + d.qty, 0), short = needs.reduce((a,d)=> a + d.short, 0);
     if(!need && !psCylSupplier[g]) return '';
     return `<tr style="border-bottom:1px solid var(--panel-line);">
       <td style="padding:3px 6px;"><b>${psEsc(g)}</b></td>
+      <td style="white-space:nowrap;">${needs.length ? psFmtDay(needs[0].needBy) : ''}</td>
       <td><select data-ps-cyl="${psEsc(g)}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
-        <option value="">${s.from === 'history' ? `${s.supplier} (from issue history)` : '— not set —'}</option>
+        <option value="">${s.from === 'history' ? `${s.supplier} (from issue history)` : s.from === 'auto' ? `Auto: ${s.supplier} (next in queue)` : 'Auto — none on hand'}</option>
         <option value="JOST" ${psCylSupplier[g] === 'JOST' ? 'selected' : ''}>JOST</option>
         <option value="Hydroscand" ${psCylSupplier[g] === 'Hydroscand' ? 'selected' : ''}>Hydroscand</option></select>
         ${s.from === 'both' ? '<span style="color:var(--danger); font-size:11.5px;"> history shows both — pick one</span>' : ''}
-        ${!s.supplier && s.from !== 'both' ? '<span style="color:var(--danger); font-size:11.5px;"> pick one</span>' : ''}</td>
+        ${!s.supplier && s.from !== 'both' ? '<span style="color:var(--danger); font-size:11.5px;"> pick one for the order</span>' : ''}</td>
       <td class="sub" style="margin:0;">${h ? `issued before: JOST ${h.JOST} · Hydroscand ${h.Hydroscand}` : 'no history'}</td>
       <td style="text-align:right;">${need}</td>
       <td style="text-align:right; font-weight:700; color:${short ? 'var(--danger)' : 'var(--success)'};">${short ? `short ${short}${s.supplier ? ' on ' + s.supplier : ''}` : 'covered'}</td></tr>`;
@@ -6996,9 +7016,9 @@ window.psRenderAllocation = function(body){
   }).join('');
   body.innerHTML = `
     <div style="font-weight:700; margin-bottom:4px;">Cylinder supplier per customer — one supplier, never split</div>
-    <div class="sub" style="margin-bottom:6px;">A customer only draws from its own supplier's cylinders (8-600-018 JOST / 8-600-019 Hydroscand), job by job in date order. Blank = taken from what Parts Issued shows, if it's only ever been one supplier.</div>
-    <table style="width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Customer group</th><th>Supplier</th><th>History</th><th style="text-align:right;">Cylinders needed</th><th style="text-align:right;">Result</th></tr></thead>
-      <tbody>${cylRows || '<tr><td colspan="5" class="sub">No cylinders needed on this schedule.</td></tr>'}</tbody></table>
+    <div class="sub" style="margin-bottom:6px;">On the floor (laptop stock): <b>JOST ${psOnHand(PS_CYL_SKU.JOST)}</b> · <b>Hydroscand ${psOnHand(PS_CYL_SKU.Hydroscand)}</b>. Customers are served in queue order (earliest date first), each from one supplier only — never split. <b>Auto</b> = whoever is next in the queue gets what's on the floor; pick a supplier to fix it for that customer. Once the floor is empty, pick the supplier you'll order from.</div>
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Customer group</th><th>First needed</th><th>Supplier</th><th>History</th><th style="text-align:right;">Cylinders needed</th><th style="text-align:right;">Result</th></tr></thead>
+      <tbody>${cylRows || '<tr><td colspan="6" class="sub">No cylinders needed on this schedule.</td></tr>'}</tbody></table>
     <div style="font-weight:700; margin-bottom:4px;">Coverage per job — stock handed out in need-by order</div>
     <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Job</th><th>Type</th><th style="color:var(--steel);">Chassis</th><th style="color:var(--gold);">Finals</th></tr></thead><tbody>${jobRows}</tbody></table>`;
   body.querySelectorAll('[data-ps-cyl]').forEach(sel=> sel.onchange = ()=>{
