@@ -171,7 +171,7 @@ try{
         <h3 style="margin:0;">🔗 Duplicate Items</h3>
         <button class="btn" id="duplicateItemsCloseBtn">Close</button>
       </div>
-      <div class="sub" style="margin-bottom:10px;">Same real part filed under two names — matched by ignoring case, spacing, punctuation and Ø/diameter symbols. Nothing merges until you pick the survivor and confirm the quantity for each group.</div>
+      <div class="sub" style="margin-bottom:10px;">Same real part filed under two names. <b>Same name</b> = identical once case, spacing and punctuation are ignored. <b>Possible duplicates</b> = worded differently but the same words and the same numbers/sizes (12mm and 20mm never pair). Nothing merges until you pick the survivor and confirm the quantity; "Not a duplicate" hides a pair for good.</div>
       <div id="duplicateItemsBody"></div>
     </div>
   </div>
@@ -2361,29 +2361,116 @@ function findDuplicateItemGroups(){
   return Object.values(byNorm).filter(group=>group.length > 1);
 }
 
+/* Possible duplicates — worded differently, same part. e.g.
+   "Mudflaps White Leader 600×600" vs "Large Leader Mudflaps - White (600 × 600)".
+   Rules (a missed match is better than a wrong one):
+   - every number must match, in any order (600×600 = 600 x 600; 12mm ≠ 20mm,
+     so "Spiral Bind 12mm x 25m" and "Spiral Bind 20mm x 25m" never pair);
+   - no clashing words (White/Black, Short/Long, Small/Large, LH/RH, Leader/Follower…);
+   - the same words in any order, at least 2 of them; the only extra word
+     allowed is Large/Small when the sizes match. Any other extra word (ABS,
+     Steering, Printed, Short, B…) means a different part.
+   "Not a duplicate" hides a pair for good. */
+const DUP_IGNORED_KEY = 'leader-master-dup-ignored-v1';
+// Merges are remembered: { oldSku: { into, at, removed:{…the removed item…} } }.
+// Anything the tablet later sends for an old SKU lands on the kept item
+// instead of re-creating the old one.
+const MERGED_SKUS_KEY = 'leader-master-merged-skus-v1';
+function loadMergedSkus(){ try{ return JSON.parse(localStorage.getItem(MERGED_SKUS_KEY)) || {}; }catch(e){ return {}; } }
+function saveMergedSkus(m){ try{ localStorage.setItem(MERGED_SKUS_KEY, JSON.stringify(m)); }catch(e){} }
+function mergedInto(sku){
+  const m = loadMergedSkus();
+  let cur = sku, hops = 0;
+  while(m[cur] && m[cur].into && hops++ < 10) cur = m[cur].into;
+  return cur !== sku && stock.some(s=> s.sku === cur) ? cur : null;
+}
+function loadDupIgnored(){ try{ return new Set(JSON.parse(localStorage.getItem(DUP_IGNORED_KEY)) || []); }catch(e){ return new Set(); } }
+function saveDupIgnored(set){ try{ localStorage.setItem(DUP_IGNORED_KEY, JSON.stringify([...set])); }catch(e){} }
+const DUP_FILLER = new Set(['THE','AND','OF','WITH','FOR','AN','TO','IN','ON','X','MM','M','CM','L','KG','PCS','EACH','EA']);
+const DUP_CLASH = [
+  ['WHITE','BLACK','RED','YELLOW','BLUE','GREEN','GREY','GRAY','ORANGE','SILVER','CLEAR','AMBER'],
+  ['SHORT','LONG'], ['SMALL','LARGE','MEDIUM'], ['LH','RH','LHS','RHS','LEFT','RIGHT'],
+  ['LEADER','FOLLOWER'], ['FRONT','REAR','BACK'], ['MALE','FEMALE'], ['INNER','OUTER'], ['UPPER','LOWER','TOP','BOTTOM'], ['OLD','NEW']
+];
+const DUP_SIZE_WORDS = new Set(['LARGE','SMALL','MEDIUM','BIG']);
+const DUP_KEYWORDS = new Set([].concat(...DUP_CLASH, ['HD','HEAVY','LIGHT','DOUBLE','SINGLE','HALF','FULL','MINI','MAXI']));
+function dupParts(name){
+  const t = String(name||'').toUpperCase()
+    .replace(/[ØΦ⌀]/g, ' ')
+    .replace(/(\d)\s*[×X*]\s*(?=\d)/g, '$1 ')       // 600×600, 600 x 600 -> 600 600
+    .replace(/(\d)[,.](\d)/g, '$1_$2')              // keep decimals together (13,5 / 1.5)
+    .replace(/(\d)([A-Z])/g, '$1 $2').replace(/([A-Z])(\d)/g, '$1 $2'); // 12MM -> 12 MM
+  const toks = t.split(/[^A-Z0-9_]+/).filter(Boolean);
+  const nums = toks.filter(x=> /^\d/.test(x)).map(x=> x.replace(/^0+(?=\d)/, '')).sort();
+  const words = new Set(toks.filter(x=> !/^\d/.test(x) && !DUP_FILLER.has(x)).map(w=> w.replace(/S$/, '')));
+  return { nums: nums.join(' '), words };
+}
+function dupLikely(a, b){
+  if(a.nums !== b.nums) return false;
+  for(const fam of DUP_CLASH){
+    const fa = fam.filter(w=> a.words.has(w)), fb = fam.filter(w=> b.words.has(w));
+    if(fa.length && fb.length && fa.join() !== fb.join()) return false;
+  }
+  const [small, big] = a.words.size <= b.words.size ? [a.words, b.words] : [b.words, a.words];
+  let shared = 0;
+  for(const w of small){ if(!big.has(w)) return false; shared++; }
+  if(shared < 2) return false;
+  // Any extra word usually means a different part (ABS, Steering, Printed,
+  // Bracket, B…). The only extra allowed is a size word (Large / Small) when
+  // the sizes themselves match — "Large Leader Mudflaps (600 × 600)".
+  const extra = [...big].filter(w=> !small.has(w));
+  if(extra.length && !(a.nums && extra.every(w=> DUP_SIZE_WORDS.has(w)))) return false;
+  return true;
+}
+function findPossibleDuplicatePairs(){
+  const ignored = loadDupIgnored();
+  const exactSkus = new Set([].concat(...findDuplicateItemGroups().map(g=> g.map(i=> i.sku))));
+  const items = stock.filter(i=> i.name && !exactSkus.has(i.sku)).map(i=> ({ item: i, p: dupParts(i.name) }));
+  const pairs = [];
+  for(let i = 0; i < items.length; i++){
+    for(let j = i + 1; j < items.length; j++){
+      const A = items[i], B = items[j];
+      if(A.p.nums !== B.p.nums) continue;
+      const k = [A.item.sku, B.item.sku].sort().join('|');
+      if(ignored.has(k)) continue;
+      if(dupLikely(A.p, B.p)) pairs.push([A.item, B.item]);
+    }
+  }
+  return pairs;
+}
+
 function renderDuplicateItemsModal(){
   const body = document.getElementById('duplicateItemsBody');
-  const groups = findDuplicateItemGroups();
+  const exact = findDuplicateItemGroups().map(g=> ({ items: g, kind: 'exact' }));
+  const possible = findPossibleDuplicatePairs().map(g=> ({ items: g, kind: 'possible' }));
+  const groups = exact.concat(possible);
   if(groups.length === 0){
-    body.innerHTML = `<div class="empty">No duplicate items found — every name in stock is unique once case/spacing/punctuation/Ø is ignored.</div>`;
+    body.innerHTML = `<div class="empty">No duplicate items found.</div>`;
     return;
   }
-  body.innerHTML = groups.map((group, gi)=>{
+  const blank = v=> v === undefined || v === null || v === '' || v === 0;
+  const block = (g, gi)=>{
+    const group = g.items;
     const sumQty = group.reduce((s,i)=>s+(i.qty||0), 0);
+    // default keeper: an item with a proper part number (not NEW-…) if there is one
+    const defKeep = Math.max(0, group.findIndex(i=> !/^NEW-/i.test(i.sku)));
     return `
-    <div data-dup-group="${gi}" style="border:1px solid var(--panel-line); border-radius:8px; padding:12px; margin-bottom:12px;">
+    <div data-dup-group="${gi}" style="border:1px solid ${g.kind === 'exact' ? 'var(--panel-line)' : 'var(--gold)'}; border-radius:8px; padding:12px; margin-bottom:12px;">
+      ${g.kind === 'possible' ? '<div style="font-size:11.5px; font-weight:700; color:var(--gold); margin-bottom:4px;">POSSIBLE DUPLICATE — check it\'s really the same part</div>' : ''}
       <table>
-        <thead><tr><th>Keep</th><th>Name</th><th>SKU</th><th>Group</th><th class="right">Qty</th><th class="right">Min</th><th class="right">Max</th><th class="right">Price</th></tr></thead>
+        <thead><tr><th>Keep</th><th>Name</th><th>SKU</th><th>Group</th><th class="right">Qty</th><th class="right">Min</th><th class="right">Max</th><th class="right">Pack</th><th>Supplier</th><th class="right">Price</th></tr></thead>
         <tbody>
           ${group.map((item, ii)=>`
             <tr>
-              <td><input type="radio" name="dup-keeper-${gi}" data-dup-keeper="${gi}" value="${ii}" ${ii===0?'checked':''}></td>
+              <td><input type="radio" name="dup-keeper-${gi}" data-dup-keeper="${gi}" value="${ii}" ${ii===defKeep?'checked':''}></td>
               <td>${item.name}</td>
               <td class="sku">${item.sku}</td>
               <td>${GROUP_DISPLAY_NAMES[item.cat]||item.cat}</td>
               <td class="right num">${item.qty}</td>
               <td class="right num">${item.min ?? '—'}</td>
               <td class="right num">${item.max ?? '—'}</td>
+              <td class="right num">${item.packSize ?? '—'}</td>
+              <td>${item.supplier || '—'}</td>
               <td class="right num">${fmtR(item.price||0)}</td>
             </tr>
           `).join('')}
@@ -2393,18 +2480,33 @@ function renderDuplicateItemsModal(){
         <label style="font-size:12px;">Final Qty on the surviving item:
           <input type="number" data-dup-finalqty="${gi}" value="${sumQty}" style="width:90px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:5px 8px; margin-left:6px;">
         </label>
-        <span class="sub" style="margin:0;">(suggested: sum of both — ${sumQty})</span>
-        <button class="btn primary" data-dup-merge="${gi}" style="margin-left:auto;">🔗 Merge This Group</button>
+        <span class="sub" style="margin:0;">(suggested: sum — ${sumQty}). Blank Min / Max / Pack / Supplier / Price on the kept item are filled from the other.</span>
+        ${g.kind === 'possible' ? `<button class="btn" data-dup-ignore="${gi}" style="margin-left:auto;">✕ Not a duplicate</button>` : ''}
+        <button class="btn primary" data-dup-merge="${gi}" style="${g.kind === 'possible' ? '' : 'margin-left:auto;'}">🔗 Merge This Group</button>
       </div>
-    </div>
-  `;
-  }).join('');
+    </div>`;
+  };
+  body.innerHTML =
+    (exact.length ? `<div style="font-weight:700; margin-bottom:6px;">Same name (${exact.length})</div>` + exact.map((g,i)=> block(g, i)).join('') : '') +
+    (possible.length ? `<div style="font-weight:700; margin:10px 0 6px;">Possible duplicates — worded differently (${possible.length})</div>` + possible.map((g,i)=> block(g, exact.length + i)).join('') : '');
 
+  body.querySelectorAll('[data-dup-ignore]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const g = groups[parseInt(btn.dataset.dupIgnore)];
+      if(!g) return;
+      const ig = loadDupIgnored();
+      ig.add(g.items.map(i=> i.sku).sort().join('|'));
+      saveDupIgnored(ig);
+      renderDuplicateItemsModal();
+    };
+  });
   body.querySelectorAll('[data-dup-merge]').forEach(btn=>{
     btn.onclick = ()=>{
       const gi = parseInt(btn.dataset.dupMerge);
-      const group = findDuplicateItemGroups()[gi]; // re-scan — indices stay stable within one render pass
-      if(!group){ renderDuplicateItemsModal(); return; }
+      const g = groups[gi];
+      if(!g){ renderDuplicateItemsModal(); return; }
+      const group = g.items.map(i=> stock.find(s=> s.sku === i.sku)).filter(Boolean);
+      if(group.length < 2){ renderDuplicateItemsModal(); return; }
       const keeperRadio = body.querySelector(`input[name="dup-keeper-${gi}"]:checked`);
       const keeperIdx = keeperRadio ? parseInt(keeperRadio.value) : 0;
       const keeper = group[keeperIdx];
@@ -2412,13 +2514,38 @@ function renderDuplicateItemsModal(){
       const finalQtyInput = body.querySelector(`[data-dup-finalqty="${gi}"]`);
       const finalQty = parseFloat(finalQtyInput.value);
       if(isNaN(finalQty) || finalQty < 0){ alert("Enter a valid final quantity (0 or more)."); return; }
+      const fills = [];
+      ['min','max','packSize','supplier','price'].forEach(f=>{
+        if(!blank(keeper[f]) && !(f === 'packSize' && Number(keeper[f]) === 1)) return;
+        const src = losers.find(l=> !blank(l[f]) && !(f === 'packSize' && Number(l[f]) === 1));
+        if(src) fills.push([f, src[f]]);
+      });
       if(!confirm(
         `Merge into "${keeper.name}" (${keeper.sku})?\n\n` +
         `Its quantity becomes ${finalQty}.\n` +
+        (fills.length ? `Filled from the other: ${fills.map(([f,v])=> `${f} ${v}`).join(', ')}.\n` : '') +
         `${losers.map(l=>`"${l.name}" (${l.sku}) will be removed from stock`).join('\n')}\n\n` +
         `Past Parts Issued / Spot Check / Goods Received history for the removed item(s) stays exactly as it is — only new activity uses the surviving item from now on.`
       )) return;
+      const keeperOldQty = keeper.qty;
+      fills.forEach(([f,v])=> keeper[f] = v);
       keeper.qty = finalQty;
+      const merged = loadMergedSkus(), at = new Date().toISOString();
+      losers.forEach(l=>{
+        merged[l.sku] = { into: keeper.sku, at, removed: Object.assign({}, l) };
+        Object.keys(merged).forEach(k=>{ if(merged[k].into === l.sku) merged[k].into = keeper.sku; });
+        logOverride({ action: 'Merge duplicate', where: 'Find Duplicate Items', sku: keeper.sku, item: keeper.name, field: 'qty',
+          oldValue: keeperOldQty, newValue: finalQty, ref: `merged in ${l.sku} "${l.name}" (qty ${l.qty})`, stockChanged: true });
+      });
+      saveMergedSkus(merged);
+      // The final qty is a count of the kept item: recorded like a Stock Count
+      // (so earlier-entered tablet activity can't double up) and sent to the tablet.
+      const nowD = new Date();
+      spotLedger.push({ _id: 'merge-' + keeper.sku + '-' + at, at, sku: keeper.sku, name: keeper.name,
+        before: keeperOldQty, after: finalQty, diff: finalQty - keeperOldQty, date: at.slice(0,10),
+        time: nowD.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}), source: 'merge' });
+      if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: keeper.sku, type: 'spot_check', absolute_qty: finalQty, created_at: at,
+        meta: { item_name: keeper.name, item_cat: keeper.cat, date: at.slice(0,10), mergedFrom: losers.map(l=> l.sku) } });
       const loserSkus = new Set(losers.map(l=>l.sku));
       stock = stock.filter(s=> !loserSkus.has(s.sku));
       saveState();
@@ -4502,7 +4629,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   ORDER_LIST_KEYS.monthEnd, ORDER_LIST_KEYS.newMonth, ORDER_HISTORY_KEY,
   VALUE_EXCLUDED_KEY, NAMEPLATE_REGISTRY_KEY, NAMEPLATE_LEDGER_KEY,
   NAMEPLATE_CLIENT_MAP_KEY, CUT_LIST_BATCHES_KEY,
-  SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY, SUPPLIER_SETTINGS_KEY,
+  SUPPLIER_PRICES_KEY, SUPPLIER_CODE_ALIAS_KEY, SUPPLIER_SETTINGS_KEY, 'leader-master-dup-ignored-v1', 'leader-master-merged-skus-v1',
   PENDING_COUNTS_KEY, REVIEW_KEY, OVERRIDE_LOG_KEY, AFTERMARKET_KEY,
   // Previously left out of the backup. Restore writes back whatever keys a
   // file has, so older backups without these still restore as before. The
@@ -7426,6 +7553,19 @@ function applyRemoteStockTransaction(txn){
                   : txn.type === 'delivery' ? goodsReceivedLedger.some(r=> r._id === txn.id)
                   : txn.type === 'spot_check' ? spotLedger.some(r=> r._id === txn.id) : false;
   if(inHistory){ markSyncApplied(txn.id); return; }
+  // Merged-away item (Find Duplicate Items): issues/deliveries land on the
+  // kept item. A count of the old item isn't applied — it would overwrite the
+  // kept item's qty with the old item's count — it's noted in the Override Log.
+  const mergedTo = mergedInto(txn.item_id);
+  if(mergedTo){
+    if(txn.type === 'spot_check'){
+      logOverride({ action: 'Count on merged item not applied', where: 'Sync from tablet', sku: txn.item_id, item: (txn.meta && txn.meta.item_name) || txn.item_id,
+        field: 'qty', oldValue: '', newValue: txn.absolute_qty, ref: `merged into ${mergedTo} — count that item instead`, stockChanged: false });
+      markSyncApplied(txn.id); saveState();
+      return;
+    }
+    txn = Object.assign({}, txn, { item_id: mergedTo, meta: Object.assign({}, txn.meta, { mergedFrom: txn.item_id }) });
+  }
   let item = stock.find(s=>s.sku===txn.item_id);
   if(!item){
     item = {

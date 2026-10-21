@@ -86,3 +86,15 @@ Ratel-type). Revisit later. Ideas to discuss first:
 - Bulk "Mark none" for a group across every type that doesn't use it.
 - A per-job "still waiting on" list, so a job can carry a few missing parts
   instead of its whole stage (raised for NWB Finals).
+
+## 11. Find Duplicate Items — better finder + merges stick (2026-10-21)
+
+The finder now also lists "possible duplicates": same words in any order and
+the SAME numbers/sizes (600×600 = 600 x 600; Spiral Bind 12mm ≠ 20mm). The only
+extra word allowed is Large/Small when sizes match. "Not a duplicate" hides a
+pair for good. A merge fills blank Min/Max/Pack/Supplier/Price on the kept item,
+is logged in the Override Log, counts as a stock count of the kept item (sent
+to the tablet), and is remembered: tablet issues/deliveries for the old SKU land
+on the kept item; a tablet count of the old item is logged, not applied.
+Still to do (needs the tablet APK): the old item still shows on the tablet —
+retire it there by hand (Input → Retire) until the merge is sent across.
