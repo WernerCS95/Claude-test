@@ -75,3 +75,14 @@ Como short on JOST from 511, need-by 3 Nov, order by Fri 30 Oct (with 30 on hand
 T + D + F jobs (NWB, Como "Tridem ST") are drawbar road trains: Drawbar kit by
 default, 4 cylinders per job. Types not matched yet: 20m Ratel (WST),
 53 HWP (Gemini), Sement FD — pick "Kit based on" or fill in under Kit per Type.
+
+## 10. Kit per Type is slow to set up — too many repeats (parked 2026-10-21)
+
+Setting up Kit per Type took longer than it should: the same edits get repeated
+type by type (e.g. "none" for Fifth Wheel, the same Axles/Tyres lines on every
+Ratel-type). Revisit later. Ideas to discuss first:
+- Set a group once for ALL types (or a chosen set of types) instead of one by one.
+- "Copy kit from another type" so a new type starts as a full copy.
+- Bulk "Mark none" for a group across every type that doesn't use it.
+- A per-job "still waiting on" list, so a job can carry a few missing parts
+  instead of its whole stage (raised for NWB Finals).
