@@ -106,6 +106,7 @@ try{
      else here: this app has to work with no network at all. -->
 <script src="vendor/jspdf.umd.min.js"></script>
 <script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
 <script>
   // jspdf-autotable v5 dropped the automatic doc.autoTable() patching that
   // earlier versions did — applyPlugin() is the documented way to restore
@@ -175,23 +176,27 @@ try{
     </div>
   </div>
 
-  <!-- Kit Scheduler — Chassis + Finals production calendar. Standalone,
-       localStorage-only, job data comes in via manual file import from the
-       tablet (same pattern as every other tablet<->laptop sync here). No
-       server, no live connection. -->
+  <!-- Kit Scheduler — production planner. Reads Production's weekly
+       schedule (.xlsx), works out the whole kit per job for the Chassis and
+       Finals stages, allocates on-hand stock in need-by order and lists what
+       to order, from whom, by when. Laptop-only data (leader-master-ps-*). -->
   <div class="modal-bg" id="kitSchedulerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:300;">
-    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1200px; width:96%; max-height:90vh; overflow-y:auto;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <h3 style="margin:0;">📅 Kit Scheduler — Chassis + Finals</h3>
+    <div style="background:var(--panel); border-radius:10px; padding:20px; max-width:1300px; width:97%; max-height:92vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:10px;">
+        <h3 style="margin:0;">📅 Kit Scheduler — Production Planner</h3>
         <button class="btn" id="kitSchedulerCloseBtn">Close</button>
       </div>
-      <div class="sub" style="margin-bottom:12px;">Drag a job onto a day to schedule it for that stage. A job locks once it has both a Chassis and a Finals date. Job data comes from the tablet — import a fresh export whenever new jobs are added.</div>
-      <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
-        <button class="btn primary" id="kitSchedulerImportBtn">📥 Import Jobs from Tablet</button>
-        <input type="file" id="kitSchedulerImportFileInput" accept="application/json" style="display:none;">
-        <button class="btn" id="kitSchedulerViewCalendarBtn" style="border-color:var(--steel); color:var(--steel);">📅 Calendar View</button>
-        <button class="btn" id="kitSchedulerViewListBtn" style="border-color:var(--gold); color:var(--gold);">📋 List View (Coverage)</button>
-        <span id="kitSchedulerJobCount" class="sub" style="margin-left:auto;"></span>
+      <div id="psSourceLine" class="sub" style="margin-bottom:10px;"></div>
+      <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
+        <button class="btn primary" id="psImportBtn">📥 Import Production Schedule (.xlsx)</button>
+        <input type="file" id="psImportFileInput" accept=".xlsx,.xlsm,.xls" style="display:none;">
+        <span style="width:10px;"></span>
+        <button class="btn" data-ps-tab="schedule">📋 Schedule</button>
+        <button class="btn" data-ps-tab="calendar">📅 Calendar</button>
+        <button class="btn" data-ps-tab="moved">🔀 What Moved <span id="psMovedCount"></span></button>
+        <button class="btn" data-ps-tab="flags">⚠ Flags <span id="psFlagCount"></span></button>
+        <button class="btn" data-ps-tab="kit">🧰 Kit per Type</button>
+        <button class="btn" data-ps-tab="orders">🛒 Order List <span id="psOrderCount"></span></button>
       </div>
       <div id="kitSchedulerBody"></div>
     </div>
@@ -4498,6 +4503,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -5987,241 +5993,468 @@ document.getElementById('amrAddLineBtn').onclick = ()=>{ amrLines.push({ name:''
 ['amfSupplier','amfOrder','amfItem','amfFrom','amfTo'].forEach(id=> document.getElementById(id).addEventListener('input', renderAftermarket));
 
 /* ==========================================================================
-   KIT SCHEDULER — Chassis + Finals production calendar (Master List add-on)
-   Standalone: local data only, no server, no live sync. Job data comes from
-   a one-shot file import exported from the tablet (Terminal -> "Export Jobs
-   for Kit Scheduler"). Everything else — scheduling, locking, the King Pins
-   coverage check — lives entirely in this file's own localStorage, same as
-   every other feature in this baseline.
+   KIT SCHEDULER — Production Planner (laptop)
+   Step 1: reads Production's weekly schedule (.xlsx, sheet "2025") by
+   column position, cleans it, keys every job on job nr + customer, and
+   keeps a "what moved" summary between imports. Manual calendar moves are
+   tweaks that last until the next import. "Still to build" ticks per job
+   and stage are Werner's own and survive re-imports.
+   The old demo's saved jobs (leader-master-scheduler-jobs-v1) are left as is.
    ========================================================================== */
-const KIT_SCHEDULER_JOBS_KEY = 'leader-master-scheduler-jobs-v1';
-const KIT_SCHEDULER_DAYS = 14; // rolling window shown in the calendar
-const KIT_SCHEDULER_KINGPIN_SKU = '8-900-001';
+const KIT_SCHEDULER_JOBS_KEY = 'leader-master-scheduler-jobs-v1'; // old demo — kept, not used
+const PS_SCHEDULE_KEY = 'leader-master-ps-schedule-v1';
+const PS_PREV_SCHEDULE_KEY = 'leader-master-ps-schedule-prev-v1';
+const PS_TWEAKS_KEY = 'leader-master-ps-tweaks-v1';
+const PS_BUILD_MARKS_KEY = 'leader-master-ps-build-marks-v1';
 
-let schedulerJobs = {}; // { jobNo: {customer, trailerType, kingPins, chassisDate, finalsDate} }
-let kitSchedulerView = 'calendar'; // 'calendar' | 'list'
+// Column positions (0-based): B=1, C=2, AO..AS = 40..44, BY..CC = 76..80
+const PS_COLS = {
+  day: 1, date: 2,
+  chassis: { pct: 40, job: 41, customer: 42, type: 43, axles: 44 },
+  finals:  { pct: 76, job: 77, customer: 78, type: 79, axles: 80 }
+};
+const PS_STAGES = ['chassis', 'finals'];
+const PS_STAGE_LABEL = { chassis: 'Chassis', finals: 'Finals' };
 
-function loadSchedulerJobs(){
+let psSchedule = null;  // { importedAt, fileName, sheet, jobs:{key:job}, units:[], flags:[], moved:{} }
+let psTweaks = {};      // { jobKey: { chassis:'YYYY-MM-DD', finals:'YYYY-MM-DD' } } — cleared on import
+let psBuildMarks = {};  // { jobKey: { chassis:true|false, finals:true|false } } — Werner's own, kept
+let psTab = 'schedule';
+
+function psLoad(){
+  try{ psSchedule = JSON.parse(localStorage.getItem(PS_SCHEDULE_KEY)) || null; }catch(e){ psSchedule = null; }
+  try{ psTweaks = JSON.parse(localStorage.getItem(PS_TWEAKS_KEY)) || {}; }catch(e){ psTweaks = {}; }
+  try{ psBuildMarks = JSON.parse(localStorage.getItem(PS_BUILD_MARKS_KEY)) || {}; }catch(e){ psBuildMarks = {}; }
+}
+function psSave(){
   try{
-    const raw = localStorage.getItem(KIT_SCHEDULER_JOBS_KEY);
-    schedulerJobs = raw ? JSON.parse(raw) : {};
-  }catch(e){ schedulerJobs = {}; }
+    localStorage.setItem(PS_SCHEDULE_KEY, JSON.stringify(psSchedule));
+    localStorage.setItem(PS_TWEAKS_KEY, JSON.stringify(psTweaks));
+    localStorage.setItem(PS_BUILD_MARKS_KEY, JSON.stringify(psBuildMarks));
+  }catch(e){ alert('Could not save the schedule on this laptop: ' + e.message); }
 }
-function saveSchedulerJobs(){
-  try{ localStorage.setItem(KIT_SCHEDULER_JOBS_KEY, JSON.stringify(schedulerJobs)); }catch(e){}
-}
-loadSchedulerJobs();
 
-function kitSchedulerDateList(){
-  const days = [];
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  for(let i=0;i<KIT_SCHEDULER_DAYS;i++){
-    const d = new Date(today);
-    d.setDate(d.getDate()+i);
-    days.push(d.toISOString().slice(0,10));
+/* ---------- cleaning helpers ---------- */
+function psClean(v){
+  if(v === null || v === undefined) return '';
+  return String(v).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+}
+function psCleanType(v){
+  // "53HWP" -> "53 HWP" (digits stuck to a capitalised word); "40m HWP" is left alone
+  return psClean(v).replace(/^(\d+)([A-Z]{2,})\b/, '$1 $2');
+}
+function psCleanAxles(v){
+  return psClean(v).replace(/\bdisk\b/ig, 'Disc');
+}
+function psCustomerGroup(customer){
+  // "WST 14" -> "WST", "Metaload T 18" -> "Metaload T"
+  const g = psClean(customer).replace(/\s*#?\d+\s*$/, '').trim();
+  return g || psClean(customer);
+}
+function psCustKey(customer){ return psClean(customer).toLowerCase().replace(/\s+/g, ''); }
+function psJobKey(nr, customer){ return `${nr}|${psCustKey(customer)}`; }
+function psYmd(y, m, d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+const PS_MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, mei:5, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, okt:10, nov:11, dec:12, des:12 };
+function psParseDate(cell){
+  if(!cell) return null;
+  const v = cell.v;
+  if(typeof v === 'number' && v > 20000 && v < 80000 && window.XLSX){
+    const p = XLSX.SSF.parse_date_code(v);
+    return p ? psYmd(p.y, p.m, p.d) : null;
   }
-  return days;
+  if(v instanceof Date && !isNaN(v)) return psYmd(v.getFullYear(), v.getMonth()+1, v.getDate());
+  const t = psClean(cell.w || v);
+  let m = /^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(t);
+  if(m) return psYmd(+m[1], +m[2], +m[3]);
+  m = /^(\d{1,2})[-\/. ]([A-Za-z]{3,4})[A-Za-z]*[-\/. ,]*(\d{2,4})$/.exec(t);
+  if(m && PS_MONTHS[m[2].toLowerCase()]){ const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return psYmd(y, PS_MONTHS[m[2].toLowerCase()], +m[1]); }
+  m = /^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/.exec(t); // South African order: day/month/year
+  if(m){ const y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; return psYmd(y, +m[2], +m[1]); }
+  return null;
 }
-function kitSchedulerFormatDay(dateStr){
-  const d = new Date(dateStr+'T00:00:00');
-  return d.toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' });
+// % done: "100%" / 1 (formatted %) / 100 -> 100. Blank -> null (future).
+function psParsePct(cell){
+  if(!cell || cell.v === null || cell.v === undefined || psClean(cell.v) === '') return null;
+  const w = psClean(cell.w);
+  if(/%$/.test(w)){ const n = parseFloat(w); return isNaN(n) ? null : n; }
+  const n = typeof cell.v === 'number' ? cell.v : parseFloat(psClean(cell.v).replace('%',''));
+  if(isNaN(n)) return null;
+  if(/%/.test(cell.z || '') && n <= 1) return Math.round(n * 100); // stored as a fraction, shown as %
+  if(n > 0 && n < 1) return Math.round(n * 100);
+  return n;
 }
 
-function importSchedulerJobs(file){
-  const reader = new FileReader();
-  reader.onload = function(e){
-    let payload;
-    try{ payload = JSON.parse(e.target.result); }
-    catch(err){ alert("That doesn't look like a valid jobs file."); return; }
-    if(!payload || payload._stateType !== 'leader-stores-scheduler-jobs' || !Array.isArray(payload.jobs)){
-      alert("That doesn't look like a Kit Scheduler jobs export from the tablet.");
+/* ---------- the reader: worksheet -> units, jobs, flags ---------- */
+// getCell(r, c) returns { v, w, z } or null; r and c are 0-based.
+function psReadSheet(getCell, rowCount){
+  const units = [], flags = [];
+  let lastDate = null, lastDay = '';
+  for(let r = 0; r < rowCount; r++){
+    const excelRow = r + 1;
+    const d = psParseDate(getCell(r, PS_COLS.date));
+    if(d){ lastDate = d; lastDay = psClean((getCell(r, PS_COLS.day) || {}).v); }
+    PS_STAGES.forEach(stage=>{
+      const c = PS_COLS[stage];
+      const jobCell = getCell(r, c.job);
+      const jobTxt = psClean(jobCell && (jobCell.w || jobCell.v));
+      if(!jobTxt || /^0+(\.0+)?$/.test(jobTxt)) return;                 // blank / filler 0s
+      if(/job|nr|chassis|finals?|klant|customer|type|axle/i.test(jobTxt) && !/^\d/.test(jobTxt)) return; // repeated header
+      const m = /^(\d+)\s*([LFTD])?$/i.exec(jobTxt);
+      if(!m){ flags.push({ level:'warn', stage, row: excelRow, text: `Row ${excelRow} (${PS_STAGE_LABEL[stage]}): can't read job nr "${jobTxt}" — skipped.` }); return; }
+      if(!m[2]) flags.push({ level:'warn', stage, row: excelRow, text: `Row ${excelRow} (${PS_STAGE_LABEL[stage]}): job ${m[1]} has no L/F/T/D suffix — kept as one unit.` });
+      if(!lastDate) flags.push({ level:'warn', stage, row: excelRow, text: `Row ${excelRow} (${PS_STAGE_LABEL[stage]}): job ${jobTxt} has no date above it.` });
+      units.push({
+        stage, row: excelRow, date: lastDate, day: lastDay,
+        nr: m[1], suffix: (m[2] || '').toUpperCase(),
+        customer: psClean((getCell(r, c.customer) || {}).v),
+        type: psCleanType((getCell(r, c.type) || {}).v),
+        axles: psCleanAxles((getCell(r, c.axles) || {}).w || (getCell(r, c.axles) || {}).v),
+        pct: psParsePct(getCell(r, c.pct))
+      });
+    });
+  }
+
+  // F rows with blank customer/type/axles inherit from their L row: same
+  // stage first, nearest L above; then the other stage.
+  units.forEach(u=>{
+    if(u.suffix !== 'F' || (u.customer && u.type && u.axles)) return;
+    const ls = units.filter(x=> x.suffix === 'L' && x.nr === u.nr);
+    const sameStage = ls.filter(x=> x.stage === u.stage);
+    const pool = sameStage.length ? sameStage : ls;
+    if(!pool.length){
+      if(!u.customer) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} F has no customer and there's no ${u.nr} L to take it from.` });
       return;
     }
-    let added = 0, updated = 0;
-    payload.jobs.forEach(j=>{
-      if(!j.jobNo) return;
-      if(schedulerJobs[j.jobNo]){
-        // Keep whatever scheduling this job already has — just refresh its spec.
-        schedulerJobs[j.jobNo].customer = j.customer;
-        schedulerJobs[j.jobNo].trailerType = j.trailerType;
-        schedulerJobs[j.jobNo].kingPins = j.kingPins;
-        updated++;
-      } else {
-        schedulerJobs[j.jobNo] = {
-          customer: j.customer, trailerType: j.trailerType, kingPins: j.kingPins,
-          chassisDate: null, finalsDate: null
-        };
-        added++;
+    let pick = pool.filter(x=> x.row <= u.row).sort((a,b)=> b.row - a.row)[0] || pool.slice().sort((a,b)=> a.row - b.row)[0];
+    if(u.customer){ // customer known — prefer the L of that customer
+      const same = pool.find(x=> psCustKey(x.customer) === psCustKey(u.customer));
+      if(same) pick = same;
+    } else {
+      const custs = [...new Set(pool.map(x=> psCustKey(x.customer)))];
+      // Only worth a warning when the L picked isn't the unit right above this F
+      const prev = units.filter(x=> x.stage === u.stage && x.row < u.row).sort((a,b)=> b.row - a.row)[0];
+      if(custs.length > 1 && prev !== pick) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} F has no customer and ${u.nr} L is used by ${custs.length} customers — took "${pick.customer}" (nearest above). Check.` });
+      u.customer = pick.customer;
+    }
+    if(!u.type) u.type = pick.type;
+    if(!u.axles) u.axles = pick.axles;
+    u.inherited = true;
+  });
+  // Tip tanker showing only "2040" in Axles = SAF Disc 2040
+  units.forEach(u=>{ if(/^\d{3,4}$/.test(u.axles) && /tip\s*tank/i.test(u.type)) u.axles = `SAF Disc ${u.axles}`; });
+
+  // Group units into jobs (job nr + customer)
+  const jobs = {};
+  const seen = {};
+  units.forEach(u=>{
+    if(!u.customer) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr}${u.suffix} has no customer.` });
+    const key = psJobKey(u.nr, u.customer);
+    const dupKey = `${key}|${u.suffix}|${u.stage}`;
+    if(seen[dupKey]){
+      flags.push({ level:'warn', stage:u.stage, row:u.row, text: `${u.nr} ${u.suffix} (${u.customer || 'no customer'}) is listed twice in ${PS_STAGE_LABEL[u.stage]} — rows ${seen[dupKey].row} (${seen[dupKey].date}) and ${u.row} (${u.date}). Kept the first. Is one of them meant to be another unit?` });
+      return;
+    }
+    seen[dupKey] = u;
+    if(!jobs[key]) jobs[key] = { key, nr: u.nr, customer: u.customer, group: psCustomerGroup(u.customer), type: '', axles: '', units: { chassis: [], finals: [] } };
+    const j = jobs[key];
+    j.units[u.stage].push({ suffix: u.suffix, date: u.date, day: u.day, pct: u.pct, row: u.row });
+    if(!j.type || u.suffix === 'L') j.type = u.type || j.type;
+    if(!j.axles || u.suffix === 'L') j.axles = u.axles || j.axles;
+  });
+
+  // Per-job stage summary + pair checks
+  Object.values(jobs).forEach(j=>{
+    PS_STAGES.forEach(stage=>{
+      const us = j.units[stage];
+      j[stage + 'Date'] = us.length ? us.map(x=> x.date).filter(Boolean).sort()[0] || null : null;
+      j[stage + 'Done'] = us.length > 0 && us.every(x=> x.pct === 100);
+      j[stage + 'Pct'] = us.length ? us.map(x=> x.pct) : [];
+    });
+    const ord = { L:0, F:1, T:2, D:3 };
+    PS_STAGES.forEach(stage=> j.units[stage].sort((a,b)=> (ord[a.suffix] ?? 9) - (ord[b.suffix] ?? 9)));
+    const sc = j.units.chassis.map(x=> x.suffix).join('+');
+    const sf = j.units.finals.map(x=> x.suffix).join('+');
+    if(sc && sf && sc !== sf){
+      flags.push({ level:'warn', text: `${j.nr} ${j.customer}: Chassis lists ${sc}, Finals lists ${sf} — a unit may be missing or mis-numbered.` });
+    }
+    if(!sc || !sf){
+      flags.push({ level:'info', text: `${j.nr} ${j.customer}: only in ${sc ? 'Chassis' : 'Finals'} on this schedule${sc ? ' (no Finals date yet)' : ' (Chassis already past)'}.` });
+    }
+  });
+
+  // Gap check: a customer group's L/F links normally come in pairs per stage.
+  // A day with two of the same unit and none of its partner is flagged above
+  // (duplicate). Also flag a number skipped between two neighbours of the
+  // same customer group on the same stage and day.
+  PS_STAGES.forEach(stage=>{
+    const byDay = {};
+    units.filter(u=> u.stage === stage && u.date).forEach(u=>{ (byDay[u.date] = byDay[u.date] || []).push(u); });
+    Object.entries(byDay).forEach(([date, us])=>{
+      const groups = {};
+      us.forEach(u=>{ const g = psCustomerGroup(u.customer) + '|' + u.suffix; (groups[g] = groups[g] || new Set()).add(+u.nr); });
+      Object.entries(groups).forEach(([g, set])=>{
+        const nrs = [...set].sort((a,b)=> a-b);
+        for(let i = 1; i < nrs.length; i++){
+          if(nrs[i] - nrs[i-1] === 2) flags.push({ level:'warn', stage, text: `${PS_STAGE_LABEL[stage]} ${date}: ${g.split('|')[0]} has ${nrs[i-1]} ${g.split('|')[1]} and ${nrs[i]} ${g.split('|')[1]} but no ${nrs[i-1]+1} ${g.split('|')[1]}.` });
+        }
+      });
+    });
+  });
+
+  return { units, jobs, flags };
+}
+
+/* ---------- effective dates, still-to-build ---------- */
+function psDate(job, stage){
+  const t = psTweaks[job.key];
+  return (t && t[stage]) || job[stage + 'Date'] || null;
+}
+function psIsTweaked(job, stage){ return !!(psTweaks[job.key] && psTweaks[job.key][stage]); }
+// Default: still to build unless every unit on that stage shows 100%.
+// Werner's own tick overrides either way.
+function psStillToBuild(job, stage){
+  const m = psBuildMarks[job.key];
+  if(m && typeof m[stage] === 'boolean') return m[stage];
+  // Not on this schedule at that stage: Chassis has already gone through,
+  // Finals is still to come (it just has no date yet).
+  if(!job.units[stage].length) return stage === 'finals';
+  return !job[stage + 'Done'];
+}
+function psJobsSorted(){
+  if(!psSchedule) return [];
+  return Object.values(psSchedule.jobs).sort((a,b)=>
+    (psDate(a,'chassis') || psDate(a,'finals') || '9').localeCompare(psDate(b,'chassis') || psDate(b,'finals') || '9') || (+a.nr - +b.nr));
+}
+
+/* ---------- what moved ---------- */
+function psCompare(oldJobs, newJobs){
+  const added = [], removed = [], earlier = [], later = [];
+  Object.values(newJobs).forEach(j=>{
+    const o = oldJobs && oldJobs[j.key];
+    if(!o){ added.push({ key:j.key, nr:j.nr, customer:j.customer, chassis:j.chassisDate, finals:j.finalsDate }); return; }
+    PS_STAGES.forEach(stage=>{
+      const a = o[stage + 'Date'], b = j[stage + 'Date'];
+      if(a && b && a !== b){
+        const row = { key:j.key, nr:j.nr, customer:j.customer, stage, from:a, to:b, days: Math.round((new Date(b) - new Date(a)) / 86400000) };
+        (b < a ? earlier : later).push(row);
       }
     });
-    saveSchedulerJobs();
-    const exportedStr = payload._exportedAt ? new Date(payload._exportedAt).toLocaleString('en-ZA') : 'unknown time';
-    alert(`Jobs loaded from ${exportedStr}.\n\n${added} new job(s) added.\n${updated} existing job(s) refreshed (scheduling untouched).`);
-    renderKitScheduler();
-  };
-  reader.readAsText(file);
+  });
+  Object.values(oldJobs || {}).forEach(o=>{
+    if(!newJobs[o.key]) removed.push({ key:o.key, nr:o.nr, customer:o.customer, chassis:o.chassisDate, finals:o.finalsDate, wasDone: o.chassisDone && o.finalsDone });
+  });
+  return { added, removed, earlier, later, firstImport: !oldJobs };
 }
-document.getElementById('kitSchedulerImportBtn').onclick = ()=> document.getElementById('kitSchedulerImportFileInput').click();
-document.getElementById('kitSchedulerImportFileInput').addEventListener('change', function(){
-  if(this.files && this.files[0]) importSchedulerJobs(this.files[0]);
+
+/* ---------- import ---------- */
+function psImportWorkbook(arrayBuffer, fileName){
+  if(!window.XLSX){ alert('The Excel reader did not load (vendor/xlsx.full.min.js). Reinstall the app.'); return; }
+  let wb;
+  try{ wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false }); }
+  catch(e){ alert("Couldn't open that file as an Excel workbook: " + e.message); return; }
+  const sheetName = wb.SheetNames.includes('2025') ? '2025' : null;
+  if(!sheetName){ alert(`This workbook has no sheet called "2025".\n\nSheets found: ${wb.SheetNames.join(', ')}`); return; }
+  const ws = wb.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  const getCell = (r, c)=> ws[XLSX.utils.encode_cell({ r, c })] || null;
+  const res = psReadSheet(getCell, range.e.r + 1);
+  const jobCount = Object.keys(res.jobs).length;
+  if(!jobCount){ alert('No jobs found on sheet "2025" in columns AP / BZ. Nothing changed.'); return; }
+  const dates = res.units.map(u=> u.date).filter(Boolean).sort();
+  const warn = res.flags.filter(f=> f.level === 'warn').length;
+  const msg = `${fileName}\n\n${jobCount} jobs (${res.units.length} unit rows), ${dates[0]} to ${dates[dates.length-1]}.\n${warn} thing(s) flagged to check.\n\n` +
+    (psSchedule ? `This replaces the schedule imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} (${psSchedule.fileName}).\nManual calendar moves are cleared. Your "still to build" ticks are kept.\n\nImport it?` : 'Import it?');
+  if(!confirm(msg)) return;
+  const moved = psCompare(psSchedule ? psSchedule.jobs : null, res.jobs);
+  if(psSchedule){ try{ localStorage.setItem(PS_PREV_SCHEDULE_KEY, JSON.stringify(psSchedule)); }catch(e){} }
+  psSchedule = { importedAt: new Date().toISOString(), fileName, sheet: sheetName, jobs: res.jobs, units: res.units, flags: res.flags, moved, firstDate: dates[0], lastDate: dates[dates.length-1] };
+  psTweaks = {};
+  psSave();
+  psTab = moved.firstImport ? 'schedule' : 'moved';
+  renderKitScheduler();
+}
+document.getElementById('psImportBtn').onclick = ()=> document.getElementById('psImportFileInput').click();
+document.getElementById('psImportFileInput').addEventListener('change', function(){
+  const f = this.files && this.files[0];
   this.value = '';
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = e=> psImportWorkbook(e.target.result, f.name);
+  reader.readAsArrayBuffer(f);
 });
 
-function kitSchedulerUnscheduledCount(){
-  return Object.values(schedulerJobs).filter(j=> !(j.chassisDate && j.finalsDate)).length;
+/* ---------- rendering ---------- */
+function psFmtDay(d){
+  if(!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' });
+}
+function psEsc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c=> ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+function psPctTxt(arr){
+  if(!arr || !arr.length || arr.every(p=> p === null)) return 'not started';
+  return arr.map(p=> p === null ? '–' : p + '%').join(' / ');
 }
 
 function renderKitScheduler(){
-  const total = Object.keys(schedulerJobs).length;
-  const openCount = kitSchedulerUnscheduledCount();
-  document.getElementById('kitSchedulerJobCount').textContent =
-    total === 0 ? 'No jobs loaded yet.' : `${total} job(s) loaded — ${openCount} still need scheduling.`;
+  const src = document.getElementById('psSourceLine');
+  src.innerHTML = psSchedule
+    ? `Schedule: <b>${psEsc(psSchedule.fileName)}</b> · imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} · ${Object.keys(psSchedule.jobs).length} jobs · ${psFmtDay(psSchedule.firstDate)} – ${psFmtDay(psSchedule.lastDate)}`
+    : 'No production schedule imported yet. Import the weekly .xlsx from Production.';
+  const mv = psSchedule && psSchedule.moved;
+  const movedN = mv && !mv.firstImport ? mv.added.length + mv.removed.length + mv.earlier.length + mv.later.length : 0;
+  document.getElementById('psMovedCount').textContent = movedN ? `(${movedN})` : '';
+  const warnN = psSchedule ? psSchedule.flags.filter(f=> f.level === 'warn').length : 0;
+  document.getElementById('psFlagCount').textContent = warnN ? `(${warnN})` : '';
+  document.querySelectorAll('[data-ps-tab]').forEach(b=>{
+    const on = b.dataset.psTab === psTab;
+    b.style.background = on ? 'var(--steel)' : '';
+    b.style.color = on ? '#fff' : '';
+  });
+  if(typeof psRenderExtras === 'function') psRenderExtras();
   const body = document.getElementById('kitSchedulerBody');
-  if(total === 0){
-    body.innerHTML = `<div class="sub" style="padding:30px; text-align:center;">No jobs loaded. Use "Import Jobs from Tablet" to bring in the current open job list.</div>`;
+  if(!psSchedule && psTab !== 'kit'){
+    body.innerHTML = `<div class="sub" style="padding:30px; text-align:center;">Use <b>📥 Import Production Schedule</b> and pick Production's weekly file (e.g. "Production Target Week 12 Okt - 23 Okt 2026 nr 1.xlsx").</div>`;
     return;
   }
-  if(kitSchedulerView === 'list'){
-    renderKitSchedulerList(body);
-  } else {
-    renderKitSchedulerCalendar(body);
-  }
+  const r = { schedule: psRenderSchedule, calendar: psRenderCalendar, moved: psRenderMoved, flags: psRenderFlags,
+              kit: window.psRenderKit, orders: window.psRenderOrders }[psTab];
+  if(r) r(body); else body.innerHTML = '<div class="sub" style="padding:20px;">Coming in the next step.</div>';
+}
+document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab = b.dataset.psTab; renderKitScheduler(); });
+
+let psFilter = '';
+function psRenderSchedule(body){
+  const f = psFilter.toLowerCase();
+  const jobs = psJobsSorted().filter(j=> !f || `${j.nr} ${j.customer} ${j.type} ${j.axles}`.toLowerCase().includes(f));
+  const cell = (j, stage)=>{
+    const d = psDate(j, stage);
+    const still = psStillToBuild(j, stage);
+    const tw = psIsTweaked(j, stage);
+    const us = j.units[stage];
+    return `<td style="white-space:nowrap;">${d ? psFmtDay(d) : '<span style="color:var(--text-faint);">not on schedule</span>'}${tw ? ` <span title="Moved by hand — Production said ${psFmtDay(j[stage+'Date'])}" style="color:var(--gold);">✎</span>` : ''}
+      ${us.length ? `<div class="sub" style="margin:0;">${us.map(u=> u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}</div>` : ''}</td>
+      <td style="text-align:center;"><input type="checkbox" data-ps-build="${psEsc(j.key)}" data-ps-stage="${stage}" ${still ? 'checked' : ''} title="Still to build at ${PS_STAGE_LABEL[stage]} — untick when this stage's parts are no longer needed"></td>`;
+  };
+  body.innerHTML = `
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+      <input type="text" id="psFilterInput" value="${psEsc(psFilter)}" placeholder="Filter: job, customer, type, axles" style="width:280px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:7px 8px;">
+      <span class="sub" style="margin:0;">${jobs.length} job(s). <b>Build?</b> = still to build at that stage — only ticked stages get parts planned. 100% on the schedule starts unticked; change any tick by hand.</span>
+    </div>
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);">
+        <th>Job</th><th>Customer</th><th>Group</th><th>Type</th><th>Axles</th>
+        <th style="color:var(--steel);">Chassis</th><th style="color:var(--steel);">Build?</th>
+        <th style="color:var(--gold);">Finals</th><th style="color:var(--gold);">Build?</th>
+      </tr></thead>
+      <tbody>${jobs.map(j=> `<tr style="border-bottom:1px solid var(--panel-line);">
+        <td><b>${psEsc(j.nr)}</b></td><td>${psEsc(j.customer)}</td><td>${psEsc(j.group)}</td><td>${psEsc(j.type)}</td><td>${psEsc(j.axles)}</td>
+        ${cell(j,'chassis')}${cell(j,'finals')}</tr>`).join('')}</tbody>
+    </table>`;
+  const fi = document.getElementById('psFilterInput');
+  fi.oninput = ()=>{ psFilter = fi.value; const pos = fi.selectionStart; psRenderSchedule(body); const n = document.getElementById('psFilterInput'); n.focus(); n.setSelectionRange(pos, pos); };
+  body.querySelectorAll('[data-ps-build]').forEach(cb=> cb.onchange = ()=>{
+    const k = cb.dataset.psBuild, st = cb.dataset.psStage;
+    psBuildMarks[k] = Object.assign({}, psBuildMarks[k], { [st]: cb.checked });
+    psSave();
+    if(typeof psRenderExtras === 'function') psRenderExtras();
+  });
 }
 
-function renderKitSchedulerCalendar(body){
-  const days = kitSchedulerDateList();
-  const pool = Object.entries(schedulerJobs).filter(([jobNo,j])=> !(j.chassisDate && j.finalsDate));
-
-  const poolHtml = pool.length === 0
-    ? `<div class="sub" style="padding:10px;">Every loaded job is fully scheduled.</div>`
-    : pool.map(([jobNo,j])=>{
-        const chassisDone = !!j.chassisDate, finalsDone = !!j.finalsDate;
-        return `<div class="kit-chip" draggable="true" data-kit-job="${jobNo}"
-          style="display:inline-flex; align-items:center; gap:6px; background:var(--panel-raised); border:1px solid var(--panel-line); border-radius:6px; padding:6px 10px; margin:3px; cursor:grab; font-size:12px;">
-          <b>#${jobNo}</b> ${j.customer||''} <span style="color:var(--text-faint);">(${j.trailerType||'?'})</span>
-          ${chassisDone?'<span style="color:var(--steel);" title="Chassis date set">C✓</span>':''}
-          ${finalsDone?'<span style="color:var(--gold);" title="Finals date set">F✓</span>':''}
-        </div>`;
-      }).join('');
-
-  function stageColumns(stage, color){
-    return days.map(d=>{
-      const jobsHere = Object.entries(schedulerJobs).filter(([jobNo,j])=> j[stage+'Date']===d);
-      const chipsHtml = jobsHere.map(([jobNo,j])=>{
-        const isLocked = j.chassisDate && j.finalsDate;
-        return `<div style="background:${isLocked?'var(--void)':'var(--panel-raised)'}; opacity:${isLocked?0.55:1}; border:1px solid var(--panel-line); border-radius:5px; padding:4px 16px 4px 6px; margin-bottom:4px; font-size:11px; position:relative;">
-          ${isLocked?'🔒 ':''}#${jobNo} ${j.customer||''}
-          <button data-kit-unassign="${jobNo}" data-kit-stage="${stage}" title="Unassign" style="position:absolute; top:2px; right:2px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:11px;">✕</button>
-        </div>`;
-      }).join('');
-      return `<div class="kit-daycol" data-kit-drop-stage="${stage}" data-kit-drop-date="${d}"
-        style="min-width:120px; flex:1; border:1px dashed var(--panel-line); border-radius:6px; padding:6px; min-height:70px; background:var(--void);">
-        <div style="font-size:10.5px; color:${color}; font-weight:700; margin-bottom:4px;">${kitSchedulerFormatDay(d)}</div>
-        ${chipsHtml}
+function psRenderCalendar(body){
+  const jobs = Object.values(psSchedule.jobs);
+  const allDates = [];
+  jobs.forEach(j=> PS_STAGES.forEach(s=>{ const d = psDate(j, s); if(d) allDates.push(d); }));
+  if(!allDates.length){ body.innerHTML = '<div class="sub">No dated jobs.</div>'; return; }
+  allDates.sort();
+  const start = new Date(allDates[0] + 'T00:00:00'); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // Monday
+  const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
+  const ymdLocal = d=> psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
+  const weekend = new Set(allDates.filter(d=> { const w = new Date(d + 'T00:00:00').getDay(); return w === 0 || w === 6; }));
+  let html = `<div class="sub" style="margin-bottom:8px;">Whole schedule. Drag a job to another day to move it by hand (✎) — lasts until the next import. Grey = that stage isn't ticked "still to build". Click ↺ on a moved job to put it back.</div>`;
+  for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
+    const days = [];
+    for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s)) days.push(s); }
+    html += `<div style="margin-bottom:14px; border:1px solid var(--panel-line); border-radius:8px; padding:8px;">
+      <div style="font-weight:700; margin-bottom:6px;">Week of ${psFmtDay(days[0])}</div>`;
+    PS_STAGES.forEach(stage=>{
+      const color = stage === 'chassis' ? 'var(--steel)' : 'var(--gold)';
+      html += `<div style="display:flex; gap:6px; margin-bottom:6px;">
+        <div style="width:62px; font-size:11px; font-weight:700; color:${color}; padding-top:4px;">${PS_STAGE_LABEL[stage].toUpperCase()}</div>
+        ${days.map(d=>{
+          const here = jobs.filter(j=> psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
+          return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
+            <div style="font-size:10px; color:${color}; font-weight:700;">${psFmtDay(d)}</div>
+            ${here.map(j=>{
+              const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
+              return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}"
+                style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:1px solid var(--panel-line); background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45};">
+                ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}${tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
+              </div>`;
+            }).join('')}
+          </div>`;
+        }).join('')}
       </div>`;
-    }).join('');
-  }
-
-  body.innerHTML = `
-    <div style="margin-bottom:14px;">
-      <div style="font-weight:700; margin-bottom:4px;">Unscheduled jobs — drag onto a day below</div>
-      <div style="max-height:120px; overflow-y:auto; border:1px solid var(--panel-line); border-radius:6px; padding:6px;">${poolHtml}</div>
-    </div>
-    <div style="margin-bottom:16px;">
-      <div style="font-weight:700; color:var(--steel); margin-bottom:6px;">🔧 CHASSIS</div>
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:6px;">${stageColumns('chassis','var(--steel)')}</div>
-    </div>
-    <div>
-      <div style="font-weight:700; color:var(--gold); margin-bottom:6px;">🚚 FINALS</div>
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:6px;">${stageColumns('finals','var(--gold)')}</div>
-    </div>
-  `;
-
-  // Drag and drop wiring
-  body.querySelectorAll('[data-kit-job]').forEach(chip=>{
-    chip.addEventListener('dragstart', e=>{
-      e.dataTransfer.setData('text/plain', chip.dataset.kitJob);
     });
-  });
-  body.querySelectorAll('[data-kit-drop-stage]').forEach(col=>{
+    html += `</div>`;
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('[data-ps-chip]').forEach(ch=> ch.addEventListener('dragstart', e=>{
+    e.dataTransfer.setData('text/plain', JSON.stringify({ key: ch.dataset.psChip, stage: ch.dataset.psChipStage }));
+  }));
+  body.querySelectorAll('[data-ps-drop]').forEach(col=>{
     col.addEventListener('dragover', e=> e.preventDefault());
     col.addEventListener('drop', e=>{
       e.preventDefault();
-      const jobNo = e.dataTransfer.getData('text/plain');
-      const stage = col.dataset.kitDropStage;
-      const date = col.dataset.kitDropDate;
-      if(!schedulerJobs[jobNo]) return;
-      schedulerJobs[jobNo][stage+'Date'] = date;
-      saveSchedulerJobs();
-      renderKitScheduler();
+      let p; try{ p = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+      if(!p || p.stage !== col.dataset.psDrop) return; // Chassis stays Chassis, Finals stays Finals
+      psMoveJob(p.key, p.stage, col.dataset.psDate);
     });
   });
-  body.querySelectorAll('[data-kit-unassign]').forEach(btn=>{
-    btn.onclick = ()=>{
-      const jobNo = btn.dataset.kitUnassign;
-      const stage = btn.dataset.kitStage;
-      if(!schedulerJobs[jobNo]) return;
-      schedulerJobs[jobNo][stage+'Date'] = null;
-      saveSchedulerJobs();
-      renderKitScheduler();
-    };
+  body.querySelectorAll('[data-ps-reset]').forEach(x=> x.onclick = (e)=>{
+    e.stopPropagation();
+    const t = psTweaks[x.dataset.psReset];
+    if(t){ delete t[x.dataset.psResetStage]; if(!Object.keys(t).length) delete psTweaks[x.dataset.psReset]; }
+    psSave(); renderKitScheduler();
   });
 }
-
-function renderKitSchedulerList(body){
-  const kingPinItem = stock.find(i=>i.sku===KIT_SCHEDULER_KINGPIN_SKU);
-  const onHand = kingPinItem ? (kingPinItem.qty||0) : null;
-
-  const scheduled = Object.entries(schedulerJobs)
-    .filter(([jobNo,j])=> j.chassisDate)
-    .sort((a,b)=> a[1].chassisDate.localeCompare(b[1].chassisDate));
-  const notScheduled = Object.entries(schedulerJobs).filter(([jobNo,j])=> !j.chassisDate);
-
-  let running = 0;
-  let flagged = false;
-  const rows = scheduled.map(([jobNo,j])=>{
-    const need = typeof j.kingPins === 'number' ? j.kingPins : 0;
-    running += need;
-    let warn = '';
-    if(onHand !== null && !flagged && running > onHand){
-      warn = ' style="background:rgba(200,60,60,0.15);"';
-      flagged = true;
-    }
-    return `<tr${warn}>
-      <td>#${jobNo}</td><td>${j.customer||''}</td><td>${j.trailerType||''}</td>
-      <td>${j.chassisDate}</td><td>${j.finalsDate||'—'}</td>
-      <td style="text-align:right;">${need}</td>
-      <td style="text-align:right; font-weight:700;">${running}</td>
-    </tr>`;
-  }).join('');
-
-  const orderNeededRow = (onHand!==null && flagged)
-    ? `<div style="margin-top:10px; padding:10px; background:rgba(200,60,60,0.15); border-radius:6px; color:var(--danger); font-weight:700;">
-         ⚠ King Pins on hand (${onHand}) run out partway down this list — order needed before that job's Chassis date.
-       </div>`
-    : (onHand!==null ? `<div style="margin-top:10px; padding:10px; background:rgba(60,160,90,0.12); border-radius:6px; color:var(--success);">✓ King Pins on hand (${onHand}) cover every scheduled job's Chassis date.</div>` : '');
-
-  const notScheduledHtml = notScheduled.length === 0 ? '' : `
-    <div style="margin-top:20px; font-weight:700;">Not yet scheduled (no Chassis date)</div>
-    <div style="max-height:140px; overflow-y:auto; border:1px solid var(--panel-line); border-radius:6px; padding:6px; margin-top:6px;">
-      ${notScheduled.map(([jobNo,j])=>`<div style="font-size:12px; padding:3px 0;">#${jobNo} — ${j.customer||''} (${j.trailerType||'?'})</div>`).join('')}
-    </div>`;
-
-  body.innerHTML = `
-    <div class="sub" style="margin-bottom:8px;">King Pins coverage — sorted by Chassis date. Tracks King Pins only for now (the one part with a clean per-job quantity confirmed so far); other parts can be added the same way once their per-job quantities are confirmed.</div>
-    <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
-      <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);">
-        <th>Job</th><th>Customer</th><th>Trailer Type</th><th>Chassis Date</th><th>Finals Date</th>
-        <th style="text-align:right;">King Pins Needed</th><th style="text-align:right;">Running Total</th>
-      </tr></thead>
-      <tbody>${rows || '<tr><td colspan="7" style="padding:12px; text-align:center; color:var(--text-faint);">No jobs have a Chassis date yet.</td></tr>'}</tbody>
-    </table>
-    ${orderNeededRow}
-    ${notScheduledHtml}
-  `;
+function psMoveJob(key, stage, date){
+  const job = psSchedule && psSchedule.jobs[key];
+  if(!job) return;
+  if(job[stage + 'Date'] === date){
+    if(psTweaks[key]){ delete psTweaks[key][stage]; if(!Object.keys(psTweaks[key]).length) delete psTweaks[key]; }
+  } else {
+    psTweaks[key] = Object.assign({}, psTweaks[key], { [stage]: date });
+  }
+  psSave(); renderKitScheduler();
 }
 
+function psRenderMoved(body){
+  const m = psSchedule.moved;
+  if(!m || m.firstImport){ body.innerHTML = '<div class="sub" style="padding:20px;">First schedule imported — nothing to compare yet. The next import shows what moved.</div>'; return; }
+  const tbl = (title, color, rows, cols)=> `
+    <div style="margin-bottom:14px;"><div style="font-weight:700; color:${color}; margin-bottom:4px;">${title} (${rows.length})</div>
+    ${rows.length ? `<table style="width:100%; border-collapse:collapse; font-size:12.5px;"><tbody>${rows.map(cols).join('')}</tbody></table>` : '<div class="sub" style="margin:0;">None.</div>'}</div>`;
+  const tr = cells=> `<tr style="border-bottom:1px solid var(--panel-line);">${cells.map(c=> `<td style="padding:3px 6px;">${c}</td>`).join('')}</tr>`;
+  body.innerHTML =
+    `<div class="sub" style="margin-bottom:10px;">Compared with the previous schedule. Job = job nr + customer.</div>` +
+    tbl('⬆ Moved earlier', 'var(--danger)', m.earlier.sort((a,b)=> a.days - b.days), r=> tr([`<b>${psEsc(r.nr)}</b> ${psEsc(r.customer)}`, PS_STAGE_LABEL[r.stage], `${psFmtDay(r.from)} → <b>${psFmtDay(r.to)}</b>`, `${-r.days} day(s) sooner`])) +
+    tbl('⬇ Moved later', 'var(--steel)', m.later.sort((a,b)=> b.days - a.days), r=> tr([`<b>${psEsc(r.nr)}</b> ${psEsc(r.customer)}`, PS_STAGE_LABEL[r.stage], `${psFmtDay(r.from)} → <b>${psFmtDay(r.to)}</b>`, `${r.days} day(s) later`])) +
+    tbl('➕ Added', 'var(--success)', m.added, r=> tr([`<b>${psEsc(r.nr)}</b> ${psEsc(r.customer)}`, `Chassis ${psFmtDay(r.chassis)}`, `Finals ${psFmtDay(r.finals)}`])) +
+    tbl('➖ Removed', 'var(--text-faint)', m.removed, r=> tr([`<b>${psEsc(r.nr)}</b> ${psEsc(r.customer)}`, `was Chassis ${psFmtDay(r.chassis)}`, `Finals ${psFmtDay(r.finals)}`, r.wasDone ? 'was 100% both stages' : '']));
+}
+
+function psRenderFlags(body){
+  const warn = psSchedule.flags.filter(f=> f.level === 'warn');
+  const info = psSchedule.flags.filter(f=> f.level !== 'warn');
+  body.innerHTML = `
+    <div class="sub" style="margin-bottom:8px;">Things the reader couldn't be sure about — nothing here was guessed silently. Check them against the paper schedule or with Production.</div>
+    <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⚠ Check (${warn.length})</div>
+    ${warn.length ? warn.map(f=> `<div style="font-size:12.5px; padding:4px 0; border-bottom:1px solid var(--panel-line);">${psEsc(f.text)}</div>`).join('') : '<div class="sub">Nothing to check.</div>'}
+    <details style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700;">ℹ For information (${info.length})</summary>
+      ${info.map(f=> `<div class="sub" style="margin:2px 0;">${psEsc(f.text)}</div>`).join('')}
+    </details>`;
+}
+
+psLoad();
 document.getElementById('kitSchedulerBtn').onclick = ()=>{
   document.getElementById('kitSchedulerModal').style.display = 'flex';
   renderKitScheduler();
@@ -6229,8 +6462,6 @@ document.getElementById('kitSchedulerBtn').onclick = ()=>{
 document.getElementById('kitSchedulerCloseBtn').onclick = ()=>{
   document.getElementById('kitSchedulerModal').style.display = 'none';
 };
-document.getElementById('kitSchedulerViewCalendarBtn').onclick = ()=>{ kitSchedulerView='calendar'; renderKitScheduler(); };
-document.getElementById('kitSchedulerViewListBtn').onclick = ()=>{ kitSchedulerView='list'; renderKitScheduler(); };
 
 loadState();
 loadOrderLists();
