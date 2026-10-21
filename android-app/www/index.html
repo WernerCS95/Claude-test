@@ -90,6 +90,20 @@
   try{ start = localStorage.getItem(SHELL_SECTION_KEY); }catch(e){}
   if(start !== 'input' && start !== 'admin') start = isNative ? 'input' : 'admin';
   showSection(start);
+  // Requests from the two sections: Input's "Kit Scheduler" opens the
+  // planner in Admin; the planner asks to go back to Input when closed.
+  // Only messages from our own two frames are acted on.
+  window.addEventListener('message', (e)=>{
+    const fromInput = e.source === frames.input.contentWindow;
+    const fromAdmin = e.source === frames.admin.contentWindow;
+    const m = e.data || {};
+    if(fromInput && m.type === 'leader-open-planner'){
+      showSection('admin');
+      try{ frames.admin.contentWindow.psOpenPlanner({ returnTo: 'input' }); }catch(err){}
+    } else if(fromAdmin && m.type === 'leader-show-section' && (m.section === 'input' || m.section === 'admin')){
+      showSection(m.section);
+    }
+  });
   document.getElementById('shellHint').textContent = isNative ? 'Tablet — capture' : 'Laptop — admin';
 </script>
 </body>

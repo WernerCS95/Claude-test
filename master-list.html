@@ -7134,12 +7134,22 @@ window.psRenderExtras = function(){
 };
 
 psLoad();
-document.getElementById('kitSchedulerBtn').onclick = ()=>{
+// Opened from Admin's own button, or from Input via the app shell
+// (returnTo = 'input': closing the planner goes back to Input).
+let psReturnTo = null;
+function psOpenPlanner(opts){
+  psReturnTo = (opts && opts.returnTo) || null;
   document.getElementById('kitSchedulerModal').style.display = 'flex';
   renderKitScheduler();
-};
+}
+window.psOpenPlanner = psOpenPlanner;
+document.getElementById('kitSchedulerBtn').onclick = ()=> psOpenPlanner();
 document.getElementById('kitSchedulerCloseBtn').onclick = ()=>{
   document.getElementById('kitSchedulerModal').style.display = 'none';
+  if(psReturnTo && window.parent && window.parent !== window){
+    try{ window.parent.postMessage({ type: 'leader-show-section', section: psReturnTo }, '*'); }catch(e){}
+  }
+  psReturnTo = null;
 };
 
 loadState();

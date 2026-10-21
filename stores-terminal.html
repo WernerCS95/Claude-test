@@ -1111,10 +1111,10 @@ try{
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
     <button class="clock-btn" id="chassisCalendarBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📆 Chassis Calendar</button>
-    <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">🗓 Kit Scheduler (Demo)</button>
+    <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Kit Scheduler (Production Planner)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export &amp; Share Full Current State</button>
-    <button class="clock-btn" id="exportJobsForSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
+    <button class="clock-btn" id="exportJobsForSchedulerBtn" style="display:none; width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">📅 Export Jobs for Kit Scheduler (Laptop)</button>
     <button class="clock-btn" id="retiredItemsBtn" style="width:100%; margin-bottom:8px; border-color:var(--text-muted); color:var(--text-muted); text-align:left; padding:12px 14px;">🗑 Retired Items</button>
     <button class="clock-btn" id="downloadBackupNowBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">💾 Download Backup Now</button>
     <button class="clock-btn" id="verifyBackupBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🔎 Verify Against Backup</button>
@@ -9582,8 +9582,14 @@ function renderKitSchedulerBody(){
   `).join('');
 }
 
+// Inside the one app, this opens the Production Planner (it lives in Admin,
+// one copy of its data) and comes back here when it's closed. Opened on its
+// own outside the app, the old demo still shows.
 document.getElementById('kitSchedulerBtn').onclick = ()=>{
   document.getElementById('moreMenuModal').classList.remove('show');
+  if(window.parent && window.parent !== window){
+    try{ window.parent.postMessage({ type: 'leader-open-planner', from: 'input' }, '*'); return; }catch(e){}
+  }
   renderKitSchedulerBody();
   document.getElementById('kitSchedulerModal').classList.add('show');
 };

@@ -1,6 +1,7 @@
 # Install 2.5 — Kit Scheduler: Production Planner (21 Oct 2026)
 
-Laptop EXE only. The tablet APK can wait (it only carries the same Admin screen).
+Laptop EXE first. The tablet APK is optional — build it when you want the planner
+button in the tablet's Input → ⚙ More too.
 Same app — no data move. **Never uninstall.**
 
 ## Build + install (laptop, Command Prompt)
@@ -18,3 +19,8 @@ Same app — no data move. **Never uninstall.**
 9. **🛒 Order List** — what to buy, from whom, by when. **🖨 Print Order List**.
 
 Each new schedule: import it → **🔀 What Moved** shows what changed.
+
+## Opening it
+- **Admin** → 📅 Kit Scheduler, or
+- **Input** → ⚙ More → 📅 Kit Scheduler (Production Planner). It opens the same
+  planner (same data, kept in Admin) and **Close** takes you back to Input.
