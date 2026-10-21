@@ -101,6 +101,18 @@ try{
   .import-log{font-size:11.5px; color:var(--text-muted); margin-top:10px; line-height:1.6;}
   .import-log .ok{color:var(--success);}
   .import-log .warn{color:var(--amber);}
+  /* Toolbar menus */
+  .tb-menus{margin-top:8px;}
+  .tb-menu{position:relative;}
+  .tb-menu-panel{display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:250; min-width:270px;
+    background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.15); padding:6px;}
+  .tb-menu.open .tb-menu-panel{display:flex; flex-direction:column; gap:4px;}
+  .tb-menu-panel .btn{width:100%; text-align:left; justify-content:flex-start; border-color:transparent; background:none;}
+  .tb-menu-panel .btn:hover{background:var(--panel-raised);}
+  .tb-menu-panel #resetBtn{border-color:var(--danger);}
+  .tb-menu-sep{height:1px; background:var(--panel-line); margin:4px 2px;}
+  .tb-menu-field{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-faint); padding:6px 10px;}
+  .tb-menu.open .tb-menu-btn{background:var(--panel-raised);}
 </style>
 <!-- Vendored locally (not CDN) — same offline-first rule as everything
      else here: this app has to work with no network at all. -->
@@ -126,38 +138,64 @@ try{
         <div class="t2">Leader Trailer Bodies — Inventory Control</div>
       </div>
     </div>
+    <!-- Toolbar: the daily buttons on top, everything else in four menus.
+         Every button keeps its id, so all existing handlers still work. -->
     <div class="toolbar">
-      <button class="btn primary" id="importBtn">⬇ Import File</button>
+      <button class="btn" id="stockCountBtn" style="border-color:var(--gold); color:var(--gold);">📝 Stock Count</button>
+      <button class="btn" id="reviewQueueBtn" style="border-color:var(--steel); color:#fff; background:var(--steel);">🧾 Review Queue <span id="rqBadge" style="display:none; background:var(--danger); color:#fff; border-radius:10px; padding:1px 7px; margin-left:4px; font-size:11px;"></span></button>
+      <button class="btn" id="orderListsBtn" style="border-color:var(--gold); color:var(--gold);">📋 Order Lists</button>
+      <button class="btn" id="kitSchedulerBtn" style="border-color:var(--steel); color:var(--steel);">📅 Kit Scheduler</button>
+      <button class="btn" id="issuedHistoryBtn" style="border-color:var(--gold); color:var(--gold);">📈 Issued History</button>
+      <button class="btn" id="stockLevelReportBtn" style="border-color:var(--steel); color:var(--steel);">📊 Stock Level Report</button>
+    </div>
+    <div class="toolbar tb-menus">
+      <div class="tb-menu">
+        <button class="btn tb-menu-btn" type="button">📦 Stock ▾</button>
+        <div class="tb-menu-panel">
+          <button class="btn" id="fixSpotCheckListBtn">🖥 View &amp; Fix On Screen</button>
+          <button class="btn" id="duplicateItemsBtn">🔗 Find Duplicate Items</button>
+          <button class="btn" id="priceCompareBtn">💰 Price Compare</button>
+          <button class="btn" id="aftermarketBtn" style="color:#7A4FA0;">📦 Aftermarket Deliveries</button>
+        </div>
+      </div>
+      <div class="tb-menu">
+        <button class="btn tb-menu-btn" type="button">🖨 Reports ▾</button>
+        <div class="tb-menu-panel">
+          <button class="btn" id="directorStatementBtn">📊 Director Statement</button>
+          <button class="btn" id="printSpotCheckListBtn">🖨 Print Spot Check List</button>
+          <button class="btn" id="overrideLogBtn">📜 Override Log</button>
+        </div>
+      </div>
+      <div class="tb-menu">
+        <button class="btn tb-menu-btn" type="button">💾 Backup &amp; Files ▾</button>
+        <div class="tb-menu-panel">
+          <button class="btn" id="saveDailyBtn">💾 Save Today's List</button>
+          <button class="btn" id="backupShareBtn">💾 Backup &amp; Share</button>
+          <button class="btn" id="verifyMasterBackupBtn">🔎 Verify Against Backup</button>
+          <button class="btn" id="restoreMasterBackupBtn" style="color:var(--danger);">🛟 Restore Backup</button>
+          <div class="tb-menu-sep"></div>
+          <button class="btn" id="importBtn">⬇ Import File</button>
+          <button class="btn" id="importFullStateBtn">📥 Import Full State from Tablet</button>
+          <button class="btn" id="exportStockRefBtn">📤 Export Stock Reference for Terminal</button>
+        </div>
+      </div>
+      <div class="tb-menu">
+        <button class="btn tb-menu-btn" type="button">⚙ Day &amp; Setup ▾</button>
+        <div class="tb-menu-panel">
+          <button class="btn" id="newDayBtn" style="color:var(--success);">☀ Start New Day (keeps stock)</button>
+          <span class="tb-menu-field">
+            Cycle count size:
+            <input type="number" min="1" id="cycleCountBatchInput" style="width:55px; background:var(--void); color:var(--gold); font-weight:700; border:1px solid var(--panel-line); border-radius:4px; padding:4px 6px; text-align:center;">
+            <span>/day</span>
+          </span>
+          <div class="tb-menu-sep"></div>
+          <button class="btn" id="resetBtn" style="color:var(--danger); border-color:var(--danger);">⚠ Full Reset — Wipes ALL Real Stock</button>
+        </div>
+      </div>
       <input type="file" id="fileInput" accept="application/json">
-      <button class="btn primary" id="saveDailyBtn">💾 Save Today's List</button>
-      <button class="btn" id="restoreMasterBackupBtn" style="border-color:var(--danger); color:var(--danger);">🛟 Restore Backup</button>
-      <button class="btn" id="backupShareBtn" style="border-color:var(--gold); color:var(--gold);">💾 Backup &amp; Share</button>
-      <button class="btn" id="verifyMasterBackupBtn" style="border-color:var(--steel); color:var(--steel);">🔎 Verify Against Backup</button>
       <input type="file" id="verifyMasterBackupFileInput" accept="application/json" style="display:none;">
-      <button class="btn" id="exportStockRefBtn" style="border-color:var(--steel); color:var(--steel);">📤 Export Stock Reference for Terminal</button>
-      <button class="btn" id="importFullStateBtn" style="border-color:var(--gold); color:var(--gold);">📥 Import Full State from Tablet</button>
       <input type="file" id="importFullStateFileInput" accept="application/json" style="display:none;">
       <input type="file" id="restoreMasterBackupFileInput" accept="application/json" style="display:none;">
-      <button class="btn" id="orderListsBtn" style="border-color:var(--gold); color:var(--gold);">📋 Order Lists</button>
-      <button class="btn" id="priceCompareBtn" style="border-color:var(--gold); color:var(--gold);">💰 Price Compare</button>
-      <button class="btn" id="kitSchedulerBtn" style="border-color:var(--steel); color:var(--steel);">📅 Kit Scheduler</button>
-      <button class="btn primary" id="directorStatementBtn">📊 Director Statement</button>
-      <button class="btn" id="printSpotCheckListBtn" style="border-color:var(--danger); color:var(--danger);">🖨 Print Spot Check List</button>
-      <button class="btn" id="fixSpotCheckListBtn" style="border-color:var(--gold); color:var(--gold);">🖥 View &amp; Fix On Screen</button>
-      <button class="btn" id="stockCountBtn" style="border-color:var(--gold); color:var(--gold);">📝 Stock Count</button>
-      <button class="btn" id="stockLevelReportBtn" style="border-color:var(--steel); color:var(--steel);">📊 Stock Level Report</button>
-      <button class="btn" id="reviewQueueBtn" style="border-color:var(--steel); color:#fff; background:var(--steel);">🧾 Review Queue <span id="rqBadge" style="display:none; background:var(--danger); color:#fff; border-radius:10px; padding:1px 7px; margin-left:4px; font-size:11px;"></span></button>
-      <button class="btn" id="overrideLogBtn" style="border-color:var(--steel); color:var(--steel);">📜 Override Log</button>
-      <button class="btn" id="issuedHistoryBtn" style="border-color:var(--gold); color:var(--gold);">📈 Issued History</button>
-      <button class="btn" id="aftermarketBtn" style="border-color:#7A4FA0; color:#7A4FA0;">📦 Aftermarket Deliveries</button>
-      <span style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-faint);">
-        Cycle count size:
-        <input type="number" min="1" id="cycleCountBatchInput" style="width:55px; background:var(--void); color:var(--gold); font-weight:700; border:1px solid var(--panel-line); border-radius:4px; padding:4px 6px; text-align:center;">
-        <span>/day</span>
-      </span>
-      <button class="btn primary" id="newDayBtn" style="background:var(--success); border-color:var(--success);">☀ Start New Day (keeps stock)</button>
-      <button class="btn" id="duplicateItemsBtn" style="border-color:var(--gold); color:var(--gold);">🔗 Find Duplicate Items</button>
-      <button class="btn" id="resetBtn" style="border-color:var(--danger); color:var(--danger);">⚠ Full Reset — Wipes ALL Real Stock</button>
     </div>
   </div>
 
@@ -409,7 +447,7 @@ try{
       <h3 style="margin:0;">📝 Stock Count</h3>
       <button class="btn" id="stockCountCloseBtn">Close</button>
     </div>
-    <div class="sub" style="margin-bottom:10px;">Enter a counted qty and Save — updates On Hand here right away, and logs a dated record to carry over to the terminal.</div>
+    <div class="sub" style="margin-bottom:10px;">Type counted qtys (one or many), then Save — updates On Hand here right away, and logs a dated record to carry over to the terminal.</div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
       <label style="font-size:12.5px;">Counted by:
         <input type="text" id="scCountedBy" placeholder="Name" style="margin-left:6px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px;">
@@ -422,6 +460,11 @@ try{
       <button class="btn primary" id="scExportPendingBtn" style="white-space:nowrap;">📤 Export Pending Counts (<span id="scPendingCount">0</span>)</button>
     </div>
     <div id="scResultsWrap"></div>
+    <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-top:10px; position:sticky; bottom:-20px; background:var(--panel); padding:10px 0;">
+      <span class="sub" style="margin:0 auto 0 0;">Type counts down the list — Enter jumps to the next — then save them all at once. Typed counts stay while you switch group or search.</span>
+      <button class="btn" id="scClearDraftBtn" style="display:none;">Clear typed</button>
+      <button class="btn primary" id="scSaveAllBtn">💾 Save All Entered (<span id="scDraftCount">0</span>)</button>
+    </div>
   </div>
 </div>
 
@@ -5316,7 +5359,7 @@ function renderStockCountResults(query){
   } else if(group){
     matches = stock.filter(i=> i.cat === group).sort((a,b)=> a.name.localeCompare(b.name));
   } else {
-    wrap.innerHTML = `<div class="sub" style="margin:0;">Pick a group to list every item in it, or search for one part. Type a qty and press Enter to save and jump to the next item.</div>`;
+    wrap.innerHTML = `<div class="sub" style="margin:0;">Pick a group to list every item in it, or search for one part. Type counts down the list (Enter jumps to the next), then 💾 Save All Entered.</div>`;
     return;
   }
   if(matches.length === 0){ wrap.innerHTML = `<div class="sub" style="margin:0;">No matches.</div>`; return; }
@@ -5333,7 +5376,7 @@ function renderStockCountResults(query){
             <tr data-sc-row="${item.sku}">
               <td>${item.name} <span class="sku" style="color:var(--text-faint);">${item.sku}</span></td>
               <td class="right num">${item.qty}</td>
-              <td class="right"><input type="number" data-sc-qty="${item.sku}" placeholder="${item.qty}" style="width:85px; text-align:right; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:4px 6px;"></td>
+              <td class="right"><input type="number" data-sc-qty="${item.sku}" placeholder="${item.qty}" value="${scDraft[item.sku] !== undefined ? scDraft[item.sku] : ''}" style="width:85px; text-align:right; background:${scDraft[item.sku] !== undefined ? 'rgba(184,134,46,0.15)' : 'var(--void)'}; color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:4px 6px;"></td>
               <td><button class="btn primary" data-sc-save="${item.sku}" style="padding:4px 10px; font-size:11.5px;">Save</button></td>
               <td style="font-size:10.5px; color:var(--text-faint);">${lastRecord ? new Date(lastRecord.countedAt).toLocaleString('en-ZA') + (lastRecord.applied ? ' (sent)' : ' (pending)') : '—'}</td>
             </tr>
@@ -5342,66 +5385,114 @@ function renderStockCountResults(query){
       </tbody>
     </table>
   `;
+  // Batch counting: type counts down the list (Enter jumps to the next row,
+  // nothing saved yet), then "Save All Entered" saves them in one go. Typed
+  // counts are kept while you switch group or search, until saved or cleared.
   const qtyInputs = [...wrap.querySelectorAll('[data-sc-qty]')];
   qtyInputs.forEach((inp, idx)=>{
+    inp.addEventListener('input', ()=>{
+      const v = inp.value.trim();
+      if(v === '') delete scDraft[inp.dataset.scQty]; else scDraft[inp.dataset.scQty] = v;
+      inp.style.background = v === '' ? 'var(--void)' : 'rgba(184,134,46,0.15)';
+      scSaveDraft(); scUpdateBatchBar();
+    });
     inp.addEventListener('keydown', e=>{
       if(e.key !== 'Enter') return;
       e.preventDefault();
-      const nextSku = qtyInputs[idx+1] ? qtyInputs[idx+1].dataset.scQty : null;
-      wrap.querySelector(`[data-sc-save="${inp.dataset.scQty}"]`).click();
-      if(nextSku){ const n = wrap.querySelector(`[data-sc-qty="${nextSku}"]`); if(n) n.focus(); }
+      const n = qtyInputs[idx+1];
+      if(n) n.focus(); else document.getElementById('scSaveAllBtn').focus();
     });
   });
   wrap.querySelectorAll('[data-sc-save]').forEach(btn=>{
     btn.onclick = ()=>{
       const sku = btn.dataset.scSave;
       const input = wrap.querySelector(`[data-sc-qty="${sku}"]`);
-      const qty = parseFloat(input.value);
-      if(isNaN(qty) || qty < 0){ alert('Enter a counted qty of 0 or more.'); return; }
-      const item = stock.find(s=>s.sku===sku);
-      if(!item) return;
-      const countedAtRaw = document.getElementById('scCountedAt').value;
-      const countedAtDate = countedAtRaw ? new Date(countedAtRaw) : new Date();
-      if(isNaN(countedAtDate.getTime())){ alert('Enter a valid "Count taken at" date and time.'); return; }
-      if(countedAtDate.getTime() > Date.now() + 5*60000){ alert('"Count taken at" is in the future — fix it before saving.'); return; }
-      const countedAt = countedAtDate.toISOString();
-      const since = laptopActivitySinceCount(sku, countedAt);
-      const newQty = qty + since;
-      if(since !== 0 && !confirm(`${item.name}\n\nCounted: ${qty}\nActivity on this laptop since the count: ${since > 0 ? '+' : ''}${since}\nNew On Hand: ${newQty}\n\nSave?`)) return;
-      const beforeQty = item.qty;
-      item.qty = newQty;
-      // Same shape as every other Spot Check Log entry — so the existing
-      // "spot check wins over older activity" rule also protects this count
-      // against older terminal activity that syncs in later.
-      spotLedger.push({
-        _id: 'stockcount-' + sku + '-' + countedAt,
-        at: countedAt,
-        sku, name: item.name,
-        before: beforeQty, after: newQty, diff: newQty - beforeQty,
-        date: countedAt.slice(0,10),
-        time: countedAtDate.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
-        checker: document.getElementById('scCountedBy').value.trim() || 'Stock Count'
-      });
-      logOverride({ action: 'Stock count', where: 'Stock Count', sku, item: item.name, field: 'qty', oldValue: beforeQty, newValue: newQty,
-        ref: `counted ${qty} at ${countedAtDate.toLocaleString('en-ZA')}${since ? `, ${since > 0 ? '+' : ''}${since} since` : ''}`, stockChanged: true });
-      saveState();
-      pendingCounts.push({
-        id: sku + '|' + countedAt,
-        itemId: sku,
-        qty,
-        countedAt,
-        countedBy: document.getElementById('scCountedBy').value.trim() || null,
-        source: 'master-list',
-        applied: false
-      });
-      savePendingCounts();
-      render();
-      renderSpotCheckLedger();
-      renderStockCountResults(document.getElementById('scSearch').value);
-      updateScPendingBadge();
+      scSaveCounts([[sku, input.value]]);
     };
   });
+  scUpdateBatchBar();
 }
+
+// Typed-but-not-saved counts: { sku: 'qty' } — a per-laptop draft only
+const SC_DRAFT_KEY = 'leader-master-sc-draft-v1';
+let scDraft = {};
+try{ scDraft = JSON.parse(localStorage.getItem(SC_DRAFT_KEY)) || {}; }catch(e){ scDraft = {}; }
+function scSaveDraft(){ try{ localStorage.setItem(SC_DRAFT_KEY, JSON.stringify(scDraft)); }catch(e){} }
+function scUpdateBatchBar(){
+  const n = Object.keys(scDraft).length;
+  const c = document.getElementById('scDraftCount'); if(c) c.textContent = n;
+  const b = document.getElementById('scSaveAllBtn'); if(b) b.disabled = n === 0;
+  const x = document.getElementById('scClearDraftBtn'); if(x) x.style.display = n ? '' : 'none';
+}
+
+// Saves one or more counts: [[sku, qtyText], …]. One check of the date, one
+// confirm for the whole batch, then each count is recorded exactly as a
+// single Save always did (stock, Spot Check Log, Override Log, pending count).
+function scSaveCounts(entries){
+  const countedAtRaw = document.getElementById('scCountedAt').value;
+  const countedAtDate = countedAtRaw ? new Date(countedAtRaw) : new Date();
+  if(isNaN(countedAtDate.getTime())){ alert('Enter a valid "Count taken at" date and time.'); return; }
+  if(countedAtDate.getTime() > Date.now() + 5*60000){ alert('"Count taken at" is in the future — fix it before saving.'); return; }
+  const countedAt = countedAtDate.toISOString();
+  const countedBy = document.getElementById('scCountedBy').value.trim();
+  const rows = [], bad = [];
+  entries.forEach(([sku, raw])=>{
+    const item = stock.find(s=> s.sku === sku);
+    const qty = parseFloat(raw);
+    if(!item){ return; }
+    if(isNaN(qty) || qty < 0){ bad.push(item.name); return; }
+    const since = laptopActivitySinceCount(sku, countedAt);
+    rows.push({ sku, item, qty, since, newQty: qty + since });
+  });
+  if(bad.length){ alert(`Enter a counted qty of 0 or more for:\n\n${bad.join('\n')}`); return; }
+  if(!rows.length){ alert('Nothing to save — type a counted qty first.'); return; }
+  const adjusted = rows.filter(r=> r.since !== 0);
+  if(rows.length > 1 || adjusted.length){
+    const lines = rows.map(r=> `${r.item.name}: ${r.item.qty} → ${r.newQty}` + (r.since ? `  (counted ${r.qty}, ${r.since > 0 ? '+' : ''}${r.since} since the count)` : ''));
+    if(!confirm(`Save ${rows.length} count${rows.length === 1 ? '' : 's'} (taken ${countedAtDate.toLocaleString('en-ZA')})?\n\n${lines.slice(0, 40).join('\n')}${lines.length > 40 ? `\n…and ${lines.length - 40} more` : ''}`)) return;
+  }
+  rows.forEach(({ sku, item, qty, since, newQty })=>{
+    const beforeQty = item.qty;
+    item.qty = newQty;
+    // Same shape as every other Spot Check Log entry — so the existing
+    // "spot check wins over older activity" rule also protects this count
+    // against older terminal activity that syncs in later.
+    spotLedger.push({
+      _id: 'stockcount-' + sku + '-' + countedAt,
+      at: countedAt,
+      sku, name: item.name,
+      before: beforeQty, after: newQty, diff: newQty - beforeQty,
+      date: countedAt.slice(0,10),
+      time: countedAtDate.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+      checker: countedBy || 'Stock Count'
+    });
+    logOverride({ action: 'Stock count', where: 'Stock Count', sku, item: item.name, field: 'qty', oldValue: beforeQty, newValue: newQty,
+      ref: `counted ${qty} at ${countedAtDate.toLocaleString('en-ZA')}${since ? `, ${since > 0 ? '+' : ''}${since} since` : ''}`, stockChanged: true });
+    pendingCounts.push({
+      id: sku + '|' + countedAt,
+      itemId: sku,
+      qty,
+      countedAt,
+      countedBy: countedBy || null,
+      source: 'master-list',
+      applied: false
+    });
+    delete scDraft[sku];
+  });
+  saveState();
+  savePendingCounts();
+  scSaveDraft();
+  render();
+  renderSpotCheckLedger();
+  renderStockCountResults(document.getElementById('scSearch').value);
+  updateScPendingBadge();
+  if(rows.length > 1) alert(`Saved ${rows.length} counts.`);
+}
+document.getElementById('scSaveAllBtn').onclick = ()=> scSaveCounts(Object.entries(scDraft));
+document.getElementById('scClearDraftBtn').onclick = ()=>{
+  if(!confirm(`Clear ${Object.keys(scDraft).length} typed count(s) without saving?`)) return;
+  scDraft = {}; scSaveDraft(); renderStockCountResults(document.getElementById('scSearch').value);
+};
 
 document.getElementById('scExportPendingBtn').onclick = async ()=>{
   let unapplied = pendingCounts.filter(r=>!r.applied);
@@ -7363,6 +7454,21 @@ document.getElementById('kitSchedulerCloseBtn').onclick = ()=>{
   }
   psReturnTo = null;
 };
+
+
+// Toolbar menus: click to open, click an item / outside / Esc to close.
+document.querySelectorAll('.tb-menu').forEach(menu=>{
+  menu.querySelector('.tb-menu-btn').addEventListener('click', e=>{
+    e.stopPropagation();
+    const wasOpen = menu.classList.contains('open');
+    document.querySelectorAll('.tb-menu.open').forEach(m=> m.classList.remove('open'));
+    if(!wasOpen) menu.classList.add('open');
+  });
+  menu.querySelectorAll('.tb-menu-panel .btn').forEach(b=> b.addEventListener('click', ()=> menu.classList.remove('open')));
+  menu.querySelector('.tb-menu-panel').addEventListener('click', e=> e.stopPropagation());
+});
+document.addEventListener('click', ()=> document.querySelectorAll('.tb-menu.open').forEach(m=> m.classList.remove('open')));
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') document.querySelectorAll('.tb-menu.open').forEach(m=> m.classList.remove('open')); });
 
 loadState();
 loadOrderLists();
