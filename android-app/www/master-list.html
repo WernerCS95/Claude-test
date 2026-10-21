@@ -196,6 +196,7 @@ try{
         <button class="btn" data-ps-tab="moved">🔀 What Moved <span id="psMovedCount"></span></button>
         <button class="btn" data-ps-tab="flags">⚠ Flags <span id="psFlagCount"></span></button>
         <button class="btn" data-ps-tab="kit">🧰 Kit per Type</button>
+        <button class="btn" data-ps-tab="allocation">🧮 Allocation</button>
         <button class="btn" data-ps-tab="orders">🛒 Order List <span id="psOrderCount"></span></button>
       </div>
       <div id="kitSchedulerBody"></div>
@@ -4503,7 +4504,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6316,7 +6317,7 @@ function renderKitScheduler(){
     return;
   }
   const r = { schedule: psRenderSchedule, calendar: psRenderCalendar, moved: psRenderMoved, flags: psRenderFlags,
-              kit: window.psRenderKit, orders: window.psRenderOrders }[psTab];
+              kit: window.psRenderKit, allocation: window.psRenderAllocation, orders: window.psRenderOrders }[psTab];
   if(r) r(body); else body.innerHTML = '<div class="sub" style="padding:20px;">Coming in the next step.</div>';
 }
 document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab = b.dataset.psTab; renderKitScheduler(); });
@@ -6837,6 +6838,139 @@ window.psRenderKit = function(body){
   if(cr) cr.onclick = (e)=>{ e.preventDefault(); delete psKit.cyl[t]; psKitSave(); renderKitScheduler(); };
 };
 psKitLoad();
+
+
+/* ---------- Step 3: stock pool allocation ----------
+   On-hand stock is one pool per item, not tied to the job it was bought
+   for. Every still-to-build stage with a date asks for its kit by that
+   date; demand is filled from the pool in need-by order (then job nr).
+   Re-runs from scratch on every import, calendar move or tick change.
+   Cylinders: each customer group has ONE supplier (JOST or Hydroscand) and
+   only ever draws from that supplier's stock — never topped up from the
+   other. Job by job in date order within that supplier. */
+const PS_CYL_SUPPLIER_KEY = 'leader-master-ps-cyl-supplier-v1';
+let psCylSupplier = {}; // { customerGroup: 'JOST' | 'Hydroscand' }
+function psCylLoad(){ try{ psCylSupplier = JSON.parse(localStorage.getItem(PS_CYL_SUPPLIER_KEY)) || {}; }catch(e){ psCylSupplier = {}; } }
+function psCylSave(){ try{ localStorage.setItem(PS_CYL_SUPPLIER_KEY, JSON.stringify(psCylSupplier)); }catch(e){} }
+psCylLoad();
+
+// What Parts Issued says each customer group had: { group: { JOST:n, Hydroscand:n } }
+function psCylHistory(){
+  const out = {};
+  const bySku = { [PS_CYL_SKU.JOST]: 'JOST', [PS_CYL_SKU.Hydroscand]: 'Hydroscand' };
+  (ledger || []).forEach(r=>{
+    if(r.deleted || !bySku[r.sku] || !r.customer) return;
+    const g = psCustomerGroup(r.customer);
+    out[g] = out[g] || { JOST:0, Hydroscand:0 };
+    out[g][bySku[r.sku]] += Number(r.qty) || 0;
+  });
+  return out;
+}
+// Supplier for a customer group: Werner's pick; else the only one the
+// issue history shows; else not set (flagged, never guessed).
+function psCylSupplierFor(group, hist){
+  if(psCylSupplier[group]) return { supplier: psCylSupplier[group], from: 'set' };
+  const h = (hist || psCylHistory())[psCustomerGroup(group)] || (hist || {})[group];
+  if(h){
+    if(h.JOST > 0 && !h.Hydroscand) return { supplier: 'JOST', from: 'history' };
+    if(h.Hydroscand > 0 && !h.JOST) return { supplier: 'Hydroscand', from: 'history' };
+    if(h.JOST > 0 && h.Hydroscand > 0) return { supplier: null, from: 'both' };
+  }
+  return { supplier: null, from: 'none' };
+}
+
+function psOnHand(sku){ const it = psStockItem(sku); return it ? Math.max(0, Number(it.qty) || 0) : 0; }
+
+function psPlan(){
+  const demand = [], undefinedGroups = {}, undated = [];
+  if(!psSchedule) return { demand, items: {}, undefinedGroups, undated, cylGroups: {} };
+  const hist = psCylHistory();
+  const cylGroups = {};
+  Object.values(psSchedule.jobs).forEach(job=>{
+    const kit = psKitForJob(job);
+    PS_STAGES.forEach(stage=>{
+      if(!psStillToBuild(job, stage)) return;
+      const needBy = psDate(job, stage);
+      const stageGroups = PS_GROUPS.filter(g=> g.stage === stage).map(g=> g.id);
+      kit.missing.filter(m=> stageGroups.includes(m)).forEach(m=>{
+        const g = PS_GROUPS.find(x=> x.id === m);
+        const k = `${m}|${g.byVariant ? psVariantKey(job.type, job.axles) : job.type}`;
+        (undefinedGroups[k] = undefinedGroups[k] || { group: m, label: g.label, type: job.type, axles: g.byVariant ? job.axles : '', jobs: [] }).jobs.push(job.nr + ' ' + job.customer);
+      });
+      if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
+      kit.lines.filter(l=> l.stage === stage).forEach(l=>{
+        const row = { key: job.key, nr: job.nr, customer: job.customer, group: job.group, type: job.type, stage, kitGroup: l.group, needBy, qty: l.qty };
+        if(l.cyl){
+          const s = psCylSupplierFor(job.group, hist);
+          cylGroups[job.group] = s;
+          row.cyl = true; row.supplier = s.supplier;
+          row.sku = s.supplier ? PS_CYL_SKU[s.supplier] : 'CYL-NO-SUPPLIER';
+        } else row.sku = l.sku;
+        demand.push(row);
+      });
+    });
+  });
+  demand.sort((a,b)=> a.needBy.localeCompare(b.needBy) || (+a.nr - +b.nr) || a.customer.localeCompare(b.customer));
+  const items = {};
+  demand.forEach(d=>{
+    const it = items[d.sku] = items[d.sku] || { sku: d.sku, cyl: !!d.cyl, supplier: d.cyl ? d.supplier : null, onHand: d.sku === 'CYL-NO-SUPPLIER' ? 0 : psOnHand(d.sku), left: null, need: 0, short: 0, rows: [] };
+    if(it.left === null) it.left = it.onHand;
+    const take = Math.min(it.left, d.qty);
+    it.left -= take;
+    d.fromStock = take; d.short = d.qty - take;
+    it.need += d.qty; it.short += d.short;
+    it.rows.push(d);
+  });
+  return { demand, items, undefinedGroups, undated, cylGroups };
+}
+
+window.psRenderAllocation = function(body){
+  const plan = psPlan();
+  const hist = psCylHistory();
+  const groups = [...new Set(Object.values(psSchedule.jobs).map(j=> j.group))].sort((a,b)=> a.localeCompare(b));
+  const cylRows = groups.map(g=>{
+    const s = psCylSupplierFor(g, hist);
+    const h = hist[g];
+    const needs = plan.demand.filter(d=> d.cyl && d.group === g);
+    const need = needs.reduce((a,d)=> a + d.qty, 0), short = needs.reduce((a,d)=> a + d.short, 0);
+    if(!need && !psCylSupplier[g]) return '';
+    return `<tr style="border-bottom:1px solid var(--panel-line);">
+      <td style="padding:3px 6px;"><b>${psEsc(g)}</b></td>
+      <td><select data-ps-cyl="${psEsc(g)}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
+        <option value="">${s.from === 'history' ? `${s.supplier} (from issue history)` : '— not set —'}</option>
+        <option value="JOST" ${psCylSupplier[g] === 'JOST' ? 'selected' : ''}>JOST</option>
+        <option value="Hydroscand" ${psCylSupplier[g] === 'Hydroscand' ? 'selected' : ''}>Hydroscand</option></select>
+        ${s.from === 'both' ? '<span style="color:var(--danger); font-size:11.5px;"> history shows both — pick one</span>' : ''}
+        ${!s.supplier && s.from !== 'both' ? '<span style="color:var(--danger); font-size:11.5px;"> pick one</span>' : ''}</td>
+      <td class="sub" style="margin:0;">${h ? `issued before: JOST ${h.JOST} · Hydroscand ${h.Hydroscand}` : 'no history'}</td>
+      <td style="text-align:right;">${need}</td>
+      <td style="text-align:right; font-weight:700; color:${short ? 'var(--danger)' : 'var(--success)'};">${short ? `short ${short}${s.supplier ? ' on ' + s.supplier : ''}` : 'covered'}</td></tr>`;
+  }).join('');
+  const jobs = psJobsSorted();
+  const jobRows = jobs.map(j=>{
+    const cells = PS_STAGES.map(stage=>{
+      const ds = plan.demand.filter(d=> d.key === j.key && d.stage === stage);
+      if(!psStillToBuild(j, stage)) return `<td style="color:var(--text-faint);">not needed</td>`;
+      if(!psDate(j, stage)) return `<td style="color:var(--text-faint);">no date</td>`;
+      const shortRows = ds.filter(d=> d.short > 0);
+      return `<td>${psFmtDay(psDate(j, stage))} — ${shortRows.length
+        ? `<span style="color:var(--danger); font-weight:700;">short ${shortRows.length} item(s)</span><div class="sub" style="margin:0;">${shortRows.map(d=> `${psEsc(d.cyl ? `Cylinders ${d.supplier || '(no supplier)'}` : psItemName(d.sku))} ${d.short}/${d.qty}`).join(' · ')}</div>`
+        : `<span style="color:var(--success);">✓ covered (${ds.length} lines)</span>`}</td>`;
+    }).join('');
+    return `<tr style="border-bottom:1px solid var(--panel-line); vertical-align:top;"><td style="padding:3px 6px;"><b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}</td><td>${psEsc(j.type)}</td>${cells}</tr>`;
+  }).join('');
+  body.innerHTML = `
+    <div style="font-weight:700; margin-bottom:4px;">Cylinder supplier per customer — one supplier, never split</div>
+    <div class="sub" style="margin-bottom:6px;">A customer only draws from its own supplier's cylinders (8-600-018 JOST / 8-600-019 Hydroscand), job by job in date order. Blank = taken from what Parts Issued shows, if it's only ever been one supplier.</div>
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Customer group</th><th>Supplier</th><th>History</th><th style="text-align:right;">Cylinders needed</th><th style="text-align:right;">Result</th></tr></thead>
+      <tbody>${cylRows || '<tr><td colspan="5" class="sub">No cylinders needed on this schedule.</td></tr>'}</tbody></table>
+    <div style="font-weight:700; margin-bottom:4px;">Coverage per job — stock handed out in need-by order</div>
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Job</th><th>Type</th><th style="color:var(--steel);">Chassis</th><th style="color:var(--gold);">Finals</th></tr></thead><tbody>${jobRows}</tbody></table>`;
+  body.querySelectorAll('[data-ps-cyl]').forEach(sel=> sel.onchange = ()=>{
+    if(sel.value) psCylSupplier[sel.dataset.psCyl] = sel.value; else delete psCylSupplier[sel.dataset.psCyl];
+    psCylSave(); renderKitScheduler();
+  });
+};
 
 psLoad();
 document.getElementById('kitSchedulerBtn').onclick = ()=>{
