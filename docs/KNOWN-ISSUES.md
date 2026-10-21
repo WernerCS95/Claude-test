@@ -63,11 +63,14 @@ syncs as one replace/delete for the whole delivery; newest edit wins; a deleted
 delivery stays as a marker so late lines can't bring it back. Laptop edits and
 deletes are in the Override Log. Never touches stock.
 
-## 9. Kit Scheduler — first real schedule still to check (noted 2026-10-21)
+## 9. Kit Scheduler — real schedule checked (2026-10-21)
 
-The planner was built and tested on a mock workbook laid out exactly per the
-brief (sheet "2025", date C, Chassis AO-AS, Finals BY-CC). The first real file
-("Production Target Week 12 Okt - 23 Okt 2026 nr 1.xlsx") still needs a run:
-check the Flags tab and that the job count matches the paper schedule.
-Kit groups with no stock-linked definition yet (Axles, Tyres & rims,
-Air/brake, Nameplates) show as "not planned" until filled in under Kit per Type.
+"Production Target Week 12 Okt - 23 Okt 2026 nr 1.xlsx" reads cleanly: 98 jobs,
+468 unit rows, 5 Oct – 1 Dec. Road trains come as T + D + F with the customer
+only on T — D and F now inherit from T (as F does from L on a link). A lone "0"
+in Type/Customer/Axles is treated as blank. Flags on this file: 460 F listed
+twice (Chassis and Finals) and 459 has no F — the flag names 459 F as the
+likely intended row. Test case holds: WST 14–20 covered from JOST on hand,
+Como short on JOST from 511, need-by 3 Nov, order by Fri 30 Oct (with 30 on hand).
+Types not matched to a tablet kit yet: Tridem ST (Como/NWB), 20m Ratel (WST),
+53 HWP (Gemini), Sement FD — pick "Kit based on" or fill in under Kit per Type.

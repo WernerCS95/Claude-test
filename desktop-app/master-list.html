@@ -6015,6 +6015,7 @@ const PS_COLS = {
   finals:  { pct: 76, job: 77, customer: 78, type: 79, axles: 80 }
 };
 const PS_STAGES = ['chassis', 'finals'];
+const PS_HEAD = { L:true, T:true }; // lead unit of a job: L on a link, T on a road train
 const PS_STAGE_LABEL = { chassis: 'Chassis', finals: 'Finals' };
 
 let psSchedule = null;  // { importedAt, fileName, sheet, jobs:{key:job}, units:[], flags:[], moved:{} }
@@ -6040,6 +6041,8 @@ function psClean(v){
   if(v === null || v === undefined) return '';
   return String(v).replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
 }
+// Customer / type / axles cell: a lone 0 is filler, not a value
+function psCleanField(v){ const t = psClean(v); return /^0+$/.test(t) ? '' : t; }
 function psCleanType(v){
   // "53HWP" -> "53 HWP" (digits stuck to a capitalised word); "40m HWP" is left alone
   return psClean(v).replace(/^(\d+)([A-Z]{2,})\b/, '$1 $2');
@@ -6107,23 +6110,24 @@ function psReadSheet(getCell, rowCount){
       units.push({
         stage, row: excelRow, date: lastDate, day: lastDay,
         nr: m[1], suffix: (m[2] || '').toUpperCase(),
-        customer: psClean((getCell(r, c.customer) || {}).v),
-        type: psCleanType((getCell(r, c.type) || {}).v),
-        axles: psCleanAxles((getCell(r, c.axles) || {}).w || (getCell(r, c.axles) || {}).v),
+        customer: psCleanField((getCell(r, c.customer) || {}).v),
+        type: psCleanType(psCleanField((getCell(r, c.type) || {}).v)),
+        axles: psCleanAxles(psCleanField((getCell(r, c.axles) || {}).w || (getCell(r, c.axles) || {}).v)),
         pct: psParsePct(getCell(r, c.pct))
       });
     });
   }
 
-  // F rows with blank customer/type/axles inherit from their L row: same
-  // stage first, nearest L above; then the other stage.
+  // Follower rows (F, and D on road trains) with blank customer/type/axles
+  // inherit from the job's lead unit — L on a link, T on a road train
+  // (T + D + F). Same stage first, nearest lead above; then the other stage.
   units.forEach(u=>{
-    if(u.suffix !== 'F' || (u.customer && u.type && u.axles)) return;
-    const ls = units.filter(x=> x.suffix === 'L' && x.nr === u.nr);
+    if(PS_HEAD[u.suffix] || (u.customer && u.type && u.axles)) return;
+    const ls = units.filter(x=> PS_HEAD[x.suffix] && x.nr === u.nr && x.customer);
     const sameStage = ls.filter(x=> x.stage === u.stage);
     const pool = sameStage.length ? sameStage : ls;
     if(!pool.length){
-      if(!u.customer) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} F has no customer and there's no ${u.nr} L to take it from.` });
+      if(!u.customer) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} ${u.suffix} has no customer and there's no ${u.nr} L or T to take it from.` });
       return;
     }
     let pick = pool.filter(x=> x.row <= u.row).sort((a,b)=> b.row - a.row)[0] || pool.slice().sort((a,b)=> a.row - b.row)[0];
@@ -6134,7 +6138,7 @@ function psReadSheet(getCell, rowCount){
       const custs = [...new Set(pool.map(x=> psCustKey(x.customer)))];
       // Only worth a warning when the L picked isn't the unit right above this F
       const prev = units.filter(x=> x.stage === u.stage && x.row < u.row).sort((a,b)=> b.row - a.row)[0];
-      if(custs.length > 1 && prev !== pick) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} F has no customer and ${u.nr} L is used by ${custs.length} customers — took "${pick.customer}" (nearest above). Check.` });
+      if(custs.length > 1 && prev !== pick) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr} ${u.suffix} has no customer and ${u.nr} ${pick.suffix} is used by ${custs.length} customers — took "${pick.customer}" (nearest above). Check.` });
       u.customer = pick.customer;
     }
     if(!u.type) u.type = pick.type;
@@ -6147,20 +6151,23 @@ function psReadSheet(getCell, rowCount){
   // Group units into jobs (job nr + customer)
   const jobs = {};
   const seen = {};
+  const dups = [];
   units.forEach(u=>{
     if(!u.customer) flags.push({ level:'warn', stage:u.stage, row:u.row, text: `Row ${u.row} (${PS_STAGE_LABEL[u.stage]}): ${u.nr}${u.suffix} has no customer.` });
     const key = psJobKey(u.nr, u.customer);
     const dupKey = `${key}|${u.suffix}|${u.stage}`;
     if(seen[dupKey]){
-      flags.push({ level:'warn', stage:u.stage, row:u.row, text: `${u.nr} ${u.suffix} (${u.customer || 'no customer'}) is listed twice in ${PS_STAGE_LABEL[u.stage]} — rows ${seen[dupKey].row} (${seen[dupKey].date}) and ${u.row} (${u.date}). Kept the first. Is one of them meant to be another unit?` });
+      dups.push({ u, first: seen[dupKey] });
       return;
     }
     seen[dupKey] = u;
     if(!jobs[key]) jobs[key] = { key, nr: u.nr, customer: u.customer, group: psCustomerGroup(u.customer), type: '', axles: '', units: { chassis: [], finals: [] } };
     const j = jobs[key];
     j.units[u.stage].push({ suffix: u.suffix, date: u.date, day: u.day, pct: u.pct, row: u.row });
-    if(!j.type || u.suffix === 'L') j.type = u.type || j.type;
-    if(!j.axles || u.suffix === 'L') j.axles = u.axles || j.axles;
+    // The job's type/axles are the lead unit's (L or T) — a road train's
+    // Dollie / Tandem rows carry their own unit type, not the job's
+    if(!j.type || PS_HEAD[u.suffix]) j.type = u.type || j.type;
+    if(!j.axles || PS_HEAD[u.suffix]) j.axles = u.axles || j.axles;
   });
 
   // Per-job stage summary + pair checks
@@ -6171,7 +6178,7 @@ function psReadSheet(getCell, rowCount){
       j[stage + 'Done'] = us.length > 0 && us.every(x=> x.pct === 100);
       j[stage + 'Pct'] = us.length ? us.map(x=> x.pct) : [];
     });
-    const ord = { L:0, F:1, T:2, D:3 };
+    const ord = { L:0, T:1, D:2, F:3 };
     PS_STAGES.forEach(stage=> j.units[stage].sort((a,b)=> (ord[a.suffix] ?? 9) - (ord[b.suffix] ?? 9)));
     const sc = j.units.chassis.map(x=> x.suffix).join('+');
     const sf = j.units.finals.map(x=> x.suffix).join('+');
@@ -6181,6 +6188,25 @@ function psReadSheet(getCell, rowCount){
     if(!sc || !sf){
       flags.push({ level:'info', text: `${j.nr} ${j.customer}: only in ${sc ? 'Chassis' : 'Finals'} on this schedule${sc ? ' (no Finals date yet)' : ' (Chassis already past)'}.` });
     }
+  });
+
+  // A job whose lead unit (L or T) is listed but has no F on that stage
+  Object.values(jobs).forEach(j=> PS_STAGES.forEach(stage=>{
+    const sfx = j.units[stage].map(x=> x.suffix);
+    if(sfx.length && sfx.some(x=> PS_HEAD[x]) && !sfx.includes('F')){
+      j.missingF = j.missingF || {};
+      j.missingF[stage] = true;
+      flags.push({ level:'warn', stage, text: `${j.nr} ${j.customer}: ${PS_STAGE_LABEL[stage]} lists ${sfx.join('+')} but no F.` });
+    }
+  }));
+  // Duplicates — and the job that's probably meant (same group, same stage,
+  // missing that unit)
+  dups.forEach(({ u, first })=>{
+    const grp = psCustomerGroup(u.customer);
+    const likely = Object.values(jobs).filter(j=> j.group === grp && j.units[u.stage].length && !j.units[u.stage].some(x=> x.suffix === u.suffix) && j.key !== psJobKey(u.nr, u.customer))
+      .sort((a,b)=> Math.abs(+a.nr - +u.nr) - Math.abs(+b.nr - +u.nr))[0];
+    flags.push({ level:'warn', stage:u.stage, row:u.row, text: `${u.nr} ${u.suffix} (${u.customer || 'no customer'}) is listed twice in ${PS_STAGE_LABEL[u.stage]} — rows ${first.row} (${first.date}) and ${u.row} (${u.date}). Kept the first.` +
+      (likely ? ` ${likely.nr} ${likely.customer} has no ${u.suffix} there — one of these rows is probably ${likely.nr} ${u.suffix}.` : ' Is one of them meant to be another unit?') });
   });
 
   // Gap check: a customer group's L/F links normally come in pairs per stage.
