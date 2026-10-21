@@ -4503,7 +4503,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6453,6 +6453,390 @@ function psRenderFlags(body){
       ${info.map(f=> `<div class="sub" style="margin:2px 0;">${psEsc(f.text)}</div>`).join('')}
     </details>`;
 }
+
+
+/* Kit tables copied as-is from the tablet (stores-terminal.html), renamed PSK_*
+   so they never clash with this file. They seed the Kit per Type defaults. */
+const PSK_ELECTRICAL_KIT = {
+  id:"8-800-KIT", name:"⚡ Electrical Kit (Complete Set)", cat:"Kits", type:"kit", color:"var(--amber)",
+  components:[
+    { sku:"8-800-000", name:"Bolt Kit 8 – Electrical", qty:1 },
+    { sku:"8-800-002", name:"Lightbox rubbers - NR 1 Halfmoon", qty:2 },
+    { sku:"8-800-003", name:"Lightbox rubbers - NR 3 Leader Lightbox", qty:2 },
+    { sku:"8-800-023", name:"Chevron", qty:2 },
+    { sku:"8-800-025", name:"Reflector – White", qty:4 },
+    { sku:"8-800-026", name:"Reflector – Red", qty:2 }
+  ]
+};
+const PSK_FINISHES_KIT = {
+  id:"8-500-KIT", name:"Finishes Kit", cat:"Kits", type:"kit", color:"var(--amber)",
+  components:[
+    { sku:"8-500-001", name:"Catwalk rubber - NR 4", qty:8 },
+    { sku:"8-500-002", name:"Fire Extinguisher Boxes", qty:2 },
+    { sku:"8-500-003", name:"Fire Extinguisher 9kg", qty:2 },
+    { sku:"8-500-004", name:"M8 x 45 deg Grease Nipple", qty:4 }
+  ]
+};
+const PSK_SPARE_WHEEL_KIT = {
+  id:"8-400-KIT", name:"Spare Wheel Carrier Kit", cat:"Kits", type:"kit", color:"var(--amber)",
+  components:[
+    { sku:"8-400-001", name:"Rubbers Spare wheel rubber - NR2", qty:2 },
+    { sku:"8-400-002", name:"Spare wheel winch", qty:1 },
+    { sku:"8-400-003", name:"Perspex mudflaps Short - Leader", qty:4 },
+    { sku:"8-400-004", name:"Crossby clamps", qty:2 },
+    { sku:"8-400-005", name:"Spare wheel cable 1.5m Cut to size", qty:1 },
+    { sku:"8-400-006", name:"Perspex mudflaps - Leader", qty:4 },
+    { sku:"8-400-007", name:"Mudflaps Trailord", qty:2 },
+    { sku:"8-400-008", name:"Mudflaps Trailord - Short", qty:2 },
+    { sku:"8-400-009", name:"Tyre Valve Extention - 175mm", qty:8 }
+  ]
+};
+const PSK_BUMPER_BOLTS_FIXED = [
+  { sku:"8-900-000", name:"Bolt Kit 9 - Bumper Bolts", qty:1 }
+];
+const PSK_HUCK_BOLTS_KIT = {
+  id:"8-900-HUCK", name:"Huck Bolts Kit", cat:"Kits", type:"kit", color:"var(--amber)",
+  components:[
+    { sku:"8-900-002", name:"Huck Bolts - 16 B12", qty:150 },
+    { sku:"8-900-003", name:"Huck Bolt Collars - 16 CF", qty:154 },
+    { sku:"8-900-004", name:"Huck Bolts - 22 B114", qty:16 },
+    { sku:"8-900-005", name:"Huck Bolts - 22 B18", qty:28 },
+    { sku:"8-900-006", name:"Huck Bolts - 16 B12 G", qty:4 },
+    { sku:"8-900-007", name:"Huck Bolt Collars - 22 CF", qty:44 }
+  ]
+};
+const PSK_FINALS_MUDFLAPS_BASE = [
+  { sku:"8-300-000", name:"Bolt Kit 3 – Finals Mudflaps", qty:1 }
+];
+const PSK_FINALS_MUDFLAPS_BRACKET = { sku:"8-300-001", name:"Bolt Kit 3b – Finals Mudflap Bracket", qty:1 };
+const PSK_HYDRAULICS_VARIANT_BY_TYPE = {
+  "Ratel": "Ratel", "Ratel 3CR12": "Ratel", "Ratel Dinky HD": "Ratel",
+  "Ratel 3mm Hiace": "Ratel", "20 Ratel HD STL": "Ratel", "25m Ratel": "Ratel",
+  "40m HWP": "STD", "45m HWP": "STD", "40m HD": "STD", "45m Kort Vet": "STD",
+  "Drawbar": "Drawbar", "Tip Tanker": "TankerTipper", "20m Trailord": "Trailord",
+  "30m Worshond": "Worshond"
+};
+const PSK_HYDRAULICS_SKUS = {
+  Ratel:        { complete:"8-600-001", name:"Complete Hydraulic Kit Ratel",        leader:"8-600-002", leaderName:"Hydraulic Kit Ratel Leader Fittings",        follower:"8-600-003", followerName:"Hydraulic Kit Ratel Follower Fittings",        hoses:"8-600-004", hosesName:"Hydraulic Kit Ratel hoses" },
+  STD:          { complete:"8-600-007", name:"Complete Hydraulic STD",              leader:"8-600-008", leaderName:"Hydraulic Kit STD Leader Fittings",              follower:"8-600-009", followerName:"Hydraulic Kit STD Follower Fittings",              hoses:"8-600-010", hosesName:"Hydraulic Kit STD hoses" },
+  Worshond:     { complete:"8-600-013", name:"Complete Hydraulic Kit Worshond",     leader:"8-600-014", leaderName:"Hydraulic Kit Worshond Leader Fittings",     follower:"8-600-015", followerName:"Hydraulic Kit Worshond Follower Fittings",     hoses:"8-600-016", hosesName:"Hydraulic Kit Worshond hoses" },
+  Trailord:     { complete:"8-600-020", name:"Complete Hydraulic Kit Trailord",     leader:"8-600-021", leaderName:"Hydraulic Kit Trailord Leader Fittings",     follower:"8-600-022", followerName:"Hydraulic Kit Trailord Follower Fittings",     hoses:"8-600-023", hosesName:"Hydraulic Kit Trailord hoses" },
+  TankerTipper: { complete:"8-600-024", name:"Complete Hydraulic Kit Tanker Tipper", leader:"8-600-025", leaderName:"Hydraulic Kit Tanker Tipper Leader Fittings", follower:"8-600-026", followerName:"Hydraulic Kit Tanker Tipper Follower Fittings", hoses:"8-600-027", hosesName:"Hydraulic Kit Tanker Tipper hoses" },
+  Drawbar:      { complete:"8-600-031", name:"Complete Hydraulic Kit Drawbar",     leader:"8-600-032", leaderName:"Hydraulic Kit Drawbar Leader Fittings",     follower:"8-600-033", followerName:"Hydraulic Kit Drawbar Follower Fittings",     hoses:"8-600-034", hosesName:"Hydraulic Kit Drawbar hoses" }
+};
+const PSK_HYDRAULICS_BEND = {
+  Ratel: { sku:"8-600-006", name:"S Bent pipes" },
+  STD:   { sku:"8-600-012", name:"L Bent pipes" }
+};
+const PSK_TARP_VARIANT_BY_TYPE = {
+  "Ratel": "Ratel", "Ratel 3CR12": "Ratel", "Ratel Dinky HD": "Ratel",
+  "Ratel 3mm Hiace": "Ratel", "20 Ratel HD STL": "Ratel", "25m Ratel": "Ratel",
+  "40m HWP": "HWP40", "45m HWP": "HWP45", "35m Quad": "Quad",
+  "20m Trailord": "Trailord", "Tip Tanker": "Tanker",
+  "30m End Tipper HD": "EndTipper", "30m Worshond": "Dumbo", "Drawbar": "Drawbar"
+};
+const PSK_TARP_SKUS = {
+  Ratel:      { sku:"8-100-001", name:"Tarps - F-Line Ratel 5.9m - Black", qty:2, strapsRatchets:true },
+  Dumbo:      { sku:"8-100-003", name:"Tarps - F-Line Dumbo 7.6m - Black", qty:2, strapsRatchets:false },
+  HWP40:      { sku:"8-100-004", name:"Tarps - F-Line 40m³ 8.7m - Black", qty:2, strapsRatchets:true },
+  HWP45:      { sku:"8-100-007", name:"Tarps - F-Line HWP 9.26m - Black", qty:2, strapsRatchets:true },
+  Quad:       { sku:"8-100-002", name:"Tarps - Special Quad 7,4m x 3,34m", qty:2, strapsRatchets:true },
+  Trailord:   { sku:"8-100-011", name:"Tarps - F-Line Ratel 5.64m - Red Trailord", qty:2, strapsRatchets:false },
+  Tanker:     { sku:"8-100-016", name:"Tarps - Tanker 4.3m x 3.2m", qty:1, strapsRatchets:false },
+  EndTipper:  { sku:"8-100-006", name:"HK - End Tipper Tarp 11.6m", qty:1, strapsRatchets:false },
+  // Drawbar runs two different tarp sizes, one of each — not a matched pair.
+  Drawbar:    { multi:[
+                  { sku:"8-100-003", name:"Tarps - F-Line Dumbo 7.6m - Black", qty:1 },
+                  { sku:"8-100-005", name:"Tarps - E-Line 40m³ 8.5m - Black", qty:1 }
+                ], strapsRatchets:false }
+};
+const PSK_FIFTH_WHEEL_VARIANT_BY_TYPE = {
+  "Skeletal": "36DV", "Skeletal Leader": "36DV", "Skeletal Roadtrain": "36DV",
+  "Tandem Skeletal": "36DV", "Tandem Tandem Sceletal with Bins": "36DV",
+  "Tridem Skeletal 13,5": "36DV", "6 / 12 Dropside": "36DV",
+  "Ratel": "37CXW", "Ratel 3CR12": "37CXW", "Ratel Dinky HD": "37CXW",
+  "Ratel 3mm Hiace": "37CXW", "20 Ratel HD STL": "37CXW", "25m Ratel": "37CXW",
+  "35m Quad": "37CXW", "40m HWP": "37CXW", "45m HWP": "37CXW",
+  "6/12 Tautliner": "37CXW", "Tip Tanker": "37CXW", "30m Worshond": "37CXW"
+};
+const PSK_FIFTH_WHEEL_SKUS = {
+  "36DV": { sku:"8-200-002", name:"Fifth Wheel - 36 DV" },
+  "37CXW": { sku:"8-200-004", name:"Fifth Wheel - 37CXW" }
+};
+const PSK_TRAILER_TYPE_KINGPINS = {"20 Ratel HD STL": 2, "20m Trailord": 2, "25m Ratel": 2, "30m End Tipper HD": 1, "35m Quad": 2, "40m HD": 2, "40m HWP": 2, "45m HWP": 2, "45m Kort Vet": 2, "6 / 12 Dropside": 2, "6/12 Flatdeck": 2, "6/12 Tautliner": 2, "6m Flatdeck (vervang)": 1, "Beeswa": 2, "FD Special": 1, "Lowbed": 1, "Ratel": 2, "Ratel 3CR12": 2, "Ratel 3mm Hiace": 2, "Ratel Dinky HD": 2, "Skeletal": 2, "Skeletal Leader": 1, "Skeletal Roadtrain": 3, "Stepdeck": 1, "Stepdeck + Winch & Pedastal": 1, "Tandem Skeletal": 2, "Tandem Tandem Sceletal with Bins": 2, "Tip Tanker": 2, "Tridem FD": 1, "Tridem Skeletal 13,5": 1};
+const PSK_TRAILER_TYPE_FAMILY = {
+  'Ratel':'Ratel', 'Ratel 3CR12':'Ratel', 'Ratel Dinky HD':'Ratel', 'Ratel 3mm Hiace':'Ratel',
+  '20 Ratel HD STL':'Ratel', '25m Ratel':'Ratel',
+  '40m HWP':'Standard', '40m HD':'Standard', '45m HWP':'Standard', '45m Kort Vet':'Standard',
+  'Drawbar':'Drawbar',
+  '30m End Tipper HD':'EndTipper',
+  'Tip Tanker':'TipTanker',
+  '35m Quad':'Quad',
+  '6/12 Tautliner':'Tautliner', '6/12 Dropside':'Tautliner',
+  '6/12 Flatdeck':'Flatdeck', '6m Flatdeck (vervang)':'Flatdeck', 'FD Special':'Flatdeck', 'Tridem FD':'Flatdeck',
+  'Stepdeck':'Stepdeck', 'Stepdeck + Winch & Pedastal':'Stepdeck', 'Lowbed':'Stepdeck',
+  'Skeletal':'Skeletal', 'Skeletal Leader':'Skeletal', 'Tandem Skeletal':'Skeletal',
+  'Tandem Tandem Sceletal with Bins':'Skeletal', 'Tridem Skeletal 13,5':'Skeletal',
+  'Skeletal Roadtrain':'RoadTrain',
+  'Beeswa':'Skeletal'
+};
+const PSK_FAMILY_KIT_RULES = {
+  'Ratel':     { tarp:'5.9m F-line tarp set', tarpsPerSet:2, hydraulicKit:'Ratel Hydraulic Kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'None unless asked' },
+  'Standard':  { tarp:'8.7m F-line tarp set (9.2m for 45m³)', tarpsPerSet:2, hydraulicKit:'Standard Hydraulic Kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set — rule of thumb on 40m³+, confirm per job' },
+  'Drawbar':   { tarp:'8.5m F-line tarp x1 + 7.6m F-line tarp x1', tarpsPerSet:2, hydraulicKit:'Drawbar Hydraulic Kit (has a middle section)', fifthWheel:null, cylinders:4, landingLegs:null,
+                 jostException:'No 2nd king pin / no fifth wheel — 1x King Pin, 4x Cylinders (JOST); then via BPW: 1x 50mm Coupling, 1x Turntable (30t), 1x 50mm removable towing eye set incl. weld-in block' },
+  'EndTipper': { tarp:'One tarp only (single bin) — 11.5m for 30m³, 15.6m for 38m³', tarpsPerSet:1, hydraulicKit:'Sloper/End Tipper Kit — 1 hose + a few fittings, still order, just smaller', fifthWheel:null, cylinders:1, cylinderNote:'Not the standard 100mm — different size entirely, single cylinder', landingLegs:null },
+  'TipTanker': { tarp:'4.3m F-line tarp', tarpsPerSet:2, hydraulicKit:'Tipper Tanker Kit (incl. Autoroof)', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set' },
+  'Quad':      { tarp:'7.4m Autoforce-spec tarp', tarpsPerSet:2, hydraulicKit:'4-Axle PBS/Quad Hydraulic Kit (2 fitting boxes + 1 hose bundle) — 3-axle version is the Duisend Poot (DP) kit', fifthWheel:'37CXW', cylinders:4, landingLegs:'1 Set' },
+  'Tautliner': { tarp:'Per sales rep — buyout parts (tensioners LHS/RHS, roof capping, uprights, 39m rubber pelmet roll) via the tarp supplier; 10mm Clamps + Sikaflex via the hydraulics supplier', tarpsPerSet:null, hydraulicKit:'None — 24x 10mm Clamps (12 Leader / 12 Follower)', fifthWheel:'37CXW', cylinders:0, landingLegs:'1 Set' },
+  'Flatdeck':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None — 24x 10mm Clamps (12 Leader / 12 Follower)', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set' },
+  'Stepdeck':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None — 24x 10mm Clamps', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set (Mechanical, per real job cards)', axleNote:'3-axle rule same as Sloper/Flatdeck, but UNDERSLUNG — lower ride height' },
+  'Skeletal':  { tarp:'None', tarpsPerSet:0, hydraulicKit:'None at all', fifthWheel:'36DV', cylinders:0, landingLegs:'1 Set', extra:'Container locks x4/side, I-beam, 24x 10mm hydraulic Clamps (same supplier as hydraulics)' },
+  'RoadTrain': { tarp:'—', tarpsPerSet:null, hydraulicKit:'Standard Hydraulic Kit x2 (3 chassis = Leader+Leader+Follower)', fifthWheel:'36DV x2', cylinders:8, landingLegs:'Per chassis' }
+};
+
+/* ---------- Step 2: whole kit per trailer type, two stages ----------
+   Defaults come from copies of the tablet's own kit tables (PSK_*, below —
+   copied as-is from stores-terminal.html). Anything without a stock-linked
+   definition (Axles, Tyres & rims, Air/brake, Nameplates) starts empty and
+   is shown as "no definition" until Werner fills it in. Every group's lines
+   are editable per schedule type; Axles and Air/brake per type + axle
+   supplier (the variant). Qty is per job (a link = L + F together). */
+const PS_KIT_KEY = 'leader-master-ps-kit-v1';
+const PS_GROUPS = [
+  { id:'kingPins',     label:'King Pins & Bumper Bolts',     stage:'chassis' },
+  { id:'axles',        label:'Axles',                        stage:'chassis', byVariant:true },
+  { id:'huckBolts',    label:'Huck Bolts',                   stage:'chassis' },
+  { id:'fifthWheel',   label:'Fifth Wheel',                  stage:'chassis' },
+  { id:'tyres',        label:'Tyres & rims',                 stage:'finals' },
+  { id:'lights',       label:'Lights & wiring',              stage:'finals' },
+  { id:'mudguards',    label:'Mudguards / mudflaps',         stage:'finals' },
+  { id:'airBrake',     label:'Air/brake fittings & valves',  stage:'finals', byVariant:true },
+  { id:'nameplates',   label:'Nameplates',                   stage:'finals' },
+  { id:'cylinders',    label:'Cylinders (JOST / Hydroscand)', stage:'finals', cylinders:true },
+  { id:'hydraulicKit', label:'Hydraulic Kit',                stage:'finals' },
+  { id:'tarps',        label:'Tarps',                        stage:'finals' },
+  { id:'finishes',     label:'Finishes kit',                 stage:'finals' },
+  { id:'spareWheel',   label:'Spare Wheel kit',              stage:'finals' }
+];
+const PS_CYL_SKU = { JOST: '8-600-018', Hydroscand: '8-600-019' };
+
+let psKit = { typeMap:{}, lines:{}, cyl:{} };
+function psKitLoad(){
+  try{ psKit = Object.assign({ typeMap:{}, lines:{}, cyl:{} }, JSON.parse(localStorage.getItem(PS_KIT_KEY)) || {}); }catch(e){ psKit = { typeMap:{}, lines:{}, cyl:{} }; }
+}
+function psKitSave(){ try{ localStorage.setItem(PS_KIT_KEY, JSON.stringify(psKit)); }catch(e){ alert('Could not save the kit table: ' + e.message); } }
+
+const PSK_KNOWN_TYPES = [...new Set([].concat(
+  Object.keys(PSK_TRAILER_TYPE_KINGPINS), Object.keys(PSK_TRAILER_TYPE_FAMILY), Object.keys(PSK_HYDRAULICS_VARIANT_BY_TYPE),
+  Object.keys(PSK_TARP_VARIANT_BY_TYPE), Object.keys(PSK_FIFTH_WHEEL_VARIANT_BY_TYPE)))].sort((a,b)=> a.localeCompare(b));
+function psTypeNorm(t){ return psClean(t).toLowerCase().replace(/(\d)\s*m\b/g, '$1').replace(/\s+/g, ''); }
+// Which known (tablet) trailer type a schedule type follows — Werner's pick first, then an exact-ish match
+function psBaseType(schedType){
+  if(psKit.typeMap[schedType] !== undefined) return psKit.typeMap[schedType] || null;
+  const n = psTypeNorm(schedType);
+  return PSK_KNOWN_TYPES.find(k=> psTypeNorm(k) === n) || null;
+}
+function psCompLines(list){ return list.map(c=> ({ sku: c.sku, qty: c.qty })); }
+// Default lines for one group, from the tablet's tables. null = no definition.
+function psDefaultLines(base, group){
+  if(!base) return null;
+  switch(group){
+    case 'kingPins': {
+      if(/drawbar/i.test(base)) return psCompLines(PSK_BUMPER_BOLTS_FIXED);
+      const kp = PSK_TRAILER_TYPE_KINGPINS[base];
+      return kp == null ? null : [...psCompLines(PSK_BUMPER_BOLTS_FIXED), { sku:'8-900-001', qty:kp }];
+    }
+    case 'huckBolts': return psCompLines(PSK_HUCK_BOLTS_KIT.components);
+    case 'fifthWheel': {
+      const v = PSK_FIFTH_WHEEL_VARIANT_BY_TYPE[base];
+      return v ? [{ sku:'8-200-000', qty:1 }, { sku: PSK_FIFTH_WHEEL_SKUS[v].sku, qty:1 }] : null;
+    }
+    case 'lights': return psCompLines(PSK_ELECTRICAL_KIT.components);
+    case 'mudguards': {
+      const out = psCompLines(PSK_FINALS_MUDFLAPS_BASE);
+      if(PSK_HYDRAULICS_VARIANT_BY_TYPE[base] === 'STD') out.push({ sku: PSK_FINALS_MUDFLAPS_BRACKET.sku, qty: PSK_FINALS_MUDFLAPS_BRACKET.qty });
+      return out;
+    }
+    case 'hydraulicKit': {
+      const v = PSK_HYDRAULICS_VARIANT_BY_TYPE[base];
+      if(!v) return null;
+      const h = PSK_HYDRAULICS_SKUS[v];
+      const out = [{ sku:'8-600-000', qty:1 }, { sku:h.complete, qty:1 }, { sku:h.leader, qty:1 }, { sku:h.follower, qty:1 }, { sku:h.hoses, qty:1 }];
+      if(PSK_HYDRAULICS_BEND[v]) out.push({ sku: PSK_HYDRAULICS_BEND[v].sku, qty:1 });
+      return out;
+    }
+    case 'tarps': {
+      const v = PSK_TARP_VARIANT_BY_TYPE[base];
+      if(!v) return null;
+      const t = PSK_TARP_SKUS[v];
+      const out = [{ sku:'8-100-000', qty:1 }];
+      (t.multi || [t]).forEach(m=> out.push({ sku:m.sku, qty:m.qty }));
+      if(t.strapsRatchets){ out.push({ sku:'8-100-008', qty:10 }, { sku:'8-100-009', qty:14 }); }
+      return out;
+    }
+    case 'finishes': return psCompLines(PSK_FINISHES_KIT.components);
+    case 'spareWheel': return psCompLines(PSK_SPARE_WHEEL_KIT.components);
+    default: return null; // axles, tyres, airBrake, nameplates: not defined yet
+  }
+}
+// Cylinders per job: 4 per link unless the type's family says otherwise
+// (End Tipper uses a different single cylinder — left undefined; Road
+// Train 8; Flatdeck/Tautliner/Skeletal/Stepdeck 0).
+function psDefaultCyl(base){
+  const fam = base ? PSK_TRAILER_TYPE_FAMILY[base] : null;
+  if(fam === 'EndTipper') return null;
+  if(fam && PSK_FAMILY_KIT_RULES[fam] && typeof PSK_FAMILY_KIT_RULES[fam].cylinders === 'number') return PSK_FAMILY_KIT_RULES[fam].cylinders;
+  return 4;
+}
+function psVariantKey(type, axles){ return `${type} || ${axles || '(no axle supplier)'}`; }
+function psGroupLines(type, axles, group){
+  const g = PS_GROUPS.find(x=> x.id === group);
+  const key = g && g.byVariant ? psVariantKey(type, axles) : type;
+  const own = psKit.lines[key] && psKit.lines[key][group];
+  if(own) return { lines: own, edited: true };
+  return { lines: psDefaultLines(psBaseType(type), group), edited: false };
+}
+function psCylPerJob(type){
+  if(psKit.cyl[type] !== undefined && psKit.cyl[type] !== null && psKit.cyl[type] !== '') return { qty: Number(psKit.cyl[type]), edited: true };
+  return { qty: psDefaultCyl(psBaseType(type)), edited: false };
+}
+// The whole kit for one job: [{ group, stage, sku, qty }] plus groups with no definition
+function psKitForJob(job){
+  const out = [], missing = [];
+  PS_GROUPS.forEach(g=>{
+    if(g.cylinders){
+      const c = psCylPerJob(job.type);
+      if(c.qty === null || isNaN(c.qty)) missing.push(g.id);
+      else if(c.qty > 0) out.push({ group: g.id, stage: g.stage, cyl: true, qty: c.qty });
+      return;
+    }
+    const r = psGroupLines(job.type, job.axles, g.id);
+    if(!r.lines) { missing.push(g.id); return; }
+    r.lines.forEach(l=>{ if(l.sku && Number(l.qty) > 0) out.push({ group: g.id, stage: g.stage, sku: l.sku, qty: Number(l.qty) }); });
+  });
+  return { lines: out, missing };
+}
+function psStockItem(sku){ return stock.find(s=> s.sku === sku) || null; }
+function psItemName(sku){ const s = psStockItem(sku); return s ? s.name : sku; }
+
+let psKitType = null;
+window.psRenderKit = function(body){
+  const types = {};
+  Object.values(psSchedule ? psSchedule.jobs : {}).forEach(j=>{
+    const t = types[j.type || '(no type)'] = types[j.type || '(no type)'] || { jobs:0, axles:new Set() };
+    t.jobs++; t.axles.add(j.axles || '');
+  });
+  const typeNames = Object.keys(types).sort((a,b)=> a.localeCompare(b));
+  if(!typeNames.length){ body.innerHTML = '<div class="sub" style="padding:20px;">Import a schedule first — the kit table lists the trailer types on it.</div>'; return; }
+  if(!psKitType || !types[psKitType]) psKitType = typeNames[0];
+  const opts = PSK_KNOWN_TYPES.map(k=> `<option value="${psEsc(k)}">${psEsc(k)}</option>`).join('');
+  const summary = typeNames.map(t=>{
+    const base = psBaseType(t);
+    const miss = new Set();
+    [...types[t].axles].forEach(a=> psKitForJob({ type:t, axles:a }).missing.forEach(m=> miss.add(m)));
+    return `<tr data-ps-kit-pick="${psEsc(t)}" style="cursor:pointer; border-bottom:1px solid var(--panel-line); ${t === psKitType ? 'background:var(--panel-raised); font-weight:700;' : ''}">
+      <td style="padding:4px 6px;">${psEsc(t)}</td><td style="text-align:right;">${types[t].jobs}</td>
+      <td>${base ? psEsc(base) : '<span style="color:var(--danger);">not matched</span>'}</td>
+      <td style="color:${miss.size ? 'var(--danger)' : 'var(--success)'};">${miss.size ? miss.size + ' not defined' : '✓ all defined'}</td></tr>`;
+  }).join('');
+  const t = psKitType, base = psBaseType(t);
+  const lineRow = (key, group, l, i)=>{
+    const it = psStockItem(l.sku);
+    return `<div style="display:flex; gap:6px; align-items:center; font-size:12px; padding:2px 0;">
+      <span style="flex:1;">${it ? psEsc(it.name) : `<span style="color:var(--danger);">${psEsc(l.sku)} — not in the stock list</span>`} <span style="color:var(--text-faint);">${psEsc(l.sku)}</span></span>
+      <input type="number" min="0" step="any" value="${psEsc(l.qty)}" data-ps-kit-qty="${i}" data-ps-kit-key="${psEsc(key)}" data-ps-kit-group="${group}" style="width:70px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
+      <button class="btn" data-ps-kit-del="${i}" data-ps-kit-key="${psEsc(key)}" data-ps-kit-group="${group}" style="padding:2px 8px; color:var(--danger);">✕</button></div>`;
+  };
+  const groupBlock = (g, key, axles)=>{
+    const r = psGroupLines(t, axles, g.id);
+    const lines = r.lines || [];
+    return `<div style="border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px; margin-bottom:6px;">
+      <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+        <b style="font-size:12.5px;">${g.label}${g.byVariant ? ` — <span style="color:var(--steel);">${psEsc(axles || '(no axle supplier)')}</span>` : ''}</b>
+        <span style="font-size:11px; color:${g.stage === 'chassis' ? 'var(--steel)' : 'var(--gold)'};">${PS_STAGE_LABEL[g.stage]} stage${r.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" data-ps-kit-reset="'+psEsc(key)+'" data-ps-kit-group="'+g.id+'">reset</a>' : ''}</span>
+      </div>
+      ${r.lines ? (lines.length ? lines.map((l,i)=> lineRow(key, g.id, l, i)).join('') : '<div style="font-size:12px; color:var(--text-faint); margin:2px 0;">None for this type (defined as nothing).</div>') : '<div style="color:var(--danger); font-size:12px; margin:2px 0;">No definition — not planned until you add its items (or mark it "none").</div>'}
+      <div style="display:flex; gap:6px; margin-top:4px;">
+        <input list="psStockList" placeholder="Add item: type name or SKU" data-ps-kit-add="${psEsc(key)}" data-ps-kit-group="${g.id}" style="flex:1; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:4px 6px; font-size:12px;">
+        ${!r.lines ? `<button class="btn" data-ps-kit-none="${psEsc(key)}" data-ps-kit-group="${g.id}" style="padding:2px 8px; font-size:11.5px;">Mark "none"</button>` : ''}
+      </div></div>`;
+  };
+  const cyl = psCylPerJob(t);
+  const blocks = PS_GROUPS.map(g=>{
+    if(g.cylinders) return `<div style="border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px; margin-bottom:6px;">
+      <div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">${g.label}</b><span style="font-size:11px; color:var(--gold);">Finals stage${cyl.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" id="psCylReset">reset</a>' : ''}</span></div>
+      <div style="font-size:12px; margin-top:4px;">Per job: <input type="number" min="0" step="1" id="psCylQty" value="${cyl.qty === null ? '' : cyl.qty}" placeholder="not defined" style="width:80px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
+      <span class="sub">Supplier comes from the customer (Order List → Cylinder suppliers), never split.</span>
+      ${cyl.qty === null ? '<span style="color:var(--danger);"> End Tipper family uses a different single cylinder — enter a qty only if it\'s a JOST/Hydroscand one.</span>' : ''}</div></div>`;
+    if(g.byVariant) return [...types[t].axles].sort().map(a=> groupBlock(g, psVariantKey(t, a), a)).join('');
+    return groupBlock(g, t, '');
+  }).join('');
+  body.innerHTML = `
+    <datalist id="psStockList">${stock.map(s=> `<option value="${psEsc(s.name)} — ${psEsc(s.sku)}">`).join('')}</datalist>
+    <div class="sub" style="margin-bottom:8px;">Qty is per job (a link — L + F together). Defaults come from the tablet's kit rules; change anything here and it's used from then on. Axles and Air/brake are set per type <b>and</b> axle supplier.</div>
+    <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+      <div style="flex:1 1 330px; max-width:420px;">
+        <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Type on schedule</th><th style="text-align:right;">Jobs</th><th>Kit based on</th><th></th></tr></thead><tbody>${summary}</tbody></table>
+      </div>
+      <div style="flex:2 1 520px;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <b style="font-size:14px;">${psEsc(t)}</b>
+          <label style="font-size:12px;">Kit based on (tablet type):
+            <select id="psKitBase" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
+              <option value="">— none —</option>${opts}</select></label>
+        </div>
+        ${blocks}
+      </div>
+    </div>`;
+  const sel = document.getElementById('psKitBase');
+  sel.value = base || '';
+  sel.onchange = ()=>{ psKit.typeMap[t] = sel.value; psKitSave(); renderKitScheduler(); };
+  body.querySelectorAll('[data-ps-kit-pick]').forEach(tr=> tr.onclick = ()=>{ psKitType = tr.dataset.psKitPick; renderKitScheduler(); });
+  const ensure = (key, group)=>{
+    psKit.lines[key] = psKit.lines[key] || {};
+    if(!psKit.lines[key][group]){
+      const g = PS_GROUPS.find(x=> x.id === group);
+      const axles = g.byVariant ? key.split(' || ')[1] : '';
+      psKit.lines[key][group] = (psGroupLines(t, axles === '(no axle supplier)' ? '' : axles, group).lines || []).map(l=> ({ sku:l.sku, qty:l.qty }));
+    }
+    return psKit.lines[key][group];
+  };
+  body.querySelectorAll('[data-ps-kit-qty]').forEach(inp=> inp.onchange = ()=>{
+    const arr = ensure(inp.dataset.psKitKey, inp.dataset.psKitGroup);
+    arr[+inp.dataset.psKitQty].qty = Math.max(0, Number(inp.value) || 0);
+    psKitSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-kit-del]').forEach(b=> b.onclick = ()=>{
+    const arr = ensure(b.dataset.psKitKey, b.dataset.psKitGroup);
+    arr.splice(+b.dataset.psKitDel, 1);
+    psKitSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-kit-add]').forEach(inp=> inp.onchange = ()=>{
+    const v = inp.value.trim();
+    const m = / — (\S+)$/.exec(v);
+    const it = m ? psStockItem(m[1]) : (psStockItem(v) || stock.find(s=> s.name.toLowerCase() === v.toLowerCase()));
+    if(!it){ alert(`"${v}" isn't in the stock list. Pick it from the suggestions.`); return; }
+    const arr = ensure(inp.dataset.psKitAdd, inp.dataset.psKitGroup);
+    arr.push({ sku: it.sku, qty: 1 });
+    psKitSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-kit-none]').forEach(b=> b.onclick = ()=>{
+    psKit.lines[b.dataset.psKitNone] = psKit.lines[b.dataset.psKitNone] || {};
+    psKit.lines[b.dataset.psKitNone][b.dataset.psKitGroup] = [];
+    psKitSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-kit-reset]').forEach(a=> a.onclick = (e)=>{
+    e.preventDefault();
+    if(psKit.lines[a.dataset.psKitReset]) delete psKit.lines[a.dataset.psKitReset][a.dataset.psKitGroup];
+    psKitSave(); renderKitScheduler();
+  });
+  const cq = document.getElementById('psCylQty');
+  cq.onchange = ()=>{ psKit.cyl[t] = cq.value === '' ? '' : Math.max(0, Math.round(Number(cq.value) || 0)); if(psKit.cyl[t] === '') delete psKit.cyl[t]; psKitSave(); renderKitScheduler(); };
+  const cr = document.getElementById('psCylReset');
+  if(cr) cr.onclick = (e)=>{ e.preventDefault(); delete psKit.cyl[t]; psKitSave(); renderKitScheduler(); };
+};
+psKitLoad();
 
 psLoad();
 document.getElementById('kitSchedulerBtn').onclick = ()=>{
