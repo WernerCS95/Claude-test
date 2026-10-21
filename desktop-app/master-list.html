@@ -186,7 +186,11 @@ try{
         <h3 style="margin:0;">📅 Kit Scheduler — Production Planner</h3>
         <button class="btn" id="kitSchedulerCloseBtn">Close</button>
       </div>
-      <div id="psSourceLine" class="sub" style="margin-bottom:10px;"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <div id="psSourceLine" class="sub" style="margin:0;"></div>
+        <label style="font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
+          <input type="number" id="psBehindInput" min="0" max="30" step="1" style="width:56px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> working days</label>
+      </div>
       <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
         <button class="btn primary" id="psImportBtn">📥 Import Production Schedule (.xlsx)</button>
         <input type="file" id="psImportFileInput" accept=".xlsx,.xlsm,.xls" style="display:none;">
@@ -4504,7 +4508,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6232,10 +6236,30 @@ function psReadSheet(getCell, rowCount){
 }
 
 /* ---------- effective dates, still-to-build ---------- */
+// "Running behind" — every stage still to build is pushed back this many
+// working days (weekends skipped). Hand-moved jobs and finished stages stay
+// put. Cleared on the next import (Production's new schedule replaces it).
+const PS_BEHIND_KEY = 'leader-master-ps-behind-v1';
+let psBehind = 0;
+try{ psBehind = Math.max(0, parseInt(localStorage.getItem(PS_BEHIND_KEY), 10) || 0); }catch(e){ psBehind = 0; }
+function psSetBehind(n){
+  psBehind = Math.max(0, Math.min(30, parseInt(n, 10) || 0));
+  try{ localStorage.setItem(PS_BEHIND_KEY, String(psBehind)); }catch(e){}
+}
+function psAddWorkingDays(ymd, n){
+  const d = new Date(ymd + 'T00:00:00');
+  let left = n;
+  while(left > 0){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
+  return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
+}
 function psDate(job, stage){
   const t = psTweaks[job.key];
-  return (t && t[stage]) || job[stage + 'Date'] || null;
+  if(t && t[stage]) return t[stage];
+  const d = job[stage + 'Date'] || null;
+  if(d && psBehind > 0 && psStillToBuild(job, stage)) return psAddWorkingDays(d, psBehind);
+  return d;
 }
+function psIsShifted(job, stage){ return psBehind > 0 && !psIsTweaked(job, stage) && !!job[stage + 'Date'] && psStillToBuild(job, stage); }
 function psIsTweaked(job, stage){ return !!(psTweaks[job.key] && psTweaks[job.key][stage]); }
 // Default: still to build unless every unit on that stage shows 100%.
 // Werner's own tick overrides either way.
@@ -6290,12 +6314,13 @@ function psImportWorkbook(arrayBuffer, fileName){
   const dates = res.units.map(u=> u.date).filter(Boolean).sort();
   const warn = res.flags.filter(f=> f.level === 'warn').length;
   const msg = `${fileName}\n\n${jobCount} jobs (${res.units.length} unit rows), ${dates[0]} to ${dates[dates.length-1]}.\n${warn} thing(s) flagged to check.\n\n` +
-    (psSchedule ? `This replaces the schedule imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} (${psSchedule.fileName}).\nManual calendar moves are cleared. Your "still to build" ticks are kept.\n\nImport it?` : 'Import it?');
+    (psSchedule ? `This replaces the schedule imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} (${psSchedule.fileName}).\nManual calendar moves${psBehind ? ` and "running behind ${psBehind} day(s)"` : ''} are cleared. Your "still to build" ticks are kept.\n\nImport it?` : 'Import it?');
   if(!confirm(msg)) return;
   const moved = psCompare(psSchedule ? psSchedule.jobs : null, res.jobs);
   if(psSchedule){ try{ localStorage.setItem(PS_PREV_SCHEDULE_KEY, JSON.stringify(psSchedule)); }catch(e){} }
   psSchedule = { importedAt: new Date().toISOString(), fileName, sheet: sheetName, jobs: res.jobs, units: res.units, flags: res.flags, moved, firstDate: dates[0], lastDate: dates[dates.length-1] };
   psTweaks = {};
+  psSetBehind(0);
   psSave();
   psTab = moved.firstImport ? 'schedule' : 'moved';
   renderKitScheduler();
@@ -6326,6 +6351,9 @@ function renderKitScheduler(){
   src.innerHTML = psSchedule
     ? `Schedule: <b>${psEsc(psSchedule.fileName)}</b> · imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} · ${Object.keys(psSchedule.jobs).length} jobs · ${psFmtDay(psSchedule.firstDate)} – ${psFmtDay(psSchedule.lastDate)}`
     : 'No production schedule imported yet. Import the weekly .xlsx from Production.';
+  const bi = document.getElementById('psBehindInput');
+  if(bi && document.activeElement !== bi) bi.value = psBehind;
+  if(psBehind > 0) src.innerHTML += ` · <b style="color:var(--danger);">⏱ ${psBehind} working day(s) behind — open stages shifted</b>`;
   const mv = psSchedule && psSchedule.moved;
   const movedN = mv && !mv.firstImport ? mv.added.length + mv.removed.length + mv.earlier.length + mv.later.length : 0;
   document.getElementById('psMovedCount').textContent = movedN ? `(${movedN})` : '';
@@ -6347,6 +6375,7 @@ function renderKitScheduler(){
   if(r) r(body); else body.innerHTML = '<div class="sub" style="padding:20px;">Coming in the next step.</div>';
 }
 document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab = b.dataset.psTab; renderKitScheduler(); });
+document.getElementById('psBehindInput').addEventListener('change', function(){ psSetBehind(this.value); renderKitScheduler(); });
 
 let psFilter = '';
 function psRenderSchedule(body){
@@ -6357,7 +6386,8 @@ function psRenderSchedule(body){
     const still = psStillToBuild(j, stage);
     const tw = psIsTweaked(j, stage);
     const us = j.units[stage];
-    return `<td style="white-space:nowrap;">${d ? psFmtDay(d) : '<span style="color:var(--text-faint);">not on schedule</span>'}${tw ? ` <span title="Moved by hand — Production said ${psFmtDay(j[stage+'Date'])}" style="color:var(--gold);">✎</span>` : ''}
+    const sh = psIsShifted(j, stage);
+    return `<td style="white-space:nowrap;">${d ? psFmtDay(d) : '<span style="color:var(--text-faint);">not on schedule</span>'}${sh ? ` <span title="Production said ${psFmtDay(j[stage+'Date'])} — shifted ${psBehind} working day(s) for running behind" style="color:var(--danger); font-size:11px;">+${psBehind}</span>` : ''}${tw ? ` <span title="Moved by hand — Production said ${psFmtDay(j[stage+'Date'])}" style="color:var(--gold);">✎</span>` : ''}
       ${us.length ? `<div class="sub" style="margin:0;">${us.map(u=> u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}</div>` : ''}</td>
       <td style="text-align:center;"><input type="checkbox" data-ps-build="${psEsc(j.key)}" data-ps-stage="${stage}" ${still ? 'checked' : ''} title="Still to build at ${PS_STAGE_LABEL[stage]} — untick when this stage's parts are no longer needed"></td>`;
   };
@@ -6414,7 +6444,7 @@ function psRenderCalendar(body){
               const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
               return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}"
                 style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:1px solid var(--panel-line); background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45};">
-                ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}${tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
+                ${tw ? '✎ ' : ''}${psIsShifted(j, stage) ? `<span style="color:var(--danger); font-size:10px;">+${psBehind}</span> ` : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}${tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
               </div>`;
             }).join('')}
           </div>`;
