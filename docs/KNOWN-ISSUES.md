@@ -98,3 +98,14 @@ to the tablet), and is remembered: tablet issues/deliveries for the old SKU land
 on the kept item; a tablet count of the old item is logged, not applied.
 Still to do (needs the tablet APK): the old item still shows on the tablet —
 retire it there by hand (Input → Retire) until the merge is sent across.
+
+## 12. Laptop: typing stops after a pop-up — FIXED in 2.5.10 (2026-10-22)
+
+Electron on Windows: after a native alert()/confirm() box closes, the window
+looks focused but typed keys stop reaching the page (mouse copy-paste still
+works), until the app is closed and reopened. Seen in Stock Count and the
+Order Lists. Fix: desktop-app/preload.js exposes leaderDesktop.refocus(); each
+page wraps alert/confirm to call it afterwards, and main.js hands keyboard
+focus back (blur, focus, webContents.focus) and the cursor returns to the box
+that had it. No effect on the tablet. If it ever happens again: Alt+Tab away
+and back is the quick workaround — tell Claude which screen.

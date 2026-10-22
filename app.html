@@ -64,6 +64,23 @@
           allow="camera; clipboard-read; clipboard-write"></iframe>
 
 <script>
+// Laptop app (Electron on Windows) loses keyboard input after a pop-up box.
+// After every alert()/confirm(), ask the app to hand the keyboard back and
+// return the cursor to the box that had it. Does nothing on the tablet.
+(function(){
+  let bridge = null;
+  try{ bridge = window.leaderDesktop || (window.top && window.top.leaderDesktop) || null; }catch(e){}
+  if(!bridge || !bridge.refocus) return;
+  const after = (el)=> setTimeout(()=>{
+    try{ bridge.refocus(); }catch(e){}
+    setTimeout(()=>{ try{ if(el && el.isConnected && typeof el.focus === 'function') el.focus(); }catch(e){} }, 60);
+  }, 0);
+  const a = window.alert.bind(window), c = window.confirm.bind(window);
+  window.alert = function(m){ const el = document.activeElement; const r = a(m); after(el); return r; };
+  window.confirm = function(m){ const el = document.activeElement; const r = c(m); after(el); return r; };
+})();
+</script>
+<script>
   const SHELL_SECTION_KEY = 'leader-shell-section-v1';
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const frames = { input: document.getElementById('sectionInput'), admin: document.getElementById('sectionAdmin') };

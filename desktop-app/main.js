@@ -1,4 +1,4 @@
-const { app, BrowserWindow, protocol, net } = require('electron');
+const { app, BrowserWindow, protocol, net, ipcMain } = require('electron');
 const path = require('path');
 const url = require('url');
 const fs = require('fs');
@@ -34,7 +34,8 @@ function createWindow(){
     icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
@@ -54,6 +55,16 @@ function createWindow(){
     });
   }
 }
+
+// After an alert()/confirm() box, give the keyboard back to the page
+// (Windows: otherwise typing stops working until the window is reopened).
+ipcMain.on('leader-refocus', (event)=>{
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if(!win || win.isDestroyed()) return;
+  win.blur();
+  win.focus();
+  win.webContents.focus();
+});
 
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {
