@@ -245,6 +245,9 @@ try{
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
         <div id="psSourceLine" class="sub" style="margin:0;"></div>
+        <span style="font-size:12.5px; white-space:nowrap;" title="The day the next job still to build is worked on, per line. Default: the next working day. Jobs queue from there in Production's order.">▶ Next work starts —
+          Chassis <input type="date" id="psStartChassis" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;">
+          Finals <input type="date" id="psStartFinals" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;"></span>
         <label class="ps-detail" style="font-size:12.5px; white-space:nowrap;">Plan from:
           <select id="psModeSelect" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
             <option value="manual">Only jobs I place on the calendar</option>
@@ -4706,7 +4709,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6522,6 +6525,22 @@ function psWorkingDaysBetween(a, b){ // a -> b, working days (0 if b <= a)
 // ("running behind") after Production's first open date; a job never goes
 // earlier than Production's own date; hand-moved jobs stay put but use up
 // their day's capacity; Finals keeps its gap after its Chassis.
+// "Next work starts" per line: the day the next job still to build will be
+// worked on. Default: the next working day. Every job still to build queues
+// from that day — nothing still to build is ever dated in the past.
+const PS_START_KEY = 'leader-master-ps-start-v1';
+let psStartSet = {};
+try{ psStartSet = JSON.parse(localStorage.getItem(PS_START_KEY)) || {}; }catch(e){ psStartSet = {}; }
+function psStart(stage){
+  const today = psToday();
+  const v = psStartSet[stage];
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v || '') && v >= today) return psNextWorkday(v);
+  return psAddWorkingDays(today, 1);
+}
+function psSetStart(stage, v){
+  if(v) psStartSet[stage] = v; else delete psStartSet[stage];
+  try{ localStorage.setItem(PS_START_KEY, JSON.stringify(psStartSet)); }catch(e){}
+}
 let psSeqCache = null;
 function psComputeSeq(){
   const out = {};
@@ -6538,9 +6557,12 @@ function psComputeSeq(){
     });
     if(!items.length) return;
     items.sort((a,b)=> a.prod.localeCompare(b.prod) || a.row - b.row || (+a.j.nr - +b.j.nr));
+    const start = psStart(stage);
     let cursor = psNextWorkday(psAddWorkingDays(items[0].prod, psBehind));
+    if(cursor < start) cursor = start;
     items.forEach(it=>{
       let lower = psNextWorkday(it.prod);
+      if(lower < start) lower = start;
       if(stage === 'finals' && it.j.chassisDate){
         const c = out[it.j.key + '|chassis'];
         if(c){ const after = psAddWorkingDays(c, psWorkingDaysBetween(it.j.chassisDate, it.prod)); if(after > lower) lower = after; }
@@ -6677,6 +6699,7 @@ function renderKitScheduler(){
     let placed = 0; Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
     src.innerHTML += ` · <b style="color:var(--steel);">📅 ${placed} job stage(s) on your calendar</b>`;
   }
+  ['chassis','finals'].forEach(st=>{ const el = document.getElementById(st === 'chassis' ? 'psStartChassis' : 'psStartFinals'); if(el && document.activeElement !== el) el.value = psStart(st); });
   const ci = document.getElementById('psCapacityInput'); if(ci && document.activeElement !== ci) ci.value = psCapacity;
   const bi = document.getElementById('psBehindInput');
   if(bi && document.activeElement !== bi) bi.value = psBehind;
@@ -6712,6 +6735,8 @@ document.getElementById('psDetailsBtn').onclick = ()=>{
   renderKitScheduler();
 };
 document.getElementById('psModeSelect').addEventListener('change', function(){ psMode = this.value === 'all' ? 'all' : 'manual'; psSavePlaced(); renderKitScheduler(); });
+document.getElementById('psStartChassis').addEventListener('change', function(){ psSetStart('chassis', this.value); renderKitScheduler(); });
+document.getElementById('psStartFinals').addEventListener('change', function(){ psSetStart('finals', this.value); renderKitScheduler(); });
 document.getElementById('psCapacityInput').addEventListener('change', function(){ psSetCapacity(this.value); renderKitScheduler(); });
 document.getElementById('psBehindInput').addEventListener('change', function(){ psSetBehind(this.value); renderKitScheduler(); });
 
@@ -7749,7 +7774,7 @@ window.psRenderBuy = function(body){
     ${psMode === 'manual' && !placed ? `<div style="padding:14px; border:2px solid var(--gold); border-radius:8px; margin-bottom:12px; font-size:14px;">
         No jobs are on the calendar yet, so there's nothing to buy for. <a href="#" id="psBuyGoCal">Place the coming jobs on the calendar</a> first.</div>` : ''}
     ${now.length ? table(now) : (placed || psMode !== 'manual' ? `<div style="padding:18px; text-align:center; font-size:16px; color:var(--success); font-weight:700;">✓ Nothing to buy — stock on hand covers every job until ${psFmtDay(cutoff)}.</div>` : '')}
-    ${plan.past.length ? `<div class="sub" style="margin-top:6px;">Left out: ${plan.past.length} job stage(s) dated before today — treated as already built. If one isn't built yet, move it to a day from today on the calendar.</div>` : ''}
+    ${plan.past.length ? `<div class="sub" style="margin-top:6px;">Left out: ${plan.past.length} job stage(s) you moved by hand to a day that has passed. Move them to a day ahead if they're not built yet.</div>` : ''}
     ${undefTypes.length ? `<div class="sub" style="margin-top:6px;">Not on this list yet: some parts aren't set up for ${undefTypes.map(psEsc).join(', ')} (e.g. axles, tyres). <a href="#" id="psBuyGoKit">Set them up</a>.</div>` : ''}
     ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Next month — also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later)}</div></details>` : ''}`;
   const dl = document.getElementById('psBuyDateLink'), di = document.getElementById('psBuyDate');
