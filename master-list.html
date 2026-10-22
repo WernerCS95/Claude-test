@@ -226,6 +226,11 @@ try{
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
         <div id="psSourceLine" class="sub" style="margin:0;"></div>
+        <label style="font-size:12.5px; white-space:nowrap;">Plan from:
+          <select id="psModeSelect" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
+            <option value="manual">Only jobs I place on the calendar</option>
+            <option value="all">Whole Production schedule</option>
+          </select></label>
         <label style="font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
           <input type="number" id="psBehindInput" min="0" max="30" step="1" style="width:56px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> working days</label>
       </div>
@@ -4678,7 +4683,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6481,6 +6486,23 @@ function psIsShifted(job, stage){ return psBehind > 0 && !psIsTweaked(job, stage
 function psIsTweaked(job, stage){ return !!(psTweaks[job.key] && psTweaks[job.key][stage]); }
 // Default: still to build unless every unit on that stage shows 100%.
 // Werner's own tick overrides either way.
+// Planning mode. 'manual' (default): the imported schedule is a pool; only
+// job stages Werner places on the calendar are planned and ordered for.
+// 'all': every still-to-build stage on the schedule counts (the old way).
+// Placements are kept across re-imports (job nr + customer), like the ticks.
+const PS_MODE_KEY = 'leader-master-ps-mode-v1', PS_PLACED_KEY = 'leader-master-ps-placed-v1';
+let psMode = 'manual', psPlaced = {};
+try{ psMode = localStorage.getItem(PS_MODE_KEY) === 'all' ? 'all' : 'manual'; }catch(e){}
+try{ psPlaced = JSON.parse(localStorage.getItem(PS_PLACED_KEY)) || {}; }catch(e){ psPlaced = {}; }
+function psSavePlaced(){ try{ localStorage.setItem(PS_PLACED_KEY, JSON.stringify(psPlaced)); localStorage.setItem(PS_MODE_KEY, psMode); }catch(e){} }
+function psIsPlaced(job, stage){ return !!(psPlaced[job.key] && psPlaced[job.key][stage]); }
+function psSetPlaced(key, stage, on){
+  if(on) psPlaced[key] = Object.assign({}, psPlaced[key], { [stage]: true });
+  else if(psPlaced[key]){ delete psPlaced[key][stage]; if(!Object.keys(psPlaced[key]).length) delete psPlaced[key]; }
+  psSavePlaced();
+}
+// Does this job stage count for stock and orders?
+function psIsPlanned(job, stage){ return psStillToBuild(job, stage) && (psMode !== 'manual' || psIsPlaced(job, stage)); }
 function psStillToBuild(job, stage){
   const m = psBuildMarks[job.key];
   if(m && typeof m[stage] === 'boolean') return m[stage];
@@ -6569,6 +6591,11 @@ function renderKitScheduler(){
   src.innerHTML = psSchedule
     ? `Schedule: <b>${psEsc(psSchedule.fileName)}</b> · imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} · ${Object.keys(psSchedule.jobs).length} jobs · ${psFmtDay(psSchedule.firstDate)} – ${psFmtDay(psSchedule.lastDate)}`
     : 'No production schedule imported yet. Import the weekly .xlsx from Production.';
+  const ms = document.getElementById('psModeSelect'); if(ms) ms.value = psMode;
+  if(psSchedule && psMode === 'manual'){
+    let placed = 0; Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
+    src.innerHTML += ` · <b style="color:var(--steel);">📅 ${placed} job stage(s) on your calendar</b>`;
+  }
   const bi = document.getElementById('psBehindInput');
   if(bi && document.activeElement !== bi) bi.value = psBehind;
   if(psBehind > 0) src.innerHTML += ` · <b style="color:var(--danger);">⏱ ${psBehind} working day(s) behind — open stages shifted</b>`;
@@ -6593,6 +6620,7 @@ function renderKitScheduler(){
   if(r) r(body); else body.innerHTML = '<div class="sub" style="padding:20px;">Coming in the next step.</div>';
 }
 document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab = b.dataset.psTab; renderKitScheduler(); });
+document.getElementById('psModeSelect').addEventListener('change', function(){ psMode = this.value === 'all' ? 'all' : 'manual'; psSavePlaced(); renderKitScheduler(); });
 document.getElementById('psBehindInput').addEventListener('change', function(){ psSetBehind(this.value); renderKitScheduler(); });
 
 let psFilter = '';
@@ -6636,15 +6664,53 @@ function psRenderSchedule(body){
 
 function psRenderCalendar(body){
   const jobs = Object.values(psSchedule.jobs);
-  const allDates = [];
-  jobs.forEach(j=> PS_STAGES.forEach(s=>{ const d = psDate(j, s); if(d) allDates.push(d); }));
-  if(!allDates.length){ body.innerHTML = '<div class="sub">No dated jobs.</div>'; return; }
-  allDates.sort();
-  const start = new Date(allDates[0] + 'T00:00:00'); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // Monday
-  const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
+  const manual = psMode === 'manual';
   const ymdLocal = d=> psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
+  const monday = ymd=>{ const d = new Date(ymd + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymdLocal(d); };
+  const onCal = (j, s)=> !!psDate(j, s) && (!manual || (psIsPlaced(j, s) && psStillToBuild(j, s)));
+  const chip = (j, stage, opts)=>{
+    const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
+    return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}${opts.pool ? ' · Production: ' + psFmtDay(j[stage+'Date']) : ''}"
+      style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:${psPicked && psPicked.key === j.key && psPicked.stage === stage ? '2px solid var(--gold)' : '1px solid var(--panel-line)'}; background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45}; ${opts.pool ? 'display:inline-block; margin-right:4px;' : ''}">
+      ${opts.pool ? `<span data-ps-place="${psEsc(j.key)}" data-ps-place-stage="${stage}" title="Place on Production's date" style="cursor:pointer; color:var(--success); font-weight:700;">＋</span> ` : ''}
+      ${tw ? '✎ ' : ''}${!opts.pool && psIsShifted(j, stage) ? `<span style="color:var(--danger); font-size:10px;">+${psBehind}</span> ` : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
+      ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
+      ${!opts.pool && manual ? ` <span data-ps-unplace="${psEsc(j.key)}" data-ps-unplace-stage="${stage}" title="Take off the calendar (back to the pool)" style="cursor:pointer; color:var(--text-faint);">↩</span>` : ''}
+    </div>`;
+  };
+  let html = '';
+  if(manual){
+    // The pool: still-to-build stages not placed yet, by Production's week
+    const pool = [];
+    jobs.forEach(j=> PS_STAGES.forEach(st=>{ if(psStillToBuild(j, st) && !psIsPlaced(j, st) && j[st + 'Date']) pool.push({ j, st, wk: monday(j[st + 'Date']) }); }));
+    const weeks = [...new Set(pool.map(x=> x.wk))].sort();
+    html += `<div style="border:1px solid var(--gold); border-radius:8px; padding:8px; margin-bottom:12px; max-height:260px; overflow-y:auto;">
+      <div style="font-weight:700; margin-bottom:4px;">Job pool — from Production's schedule (${pool.length} not placed)</div>
+      <div class="sub" style="margin:0 0 6px;">Only jobs on the calendar below count for stock and orders. Click a job then click its real day (or drag it), click <b style="color:var(--success);">＋</b> to place it on Production's date, or "Place all" for a whole week. ↩ on the calendar puts it back here.</div>
+      ${weeks.length ? weeks.map(wk=> PS_STAGES.map(st=>{
+        const items = pool.filter(x=> x.wk === wk && x.st === st).sort((a,b)=> a.j[st+'Date'].localeCompare(b.j[st+'Date']) || (+a.j.nr - +b.j.nr));
+        if(!items.length) return '';
+        return `<div style="margin-bottom:6px;"><span style="font-size:11px; font-weight:700; color:${st === 'chassis' ? 'var(--steel)' : 'var(--gold)'};">${PS_STAGE_LABEL[st].toUpperCase()} · week of ${psFmtDay(wk)} (${items.length})</span>
+          <a href="#" data-ps-place-week="${wk}" data-ps-place-week-stage="${st}" style="font-size:11px; margin-left:6px;">Place all</a><br>
+          ${items.map(x=> chip(x.j, st, { pool: true })).join('')}</div>`;
+      }).join('')).join('') : '<div class="sub" style="margin:0;">Every job still to build is on the calendar.</div>'}
+    </div>`;
+  }
+  const allDates = [];
+  jobs.forEach(j=> PS_STAGES.forEach(s=>{ if(onCal(j, s)) allDates.push(psDate(j, s)); }));
+  if(manual){
+    // Always show this week to four weeks out, so there's somewhere to drop
+    const t = psToday(); allDates.push(t, psAddWorkingDays(t, 20));
+  }
+  if(!allDates.length){
+    body.innerHTML = html + `<div class="sub" style="padding:14px;">No dated jobs.</div>`;
+    psWireCalendar(body); return;
+  }
+  allDates.sort();
+  const start = new Date(monday(allDates[0]) + 'T00:00:00');
+  const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
   const weekend = new Set(allDates.filter(d=> { const w = new Date(d + 'T00:00:00').getDay(); return w === 0 || w === 6; }));
-  let html = `<div class="sub" style="margin-bottom:8px;">Whole schedule. Drag a job to another day to move it by hand (✎) — lasts until the next import. Grey = that stage isn't ticked "still to build". Click ↺ on a moved job to put it back.</div>`;
+  html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Click a job then click another day (or drag it) to move it (✎, lasts until the next import); ↺ puts it back on Production's date. Grey = not ticked "still to build".</div>`;
   for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
     const days = [];
     for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s)) days.push(s); }
@@ -6655,16 +6721,10 @@ function psRenderCalendar(body){
       html += `<div style="display:flex; gap:6px; margin-bottom:6px;">
         <div style="width:62px; font-size:11px; font-weight:700; color:${color}; padding-top:4px;">${PS_STAGE_LABEL[stage].toUpperCase()}</div>
         ${days.map(d=>{
-          const here = jobs.filter(j=> psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
+          const here = jobs.filter(j=> onCal(j, stage) && psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
           return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
             <div style="font-size:10px; color:${color}; font-weight:700;">${psFmtDay(d)}</div>
-            ${here.map(j=>{
-              const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
-              return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}"
-                style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:1px solid var(--panel-line); background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45};">
-                ${tw ? '✎ ' : ''}${psIsShifted(j, stage) ? `<span style="color:var(--danger); font-size:10px;">+${psBehind}</span> ` : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}${tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
-              </div>`;
-            }).join('')}
+            ${here.map(j=> chip(j, stage, {})).join('')}
           </div>`;
         }).join('')}
       </div>`;
@@ -6672,6 +6732,26 @@ function psRenderCalendar(body){
     html += `</div>`;
   }
   body.innerHTML = html;
+  psWireCalendar(body);
+}
+// Click-to-move: click a job (pool or calendar), then click a day on the
+// same stage row. Click the job again to cancel.
+let psPicked = null;
+function psWireCalendar(body){
+  body.querySelectorAll('[data-ps-chip]').forEach(ch=> ch.addEventListener('click', e=>{
+    if(e.target.closest('[data-ps-place],[data-ps-unplace],[data-ps-reset]')) return;
+    e.stopPropagation();
+    const k = ch.dataset.psChip, st = ch.dataset.psChipStage;
+    psPicked = (psPicked && psPicked.key === k && psPicked.stage === st) ? null : { key: k, stage: st };
+    renderKitScheduler();
+  }));
+  body.querySelectorAll('[data-ps-drop]').forEach(col=> col.addEventListener('click', e=>{
+    if(!psPicked || e.target.closest('[data-ps-chip]')) return;
+    if(psPicked.stage !== col.dataset.psDrop){ alert(`Pick a day on the ${PS_STAGE_LABEL[psPicked.stage]} row.`); return; }
+    const p = psPicked; psPicked = null;
+    psSetPlaced(p.key, p.stage, true);
+    psMoveJob(p.key, p.stage, col.dataset.psDate);
+  }));
   body.querySelectorAll('[data-ps-chip]').forEach(ch=> ch.addEventListener('dragstart', e=>{
     e.dataTransfer.setData('text/plain', JSON.stringify({ key: ch.dataset.psChip, stage: ch.dataset.psChipStage }));
   }));
@@ -6681,6 +6761,7 @@ function psRenderCalendar(body){
       e.preventDefault();
       let p; try{ p = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
       if(!p || p.stage !== col.dataset.psDrop) return; // Chassis stays Chassis, Finals stays Finals
+      psSetPlaced(p.key, p.stage, true);
       psMoveJob(p.key, p.stage, col.dataset.psDate);
     });
   });
@@ -6689,6 +6770,19 @@ function psRenderCalendar(body){
     const t = psTweaks[x.dataset.psReset];
     if(t){ delete t[x.dataset.psResetStage]; if(!Object.keys(t).length) delete psTweaks[x.dataset.psReset]; }
     psSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-place]').forEach(x=> x.onclick = (e)=>{
+    e.stopPropagation(); psSetPlaced(x.dataset.psPlace, x.dataset.psPlaceStage, true); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-unplace]').forEach(x=> x.onclick = (e)=>{
+    e.stopPropagation(); psSetPlaced(x.dataset.psUnplace, x.dataset.psUnplaceStage, false); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-place-week]').forEach(a=> a.onclick = (e)=>{
+    e.preventDefault();
+    const wk = a.dataset.psPlaceWeek, st = a.dataset.psPlaceWeekStage;
+    const mon = d=>{ const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return psYmd(x.getFullYear(), x.getMonth()+1, x.getDate()); };
+    Object.values(psSchedule.jobs).forEach(j=>{ if(psStillToBuild(j, st) && !psIsPlaced(j, st) && j[st+'Date'] && mon(j[st+'Date']) === wk) psSetPlaced(j.key, st, true); });
+    renderKitScheduler();
   });
 }
 function psMoveJob(key, stage, date){
@@ -7172,7 +7266,7 @@ function psPlan(){
   Object.values(psSchedule.jobs).forEach(job=>{
     const kit = psKitForJob(job);
     PS_STAGES.forEach(stage=>{
-      if(!psStillToBuild(job, stage)) return;
+      if(!psIsPlanned(job, stage)) return;
       const needBy = psDate(job, stage);
       const stageGroups = PS_GROUPS.filter(g=> g.stage === stage).map(g=> g.id);
       kit.missing.filter(m=> stageGroups.includes(m)).forEach(m=>{
@@ -7254,6 +7348,7 @@ window.psRenderAllocation = function(body){
     const cells = PS_STAGES.map(stage=>{
       const ds = plan.demand.filter(d=> d.key === j.key && d.stage === stage);
       if(!psStillToBuild(j, stage)) return `<td style="color:var(--text-faint);">not needed</td>`;
+      if(!psIsPlanned(j, stage)) return `<td style="color:var(--text-faint);">not on calendar</td>`;
       if(!psDate(j, stage)) return `<td style="color:var(--text-faint);">no date</td>`;
       const shortRows = ds.filter(d=> d.short > 0);
       return `<td>${psFmtDay(psDate(j, stage))} — ${shortRows.length
@@ -7357,7 +7452,7 @@ window.psRenderOrders = function(body){
   const head = `<thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Status</th><th>Item</th><th>Supplier</th><th style="text-align:right;">Short</th><th style="text-align:right;">On hand</th><th style="text-align:right;">Needed</th><th>Need by</th><th>Order by</th><th>Lead (days)</th><th>Jobs short</th></tr></thead>`;
   body.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
-      <div class="sub" style="margin:0;">Today ${psFmtDay(psToday())}. Order-by = need-by minus lead time in working days (default ${PS_DEFAULT_LEAD_DAYS} = 48h). Laptop on-hand stock, allocated in need-by order.</div>
+      <div class="sub" style="margin:0;">${psMode === 'manual' ? '<b>Only jobs on your calendar are counted.</b> ' : ''}Today ${psFmtDay(psToday())}. Order-by = need-by minus lead time in working days (default ${PS_DEFAULT_LEAD_DAYS} = 48h). Laptop on-hand stock, allocated in need-by order.</div>
       <button class="btn primary" id="psPrintBtn">🖨 Print Order List</button>
     </div>
     <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">To order (${short.length})</div>
