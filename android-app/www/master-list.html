@@ -7626,7 +7626,12 @@ function psOrderList(){
     out.status = out.orderBy < today ? 'Late' : out.orderBy === today ? 'ORDER TODAY' : 'Order by';
     return out;
   }).filter(Boolean).sort((a,b)=> rank[a.status] - rank[b.status] || String(a.orderBy||'').localeCompare(String(b.orderBy||'')) || a.name.localeCompare(b.name));
-  return { rows, plan, today, cutoff, now: split(r=> r.needBy <= cutoff), later: split(r=> r.needBy > cutoff) };
+  // Cylinders go by customer, never half: if a customer's first cylinder job
+  // is up to the cut-off, all of that customer's cylinders count as "now".
+  const cylFirst = {};
+  plan.demand.forEach(d=>{ if(d.cyl && (!cylFirst[d.group] || d.needBy < cylFirst[d.group])) cylFirst[d.group] = d.needBy; });
+  const isNow = r=> (r.cyl ? cylFirst[r.group] : r.needBy) <= cutoff;
+  return { rows, plan, today, cutoff, now: split(isNow), later: split(r=> !isNow(r)) };
 }
 // Cut-off: last day of this month + 2 working days unless set by hand
 const PS_CUTOFF_KEY = 'leader-master-ps-cutoff-v1';
@@ -7818,6 +7823,26 @@ function psSetPrint(sup, on){
   if(on) psNoPrint.delete(sup); else psNoPrint.add(sup);
   try{ localStorage.setItem(PS_NOPRINT_KEY, JSON.stringify([...psNoPrint])); }catch(e){}
 }
+// Cylinders until the cut-off, per customer group: one supplier each (never
+// split), what comes from stock and what must be ordered.
+function psCylSummary(plan, cutoff){
+  const first = {};
+  plan.demand.forEach(d=>{ if(d.cyl && (!first[d.group] || d.needBy < first[d.group])) first[d.group] = d.needBy; });
+  const rows = plan.demand.filter(d=> d.cyl && first[d.group] <= cutoff); // whole customer, never half
+  const groups = {};
+  rows.forEach(d=>{
+    const g = groups[d.group] = groups[d.group] || { group: d.group, supplier: d.supplier, from: (plan.cylGroups[d.group] || {}).from, jobs: [], need: 0, stock: 0, order: 0, first: d.needBy };
+    if(!g.jobs.includes(d.nr)) g.jobs.push(d.nr);
+    g.need += d.qty; g.stock += d.fromStock || 0; g.order += d.short || 0;
+  });
+  const list = Object.values(groups).sort((a,b)=> a.first.localeCompare(b.first) || a.group.localeCompare(b.group));
+  const tot = {};
+  ['JOST','Hydroscand'].forEach(sp=>{
+    const gs = list.filter(g=> g.supplier === sp);
+    tot[sp] = { onHand: psOnHand(PS_CYL_SKU[sp]), stock: gs.reduce((a,g)=> a + g.stock, 0), order: gs.reduce((a,g)=> a + g.order, 0) };
+  });
+  return { list, tot, noSupplier: list.filter(g=> !g.supplier) };
+}
 window.psRenderBuy = function(body){
   const { now, later, cutoff, plan } = psOrderList();
   let placed = 0;
@@ -7838,7 +7863,7 @@ window.psRenderBuy = function(body){
             <input type="number" min="0" step="any" value="${b.qty}" data-ps-buyqty="${psEsc(r.sku)}" data-ps-buysec="${sec}" data-ps-buybase="${r.short}" title="Short: ${r.short}. Type over it or tap a round-up." style="width:78px; text-align:right; font-weight:700; font-size:15px; background:${b.edited ? 'rgba(184,134,46,0.15)' : 'var(--void)'}; color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;">
             <div style="margin-top:3px; display:flex; gap:3px; justify-content:flex-end; flex-wrap:wrap;">${psBuyRoundOptions(b.qty, b.pack).map(o=> `<button type="button" data-ps-round="${o.v}" data-ps-round-sku="${psEsc(r.sku)}" data-ps-round-sec="${sec}" data-ps-round-base="${r.short}" style="font-size:10px; padding:1px 5px; background:var(--panel-raised); border:1px solid var(--panel-line); border-radius:4px; color:var(--steel); cursor:pointer;">${o.lbl}</button>`).join('')}${b.edited ? `<button type="button" data-ps-round="${r.short}" data-ps-round-sku="${psEsc(r.sku)}" data-ps-round-sec="${sec}" data-ps-round-base="${r.short}" title="Back to exactly what's short" style="font-size:10px; padding:1px 5px; background:none; border:1px solid var(--panel-line); border-radius:4px; color:var(--text-faint); cursor:pointer;">= ${r.short}</button>` : ''}</div>
           </td>
-          <td style="padding:7px 10px; font-size:12.5px;">${psCoverHtml(r)}</td></tr>`; }).join('')}</tbody>
+          <td style="padding:7px 10px; font-size:12.5px;">${r.cyl && psCylFor(r) ? `<b>For ${psEsc(psCylFor(r))}</b> · ` : ''}${psCoverHtml(r)}</td></tr>`; }).join('')}</tbody>
       </table></div>`).join('');
   body.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
@@ -7849,6 +7874,25 @@ window.psRenderBuy = function(body){
       </div>
       ${now.length ? `<div style="display:flex; gap:6px;"><button class="btn" id="psBuySaveBtn" style="font-size:14px; border-color:var(--success); color:var(--success);">💾 Save to History</button><button class="btn primary" id="psBuyPrintBtn" style="font-size:14px;">🖨 Print</button></div>` : ''}
     </div>
+    ${(()=>{ const cs = psCylSummary(plan, cutoff); if(!cs.list.length) return '';
+      return `<div style="border:2px solid var(--steel); border-radius:8px; padding:8px 10px; margin-bottom:14px;">
+        <div style="font-weight:700; font-size:15px; margin-bottom:4px;">Cylinders — one supplier per customer, never split</div>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:11.5px; color:var(--text-faint);"><th style="padding:4px 8px;">Customer</th><th>Jobs</th><th>Supplier</th><th style="text-align:right;">Needed</th><th style="text-align:right;">From stock</th><th style="text-align:right; padding-right:8px;">To order</th></tr></thead>
+          <tbody>${cs.list.map(g=> `<tr style="border-bottom:1px solid var(--panel-line);">
+            <td style="padding:5px 8px;"><b>${psEsc(g.group)}</b></td>
+            <td style="font-size:12px;">${psEsc(g.jobs.join(', '))}</td>
+            <td><select data-ps-cyl="${psEsc(g.group)}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 4px;">
+              <option value="">${g.supplier ? `Auto: ${g.supplier}` : 'Pick one'}</option>
+              <option value="JOST" ${psCylSupplier[g.group] === 'JOST' ? 'selected' : ''}>JOST</option>
+              <option value="Hydroscand" ${psCylSupplier[g.group] === 'Hydroscand' ? 'selected' : ''}>Hydroscand</option></select></td>
+            <td style="text-align:right;">${g.need}</td>
+            <td style="text-align:right;">${g.stock}</td>
+            <td style="text-align:right; font-weight:700; padding-right:8px; color:${g.order ? 'var(--danger)' : 'var(--success)'};">${g.order || '—'}</td></tr>`).join('')}</tbody>
+        </table>
+        <div style="font-size:13px; margin-top:6px;">${['JOST','Hydroscand'].map(sp=> `<b>${sp}:</b> ${cs.tot[sp].onHand} on hand, ${cs.tot[sp].stock} used from stock, <b style="color:${cs.tot[sp].order ? 'var(--danger)' : 'inherit'};">order ${cs.tot[sp].order}</b>`).join(' &nbsp;·&nbsp; ')}
+          ${cs.noSupplier.length ? `<div style="color:var(--danger);">Pick a supplier for: ${cs.noSupplier.map(g=> psEsc(g.group)).join(', ')} — nothing on the shelf to give them.</div>` : ''}</div>
+      </div>`; })()}
     ${psMode === 'manual' && !placed ? `<div style="padding:14px; border:2px solid var(--gold); border-radius:8px; margin-bottom:12px; font-size:14px;">
         No jobs are on the calendar yet, so there's nothing to buy for. <a href="#" id="psBuyGoCal">Place the coming jobs on the calendar</a> first.</div>` : ''}
     ${now.length ? table(now, 'now') : (placed || psMode !== 'manual' ? `<div style="padding:18px; text-align:center; font-size:16px; color:var(--success); font-weight:700;">✓ Nothing to buy — stock on hand covers every job until ${psFmtDay(cutoff)}.</div>` : '')}
@@ -7865,6 +7909,10 @@ window.psRenderBuy = function(body){
   const pb = document.getElementById('psBuyPrintBtn'); if(pb) pb.onclick = psPrintBuyList;
   const sb = document.getElementById('psBuySaveBtn'); if(sb) sb.onclick = psSaveBuyListToHistory;
   body.querySelectorAll('[data-ps-print-sup]').forEach(cb=> cb.onchange = ()=>{ psSetPrint(cb.dataset.psPrintSup, cb.checked); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-cyl]').forEach(sel=> sel.onchange = ()=>{
+    if(sel.value) psCylSupplier[sel.dataset.psCyl] = sel.value; else delete psCylSupplier[sel.dataset.psCyl];
+    psCylSave(); renderKitScheduler();
+  });
   body.querySelectorAll('[data-ps-buyqty]').forEach(inp=> inp.onchange = ()=>{
     psSetBuyQty(inp.dataset.psBuysec, inp.dataset.psBuyqty, Number(inp.dataset.psBuybase), inp.value === '' ? '' : Math.max(0, Number(inp.value)));
     renderKitScheduler();
@@ -7885,9 +7933,14 @@ function psBuyListLines(){
     if(!b.qty) return;
     lines.push({ id: 'kb' + Date.now() + Math.random().toString(36).slice(2,7), sku: r.sku, name: r.name,
       supplier: g.sup === 'No supplier set' ? '' : g.sup, onHand: Math.max(0, Number((psStockItem(r.sku) || {}).qty) || 0),
-      orderQty: b.qty, notes: 'To cover: ' + psCoverText(r) });
+      orderQty: b.qty, notes: (r.cyl ? 'For: ' + psCylFor(r) + ' · ' : '') + 'To cover: ' + psCoverText(r) });
   }));
   return { lines, cutoff };
+}
+function psCylFor(r){
+  const by = {};
+  (r.shortRows || []).forEach(x=>{ by[x.group] = (by[x.group] || 0) + x.short; });
+  return Object.entries(by).map(([g,q])=> `${g} ${q}`).join(', ');
 }
 function psBuyListTitle(cutoff){
   return 'Kit Order List — until ' + new Date(cutoff + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
