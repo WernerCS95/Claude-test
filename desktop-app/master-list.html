@@ -4709,7 +4709,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -7725,7 +7725,7 @@ function psPrintOrders(){
   if(!list.length){ doc.setFontSize(9); doc.setTextColor(90, 97, 105); doc.text('Nothing short.', 14, cursorY + 3); cursorY += 8; return; }
   const bySupplier = {};
   list.forEach(r=> (bySupplier[r.supplier || '(no supplier)'] = bySupplier[r.supplier || '(no supplier)'] || []).push(r));
-  Object.keys(bySupplier).sort((a,b)=> String(bySupplier[a][0].orderBy).localeCompare(String(bySupplier[b][0].orderBy)) || a.localeCompare(b)).forEach(sup=>{
+  Object.keys(bySupplier).filter(sup=> !psNoPrint.has(sup)).sort((a,b)=> String(bySupplier[a][0].orderBy).localeCompare(String(bySupplier[b][0].orderBy)) || a.localeCompare(b)).forEach(sup=>{
     if(cursorY > 175){ doc.addPage(); cursorY = 14; }
     bar(`Supplier: ${sup}`);
     doc.autoTable(Object.assign({ startY: cursorY,
@@ -7792,14 +7792,26 @@ function psWhenHtml(r){
   if(r.status === 'ORDER TODAY') return '<b style="color:var(--gold);">Today</b>';
   return psFmtDay(r.orderBy);
 }
+// Suppliers left off the printout (e.g. Swagefast — ordered once a month).
+// They still show on screen. Remembered on this laptop.
+const PS_NOPRINT_KEY = 'leader-master-ps-noprint-suppliers-v1';
+let psNoPrint = new Set();
+try{ psNoPrint = new Set(JSON.parse(localStorage.getItem(PS_NOPRINT_KEY)) || []); }catch(e){ psNoPrint = new Set(); }
+function psSetPrint(sup, on){
+  if(on) psNoPrint.delete(sup); else psNoPrint.add(sup);
+  try{ localStorage.setItem(PS_NOPRINT_KEY, JSON.stringify([...psNoPrint])); }catch(e){}
+}
 window.psRenderBuy = function(body){
   const { now, later, cutoff, plan } = psOrderList();
   let placed = 0;
   Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
   const undefTypes = [...new Set(Object.values(plan.undefinedGroups).map(u=> u.type || '(no type)'))];
   const table = list=> psBuyGroups(list).map(g=> `
-    <div style="margin-bottom:14px;">
-      <div style="background:var(--steel); color:#fff; font-weight:700; padding:5px 10px; border-radius:6px 6px 0 0;">${psEsc(g.sup)}</div>
+    <div style="margin-bottom:14px; ${psNoPrint.has(g.sup) ? 'opacity:0.55;' : ''}">
+      <div style="background:${psNoPrint.has(g.sup) ? 'var(--text-faint)' : 'var(--steel)'}; color:#fff; font-weight:700; padding:5px 10px; border-radius:6px 6px 0 0; display:flex; justify-content:space-between; align-items:center;">
+        <span>${psEsc(g.sup)}</span>
+        <label style="font-weight:400; font-size:12px; cursor:pointer;"><input type="checkbox" data-ps-print-sup="${psEsc(g.sup)}" ${psNoPrint.has(g.sup) ? '' : 'checked'}> Include in printing</label>
+      </div>
       <table style="width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed;">
         <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:12px; color:var(--text-faint);"><th style="padding:6px 10px; width:38%;">Item</th><th style="text-align:right; padding:6px 10px; width:10%;">On hand</th><th style="text-align:right; padding:6px 10px; width:14%;">Order</th><th style="padding:6px 10px; width:38%;">To cover</th></tr></thead>
         <tbody>${g.rows.map(r=>{ const b = psBuyQty(r); return `<tr style="border-bottom:1px solid var(--panel-line);" title="For: ${psEsc(r.jobs)}">
@@ -7831,10 +7843,13 @@ window.psRenderBuy = function(body){
   const gc = document.getElementById('psBuyGoCal'); if(gc) gc.onclick = go('calendar');
   const gk = document.getElementById('psBuyGoKit'); if(gk) gk.onclick = go('kit');
   const pb = document.getElementById('psBuyPrintBtn'); if(pb) pb.onclick = psPrintBuyList;
+  body.querySelectorAll('[data-ps-print-sup]').forEach(cb=> cb.onchange = ()=>{ psSetPrint(cb.dataset.psPrintSup, cb.checked); renderKitScheduler(); });
 };
 function psPrintBuyList(){
-  const { now, cutoff } = psOrderList();
-  if(!now.length){ alert('Nothing to buy.'); return; }
+  const { now: all, cutoff } = psOrderList();
+  const groups = psBuyGroups(all).filter(g=> !psNoPrint.has(g.sup));
+  const now = [].concat(...groups.map(g=> g.rows));
+  if(!now.length){ alert(all.length ? 'Every supplier is unticked for printing.' : 'Nothing to buy.'); return; }
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const navy = [31, 78, 120];
@@ -7843,9 +7858,10 @@ function psPrintBuyList(){
   doc.text('Leader Trailer Bodies', pageWidth - 14, 12, { align: 'right' });
   doc.setFontSize(17); doc.text(`Buy list — until ${d(cutoff)}`, 14, 16);
   doc.setFontSize(10); doc.setTextColor(90, 97, 105);
-  doc.text(`${now.length} item(s)   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, 14, 22);
+  const skipped = psBuyGroups(all).filter(g=> psNoPrint.has(g.sup)).map(g=> g.sup);
+  doc.text(`${now.length} item(s)   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}${skipped.length ? '   ·   Not printed: ' + skipped.join(', ') : ''}`, 14, 22, { maxWidth: pageWidth - 28 });
   let cursorY = 28;
-  psBuyGroups(now).forEach(g=>{
+  groups.forEach(g=>{
     if(cursorY > 250){ doc.addPage(); cursorY = 14; }
     doc.setFontSize(11); doc.setTextColor(255,255,255); doc.setFillColor(...navy);
     doc.rect(14, cursorY, pageWidth - 28, 6, 'F'); doc.text(g.sup, 16, cursorY + 4.3); cursorY += 6;

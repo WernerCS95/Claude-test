@@ -1,6 +1,6 @@
 {
   "name": "leader-master-list",
-  "version": "2.6.4",
+  "version": "2.6.5",
   "private": true,
   "description": "Leader Trailer Bodies - Leader Stores (Input + Admin), Windows desktop app",
   "main": "main.js",
