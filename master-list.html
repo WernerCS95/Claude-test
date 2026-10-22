@@ -263,6 +263,7 @@ try{
         <input type="file" id="psImportFileInput" accept=".xlsx,.xlsm,.xls" style="display:none;">
         <span style="width:10px;"></span>
         <button class="btn" data-ps-tab="buy" style="font-weight:700;">🛒 What to buy <span id="psBuyCount"></span></button>
+        <button class="btn" data-ps-tab="kits" style="font-weight:700;">📦 Kits out</button>
         <button class="btn" id="psDetailsBtn" type="button">⚙ Details ▸</button>
         <button class="btn ps-detail" data-ps-tab="schedule">📋 Schedule</button>
         <button class="btn ps-detail" data-ps-tab="calendar">📅 Calendar</button>
@@ -4709,7 +4710,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6551,6 +6552,8 @@ function psComputeSeq(){
     jobs.forEach(j=>{
       if(!j[stage + 'Date'] || !psIsPlanned(j, stage)) return;
       const pts = psJobPoints(j, stage);
+      const ko = psIsKitOut(j, stage) ? psKitOut[j.key + '|' + stage] : null;
+      if(ko){ out[j.key + '|' + stage] = ko.date; used[ko.date] = (used[ko.date] || 0) + pts; return; }
       const t = psTweaks[j.key] && psTweaks[j.key][stage];
       if(t){ out[j.key + '|' + stage] = t; used[t] = (used[t] || 0) + pts; return; }
       items.push({ j, pts, prod: j[stage + 'Date'], row: Math.min(...j.units[stage].map(u=> u.row || 1e9)) });
@@ -6617,6 +6620,7 @@ function psSetHold(key, on){
   if(on) psHold[key] = { at: new Date().toISOString() }; else delete psHold[key];
   try{ localStorage.setItem(PS_HOLD_KEY, JSON.stringify(psHold)); }catch(e){}
 }
+function psIsKitOut(job, stage){ try{ return !!psKitOut[job.key + '|' + stage]; }catch(e){ return false; } }
 function psIsPlannedIgnoringHold(job, stage){ return psStillToBuild(job, stage) && (psMode !== 'manual' || psIsPlaced(job, stage)); }
 function psIsPlanned(job, stage){ return psIsPlannedIgnoringHold(job, stage) && !psIsHeld(job); }
 function psStillToBuild(job, stage){
@@ -6736,8 +6740,8 @@ function renderKitScheduler(){
   }
   document.getElementById('kitSchedulerModal').classList.toggle('ps-simple', !psShowDetails);
   const db = document.getElementById('psDetailsBtn'); if(db) db.textContent = psShowDetails ? '⚙ Details ▾' : '⚙ Details ▸';
-  if(!psShowDetails && psTab !== 'buy') psTab = 'buy';
-  const r = { buy: window.psRenderBuy, schedule: psRenderSchedule, calendar: psRenderCalendar, moved: psRenderMoved, flags: psRenderFlags,
+  if(!psShowDetails && psTab !== 'buy' && psTab !== 'kits') psTab = 'buy';
+  const r = { buy: window.psRenderBuy, kits: window.psRenderKitsOut, schedule: psRenderSchedule, calendar: psRenderCalendar, moved: psRenderMoved, flags: psRenderFlags,
               kit: window.psRenderKit, allocation: window.psRenderAllocation, orders: window.psRenderOrders }[psTab];
   if(r) r(body); else body.innerHTML = '<div class="sub" style="padding:20px;">Coming in the next step.</div>';
 }
@@ -6745,7 +6749,7 @@ document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab =
 document.getElementById('psDetailsBtn').onclick = ()=>{
   psShowDetails = !psShowDetails;
   try{ localStorage.setItem('leader-master-ps-details-v1', psShowDetails ? '1' : '0'); }catch(e){}
-  if(!psShowDetails) psTab = 'buy';
+  if(!psShowDetails && psTab !== 'kits') psTab = 'buy';
   renderKitScheduler();
 };
 document.getElementById('psModeSelect').addEventListener('change', function(){ psMode = this.value === 'all' ? 'all' : 'manual'; psSavePlaced(); renderKitScheduler(); });
@@ -6807,6 +6811,9 @@ function psRenderCalendar(body){
       ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
       ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
       ${!opts.pool && manual ? ` <span data-ps-unplace="${psEsc(j.key)}" data-ps-unplace-stage="${stage}" title="Take off the calendar (back to the pool)" style="cursor:pointer; color:var(--text-faint);">↩</span>` : ''}
+      ${!opts.pool ? (psIsKitOut(j, stage)
+        ? ` <span data-ps-kitrec-cal="${psEsc(j.key + '|' + stage)}" title="Kit is out — open" style="cursor:pointer; color:var(--success); font-weight:700;">✓ Kit out${psKitOut[j.key + '|' + stage].lines.some(l=> psLinePending(l)) ? ' <span style="color:var(--danger);">⚠</span>' : ''}</span>`
+        : ` <span data-ps-kitout-btn="${psEsc(j.key)}" data-ps-kitout-btn-stage="${stage}" title="Kit handed out — confirm and take off stock" style="cursor:pointer; color:var(--success); font-weight:700;">☐ Kit</span>`) : ''}
       ${!opts.pool ? ` <span data-ps-hold="${psEsc(j.key)}" title="Put this job on hold — off the line, nothing ordered; its tarps & hydraulics stay kept for it" style="cursor:pointer; color:var(--text-faint);">⏸</span>` : ''}
       ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ' (in the queue)'}</div>` : ''}
     </div>`;
@@ -6896,7 +6903,7 @@ function psRenderCalendar(body){
 let psPicked = null;
 function psWireCalendar(body){
   body.querySelectorAll('[data-ps-chip]').forEach(ch=> ch.addEventListener('click', e=>{
-    if(e.target.closest('[data-ps-place],[data-ps-unplace],[data-ps-reset],[data-ps-hold]')) return;
+    if(e.target.closest('[data-ps-place],[data-ps-unplace],[data-ps-reset],[data-ps-hold],[data-ps-kitout-btn],[data-ps-kitrec-cal]')) return;
     e.stopPropagation();
     const k = ch.dataset.psChip, st = ch.dataset.psChipStage;
     psPicked = (psPicked && psPicked.key === k && psPicked.stage === st) ? null : { key: k, stage: st };
@@ -6931,6 +6938,8 @@ function psWireCalendar(body){
   body.querySelectorAll('[data-ps-place]').forEach(x=> x.onclick = (e)=>{
     e.stopPropagation(); psSetPlaced(x.dataset.psPlace, x.dataset.psPlaceStage, true); renderKitScheduler();
   });
+  body.querySelectorAll('[data-ps-kitout-btn]').forEach(x=> x.onclick = (e)=>{ e.stopPropagation(); psOpenKitOut(x.dataset.psKitoutBtn, x.dataset.psKitoutBtnStage); });
+  body.querySelectorAll('[data-ps-kitrec-cal]').forEach(x=> x.onclick = (e)=>{ e.stopPropagation(); psOpenKitRecord(x.dataset.psKitrecCal); });
   body.querySelectorAll('[data-ps-hold]').forEach(x=> x.onclick = (e)=>{
     e.stopPropagation(); psSetHold(x.dataset.psHold, true); renderKitScheduler();
   });
@@ -7431,7 +7440,7 @@ function psPlan(){
   Object.values(psSchedule.jobs).forEach(job=>{
     const kit = psKitForJob(job);
     PS_STAGES.forEach(stage=>{
-      if(!psIsPlanned(job, stage)) return;
+      if(!psIsPlanned(job, stage) || psIsKitOut(job, stage)) return;
       const needBy = psDate(job, stage);
       if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
       // A day already gone is treated as built — never ordered for
@@ -7452,6 +7461,13 @@ function psPlan(){
       });
     });
   });
+  // Kit lines not handed out yet (kit out with a problem) — needed now
+  try{ Object.values(psKitOut).forEach(rec=> rec.lines.forEach(l=>{
+    const pend = psLinePending(l);
+    if(!pend || !l.sku) return;
+    demand.push({ key: rec.nr + '|' + psCustKey(rec.customer), nr: rec.nr, customer: rec.customer, group: psCustomerGroup(rec.customer), type: '', stage: rec.stage,
+      kitGroup: l.group, needBy: today, qty: pend, sku: l.sku, outstanding: l.problem || 'outstanding' });
+  })); }catch(e){}
   demand.sort((a,b)=> a.needBy.localeCompare(b.needBy) || (+a.nr - +b.nr) || a.customer.localeCompare(b.customer));
   // Cylinders: customers in queue order (earliest need-by first). A customer
   // without a supplier picked gets the one whose stock on the floor can cover
@@ -7963,6 +7979,214 @@ function psSaveBuyListToHistory(){
   saveOrderHistory();
   alert(`Saved to Order History (${lines.length} item${lines.length === 1 ? '' : 's'}) — find it under Order Lists → View History.`);
 }
+
+/* ---------- Kit out: issue a job's kit by tick ----------
+   Tick a job stage when its kit is handed out. You confirm what was issued
+   (qty per line; a line not handed out gets a reason). Issued lines come off
+   stock, go into Parts Issued against the job, and go to the tablet like any
+   issue. The stage then leaves the queue. Lines not handed out stay
+   outstanding (on the buy list, with "Issue now" in Kits out). No full undo:
+   an issued line can be marked as a problem later — only that line goes back.
+   Slips are checked but the tick wins: a slip line for the same job and an
+   item in the ticked kit is reversed (both devices), with a note on the slip. */
+const PS_KITOUT_KEY = 'leader-master-ps-kitout-v1';
+const PS_KIT_PROBLEMS = ['Tarps arrived late', 'Supplier late with delivery', 'Stock not ordered'];
+let psKitOut = {};
+try{ psKitOut = JSON.parse(localStorage.getItem(PS_KITOUT_KEY)) || {}; }catch(e){ psKitOut = {}; }
+function psKitOutSave(){ try{ localStorage.setItem(PS_KITOUT_KEY, JSON.stringify(psKitOut)); }catch(e){} }
+function psKitOutRec(job, stage){ return psKitOut[job.key + '|' + stage] || null; }
+function psLinePending(l){ return Math.max(0, (Number(l.planned) || 0) - (Number(l.issued) || 0)); }
+
+// The kit lines for one job stage, with cylinders resolved to the customer's supplier
+function psKitLinesFor(job, stage){
+  const plan = psPlan();
+  const sup = (plan.cylGroups[job.group] || {}).supplier || psCylSupplierFor(job.group).supplier || null;
+  const out = [];
+  psKitForJob(job).lines.filter(l=> l.stage === stage).forEach(l=>{
+    const sku = l.cyl ? (sup ? PS_CYL_SKU[sup] : null) : l.sku;
+    if(!sku){ out.push({ sku: null, name: 'Hydraulic Cylinders — pick the customer\'s supplier first', planned: l.qty, group: l.group, noSku: true }); return; }
+    const ex = out.find(x=> x.sku === sku);
+    if(ex) ex.planned += l.qty; else out.push({ sku, name: psItemName(sku), planned: l.qty, group: l.group });
+  });
+  return out;
+}
+function psSlipMatchesJob(row, job){
+  if(row.deleted || row.notApplied || row.kitOut || String(row.jobNo || '').trim() !== String(job.nr)) return false;
+  return !row.customer || psCustKey(row.customer) === psCustKey(job.customer);
+}
+// Reverse a slip line that a kit tick covers (tick wins). Both devices.
+function psReverseSlipForKit(row, kitKey, stage){
+  rqAdjust(row.sku, Number(row.qty) || 0, 'Covered by kit out', row._id, `${row.name} ×${row.qty} — covered by the kit issued for this job (${PS_STAGE_LABEL[stage]})`, rqNoteId());
+  row.notApplied = true; row.coveredByKit = kitKey;
+  logOverride({ action: 'Slip line covered by kit out', where: 'Kit Scheduler', sku: row.sku, item: row.name, field: 'qty', oldValue: row.qty, newValue: 0,
+    ref: `${row.date || ''} · ${rqSlipLabel(row)}`, ledgerId: row._id, stockChanged: true });
+}
+// Take stock off for one kit line and record it like an issue (Parts Issued + tablet)
+function psIssueKitLine(job, stage, line, qty, kitKey){
+  if(!qty) return null;
+  const item = psStockItem(line.sku);
+  if(!item) return null;
+  const now = new Date(), at = now.toISOString();
+  item.qty = Math.max(0, (Number(item.qty) || 0) - qty);
+  const id = 'kit-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+  ledger.push({ _id: id, sku: line.sku, name: item.name, qty, date: at.slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    worker: 'Kit out', clock: '', customer: job.customer, jobNo: job.nr, kitOut: kitKey, enteredAt: at });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: line.sku, type: 'issue', delta_qty: -qty, created_at: at,
+    meta: { item_name: item.name, item_cat: item.cat, date: at.slice(0,10), jobNo: job.nr, customer: job.customer, worker: 'Kit out', kitOut: kitKey } });
+  return id;
+}
+
+function psOpenKitOut(jobKey, stage){
+  const job = psSchedule && psSchedule.jobs[jobKey];
+  if(!job) return;
+  const kitKey = jobKey + '|' + stage;
+  const rec = psKitOut[kitKey];
+  if(rec){ psOpenKitRecord(kitKey); return; }
+  const lines = psKitLinesFor(job, stage);
+  const slips = ledger.filter(r=> psSlipMatchesJob(r, job) && lines.some(l=> l.sku === r.sku));
+  const ov = document.createElement('div');
+  ov.className = 'modal-bg';
+  ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:400;';
+  ov.innerHTML = `<div style="background:var(--panel); border-radius:10px; padding:18px; max-width:860px; width:96%; max-height:90vh; overflow-y:auto;">
+    <h3 style="margin:0 0 4px;">📦 Kit out — ${psEsc(job.nr)} ${psEsc(job.customer)} · ${PS_STAGE_LABEL[stage]}</h3>
+    <div class="sub" style="margin:0 0 10px;">Confirm what was handed out. Anything not handed out: set Issued lower (or 0) and pick why — it stays outstanding.</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:11.5px; color:var(--text-faint);"><th style="padding:4px 6px;">Item</th><th style="text-align:right;">Kit</th><th style="text-align:right;">On hand</th><th style="text-align:right;">Issued</th><th>If not all issued — why</th></tr></thead>
+      <tbody>${lines.map((l,i)=> `<tr style="border-bottom:1px solid var(--panel-line);">
+        <td style="padding:5px 6px;">${psEsc(l.name)} <span style="color:var(--text-faint); font-size:11px;">${psEsc(l.sku || '')}</span></td>
+        <td style="text-align:right;">${l.planned}</td>
+        <td style="text-align:right;">${l.sku ? psOnHand(l.sku) : '—'}</td>
+        <td style="text-align:right;"><input type="number" min="0" step="any" data-ko-qty="${i}" value="${l.noSku ? 0 : Math.min(l.planned, psOnHand(l.sku))}" ${l.noSku ? 'disabled' : ''} style="width:64px; text-align:right; background:${!l.noSku && psOnHand(l.sku) < l.planned ? 'rgba(201,86,75,0.12)' : 'var(--void)'}; color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 5px;"></td>
+        <td><select data-ko-why="${i}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:3px 4px;"><option value="">—</option>${PS_KIT_PROBLEMS.map(p=> `<option ${(l.noSku || psOnHand(l.sku) < l.planned) && p === 'Stock not ordered' ? 'selected' : ''}>${p}</option>`).join('')}</select></td></tr>`).join('')}</tbody>
+    </table>
+    ${slips.length ? `<div style="margin-top:10px; padding:8px; border:1px solid var(--gold); border-radius:6px; font-size:12.5px;"><b>Slips already taken for this job — the kit wins, these slip lines are reversed:</b><br>${slips.map(r=> `${psEsc(r.name)} ×${r.qty} (${psEsc(rqSlipLabel(r))}, ${psEsc(r.date || '')})`).join('<br>')}</div>` : ''}
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn" data-ko-cancel>Cancel</button>
+      <button class="btn primary" data-ko-ok>✓ Kit out — take off stock</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('[data-ko-cancel]').onclick = ()=> ov.remove();
+  ov.querySelector('[data-ko-ok]').onclick = ()=>{
+    const recLines = [];
+    for(let i = 0; i < lines.length; i++){
+      const l = lines[i];
+      const q = Math.max(0, Number(ov.querySelector(`[data-ko-qty="${i}"]`).value) || 0);
+      const why = ov.querySelector(`[data-ko-why="${i}"]`).value;
+      if(q < l.planned && !why){ alert(`${l.name}: ${q} of ${l.planned} issued — pick why the rest wasn't handed out.`); return; }
+      recLines.push(Object.assign({}, l, { issued: Math.min(q, l.planned), problem: q < l.planned ? why : null, extra: Math.max(0, q - l.planned) }));
+    }
+    slips.forEach(r=> psReverseSlipForKit(r, kitKey, stage));
+    recLines.forEach(l=>{
+      const q = l.issued + l.extra;
+      if(q > 0) l.ledgerId = psIssueKitLine(job, stage, l, q, kitKey);
+      l.issued = q;
+      l.planned = Math.max(l.planned, q);
+    });
+    // The job keeps its own day on the line (a kit handed out the day before
+    // still belongs to tomorrow's slot); never earlier than today.
+    const lineDay = psDate(job, stage);
+    psKitOut[kitKey] = { at: new Date().toISOString(), date: lineDay && lineDay > psToday() ? lineDay : psToday(), nr: job.nr, customer: job.customer, stage, lines: recLines };
+    psKitOutSave();
+    logOverride({ action: 'Kit out', where: 'Kit Scheduler', sku: '', item: `${job.nr} ${job.customer} — ${PS_STAGE_LABEL[stage]}`, field: 'kit', oldValue: '', newValue: recLines.filter(l=> l.issued).length + ' line(s) issued',
+      ref: recLines.filter(l=> l.problem).map(l=> `${l.name}: ${l.problem}`).join('; '), stockChanged: true });
+    saveState(); render();
+    ov.remove();
+    renderKitScheduler();
+  };
+}
+
+// One kit-out record: issue outstanding lines, or mark an issued line as a problem
+function psOpenKitRecord(kitKey){
+  const rec = psKitOut[kitKey];
+  const job = psSchedule && psSchedule.jobs[kitKey.split('|').slice(0,2).join('|')];
+  if(!rec) return;
+  const ov = document.createElement('div');
+  ov.className = 'modal-bg';
+  ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:400;';
+  const draw = ()=>{
+    ov.innerHTML = `<div style="background:var(--panel); border-radius:10px; padding:18px; max-width:820px; width:96%; max-height:90vh; overflow-y:auto;">
+      <h3 style="margin:0 0 4px;">📦 ${psEsc(rec.nr)} ${psEsc(rec.customer)} · ${PS_STAGE_LABEL[rec.stage]} — kit out ${new Date(rec.at).toLocaleString('en-ZA')}</h3>
+      <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
+        <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:11.5px; color:var(--text-faint);"><th style="padding:4px 6px;">Item</th><th style="text-align:right;">Kit</th><th style="text-align:right;">Issued</th><th>Outstanding</th><th></th></tr></thead>
+        <tbody>${rec.lines.map((l,i)=>{ const pend = psLinePending(l); return `<tr style="border-bottom:1px solid var(--panel-line);">
+          <td style="padding:5px 6px;">${psEsc(l.name)}</td><td style="text-align:right;">${l.planned}</td><td style="text-align:right;">${l.issued}</td>
+          <td>${pend ? `<b style="color:var(--danger);">${pend}</b> — ${psEsc(l.problem || '')}` : '—'}</td>
+          <td style="text-align:right; white-space:nowrap;">
+            ${pend && l.sku ? `<button class="btn" data-kr-issue="${i}" style="padding:2px 8px; font-size:11.5px;">Issue now (${pend})</button>` : ''}
+            ${l.issued > 0 ? `<select data-kr-problem="${i}" title="Only this line goes back on stock" style="font-size:11.5px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px;"><option value="">Problem with this line…</option>${PS_KIT_PROBLEMS.map(p=> `<option>${p}</option>`).join('')}</select>` : ''}
+          </td></tr>`; }).join('')}</tbody>
+      </table>
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;"><button class="btn" data-kr-close>Close</button></div></div>`;
+    ov.querySelector('[data-kr-close]').onclick = ()=>{ ov.remove(); renderKitScheduler(); };
+    ov.querySelectorAll('[data-kr-issue]').forEach(b=> b.onclick = ()=>{
+      const l = rec.lines[+b.dataset.krIssue], pend = psLinePending(l);
+      if(!job){ alert('This job is no longer on the imported schedule.'); return; }
+      psIssueKitLine(job, rec.stage, l, pend, kitKey);
+      l.issued += pend; l.problem = null;
+      logOverride({ action: 'Kit out — outstanding issued', where: 'Kit Scheduler', sku: l.sku, item: l.name, field: 'qty', oldValue: l.issued - pend, newValue: l.issued, ref: `${rec.nr} ${rec.customer}`, stockChanged: true });
+      psKitOutSave(); saveState(); render(); draw();
+    });
+    ov.querySelectorAll('[data-kr-problem]').forEach(sel=> sel.onchange = ()=>{
+      if(!sel.value) return;
+      const l = rec.lines[+sel.dataset.krProblem];
+      // Only this line: its kit-out issues go back on stock (both devices)
+      ledger.filter(r=> r.kitOut === kitKey && r.sku === l.sku && !r.deleted && !r.notApplied).forEach(r=>{
+        rqAdjust(r.sku, Number(r.qty) || 0, 'Kit line returned: ' + sel.value, r._id, `${r.name} ×${r.qty} — back on stock: ${sel.value}`, rqNoteId());
+        r.notApplied = true; r.returnedReason = sel.value;
+      });
+      logOverride({ action: 'Kit out — line returned', where: 'Kit Scheduler', sku: l.sku, item: l.name, field: 'qty', oldValue: l.issued, newValue: 0, ref: `${rec.nr} ${rec.customer}: ${sel.value}`, stockChanged: true });
+      l.issued = 0; l.problem = sel.value;
+      psKitOutSave(); saveState(); render(); draw();
+    });
+  };
+  draw();
+  document.body.appendChild(ov);
+}
+
+// Slip arriving AFTER the kit tick: the tick wins — reverse the slip line.
+function psKitOutCheckSlip(txn){
+  if(!txn || txn.type !== 'issue' || !txn.meta || txn.meta.kitOut || !txn.meta.jobNo) return;
+  const row = ledger.find(r=> r._id === txn.id);
+  if(!row || row.notApplied || row.deleted) return;
+  const hit = Object.entries(psKitOut).find(([k, rec])=> String(rec.nr) === String(row.jobNo).trim() &&
+    (!row.customer || psCustKey(row.customer) === psCustKey(rec.customer)) && rec.lines.some(l=> l.sku === row.sku && l.issued > 0));
+  if(hit) psReverseSlipForKit(row, hit[0], hit[1].stage);
+}
+
+// Simple tab: next jobs to hand kits out for, today's kit-outs, outstanding lines
+window.psRenderKitsOut = function(body){
+  const today = psToday();
+  const jobs = Object.values(psSchedule.jobs);
+  const upcoming = st=>{
+    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
+    const days = [...new Set(list.map(x=> x.d))].slice(0, 3);
+    return days.map(d=> ({ d, items: list.filter(x=> x.d === d) }));
+  };
+  const recs = Object.entries(psKitOut).map(([k, r])=> Object.assign({ k }, r));
+  const outstanding = [];
+  recs.forEach(r=> r.lines.forEach((l, i)=>{ const p = psLinePending(l); if(p) outstanding.push({ r, l, p }); }));
+  body.innerHTML = `
+    <div style="font-size:20px; font-weight:700; margin-bottom:2px;">Kits to hand out</div>
+    <div class="sub" style="margin:0 0 10px;">Tick a job when its kit goes out — you confirm what was issued, and it comes off stock.</div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap;">
+      ${PS_STAGES.map(st=> `<div style="flex:1 1 380px; border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
+        <div style="font-weight:700; color:${st === 'chassis' ? 'var(--steel)' : 'var(--gold)'}; margin-bottom:4px;">${PS_STAGE_LABEL[st].toUpperCase()}</div>
+        ${upcoming(st).map(g=> `<div style="margin-bottom:6px;"><div style="font-size:12px; font-weight:700;">${psFmtDay(g.d)}</div>
+          ${g.items.map(x=> `<label style="display:flex; gap:8px; align-items:center; padding:4px 0; font-size:14px; cursor:pointer;"><input type="checkbox" data-ps-kitout="${psEsc(x.j.key)}" data-ps-kitout-stage="${st}" style="width:18px; height:18px;"> <b>${psEsc(x.j.nr)}</b> ${psEsc(x.j.customer)} <span class="sub" style="margin:0;">${psEsc(x.j.type)}</span></label>`).join('')}</div>`).join('') || '<div class="sub">Nothing planned.</div>'}
+      </div>`).join('')}
+    </div>
+    ${outstanding.length ? `<div style="margin-top:14px; border:2px solid var(--danger); border-radius:8px; padding:8px 10px;">
+      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">Outstanding — kit lines not handed out yet (${outstanding.length})</div>
+      ${outstanding.map(o=> `<div style="display:flex; justify-content:space-between; gap:8px; align-items:center; padding:3px 0; font-size:13px; border-bottom:1px solid var(--panel-line);">
+        <span><b>${psEsc(o.r.nr)} ${psEsc(o.r.customer)}</b> · ${psEsc(o.l.name)} <b>×${o.p}</b> — <i>${psEsc(o.l.problem || '')}</i></span>
+        <a href="#" data-ps-kitrec="${psEsc(o.r.k)}">open</a></div>`).join('')}
+    </div>` : ''}
+    ${recs.length ? `<details style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700;">✓ Kits already out (${recs.length})</summary>
+      ${recs.sort((a,b)=> b.at.localeCompare(a.at)).map(r=> `<div style="font-size:13px; padding:3px 0;">${new Date(r.at).toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' })} · <b>${psEsc(r.nr)} ${psEsc(r.customer)}</b> · ${PS_STAGE_LABEL[r.stage]} ${r.lines.some(l=> psLinePending(l)) ? '<span style="color:var(--danger);">⚠ outstanding</span>' : '✓'} <a href="#" data-ps-kitrec="${psEsc(r.k)}">open</a></div>`).join('')}</details>` : ''}`;
+  body.querySelectorAll('[data-ps-kitout]').forEach(cb=> cb.onchange = ()=>{ cb.checked = false; psOpenKitOut(cb.dataset.psKitout, cb.dataset.psKitoutStage); });
+  body.querySelectorAll('[data-ps-kitrec]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psOpenKitRecord(a.dataset.psKitrec); });
+};
+
 window.psRenderExtras = function(){
   const el = document.getElementById('psOrderCount');
   if(!el) return;
@@ -8229,6 +8453,7 @@ function applyRemoteStockTransaction(txn){
     }
   }
   addHistoryFromRemoteTransaction(txn, item.name, beforeQty);
+  if(typeof psKitOutCheckSlip === 'function'){ try{ psKitOutCheckSlip(txn); }catch(e){} }
   markSyncApplied(txn.id);
 }
 
