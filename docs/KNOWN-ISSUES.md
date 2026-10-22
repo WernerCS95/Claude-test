@@ -109,3 +109,17 @@ page wraps alert/confirm to call it afterwards, and main.js hands keyboard
 focus back (blur, focus, webContents.focus) and the cursor returns to the box
 that had it. No effect on the tablet. If it ever happens again: Alt+Tab away
 and back is the quick workaround — tell Claude which screen.
+
+## 13. Kit out by tick — laptop and tablet (2.7.0 / 2.7.1, 2026-10-22)
+
+Laptop: Kit Scheduler → 📦 Kits out (or ☐ Kit on a calendar card). Tablet:
+Input → ⚙ More → 📦 Kits to hand out. Tick a job stage when its kit is
+handed out, confirm the Issued qty per line; a line not handed out needs a
+reason (Tarps arrived late / Supplier late with delivery / Stock not ordered)
+and stays outstanding (on the buy list; "Issue now" on the laptop). Issued
+lines are normal issues (Parts Issued, both devices). Slips for the same job
+and a kit item are reversed — the tick wins — with a note on the slip.
+No full undo: mark one issued line as a problem and only that line goes back.
+The laptop sends the tablet its list as a zero-qty KITPLAN record; the tablet
+sends a zero-qty KITOUT record with what was issued. Install the laptop EXE
+before the tablet APK (an older laptop would treat those records as stock items).

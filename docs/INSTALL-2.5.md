@@ -6,8 +6,8 @@ Same app — no data move. **Never uninstall.**
 
 ## Build + install (laptop, Command Prompt)
 1. `cd /d "C:\Users\werne\OneDrive\Desktop\Claude-test"` then `git pull origin claude/blissful-mccarthy-k7if0c`
-2. `cd desktop-app` → `npm run dist` → `dir dist\*.exe` → **Leader Master List Setup 2.7.0.exe**, today's time
-3. Close the app, run **Leader Master List Setup 2.7.0.exe** over the top.
+2. `cd desktop-app` → `npm run dist` → `dir dist\*.exe` → **Leader Master List Setup 2.7.1.exe**, today's time
+3. Close the app, run **Leader Master List Setup 2.7.1.exe** over the top.
 
 ## First run
 4. Admin → **📅 Kit Scheduler** → **📥 Import Production Schedule (.xlsx)** → pick Production's weekly file.

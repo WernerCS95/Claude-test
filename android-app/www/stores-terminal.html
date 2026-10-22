@@ -1128,6 +1128,7 @@ try{
     <button class="clock-btn" id="weeklyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📊 Weekly Report</button>
     <button class="clock-btn" id="monthlyReportBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Monthly Report</button>
     <button class="clock-btn" id="chassisCalendarBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📆 Chassis Calendar</button>
+    <button class="clock-btn" id="kitsOutBtn" style="width:100%; margin-bottom:8px; border-color:var(--success); color:var(--success); text-align:left; padding:12px 14px; font-weight:700;">📦 Kits to hand out</button>
     <button class="clock-btn" id="kitSchedulerBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📅 Kit Scheduler (Production Planner)</button>
     <button class="clock-btn" id="setDeviceNameBtn" style="width:100%; margin-bottom:8px; border-color:var(--steel); color:var(--steel); text-align:left; padding:12px 14px;">🏷 This Tablet Is: <span id="deviceNameLabel">Not set</span></button>
     <button class="clock-btn" id="exportFullStateBtn" style="width:100%; margin-bottom:8px; border-color:var(--gold); color:var(--gold); text-align:left; padding:12px 14px;">📤 Export &amp; Share Full Current State</button>
@@ -4589,6 +4590,7 @@ const BACKUP_LOCALSTORAGE_KEYS = [
   // the actual stock on hand. Restore writes back whatever keys a file has,
   // so older backups without these still restore exactly as before.
   'leader-stores-qty-on-hand-v1', 'leader-stores-spot-check-history-v1', 'leader-stores-retired-items-v1',
+  'leader-stores-kitplan-v1', 'leader-stores-kitout-v1',
   'leader-stores-sync-outbox-v1', 'leader-stores-sync-applied-v1', 'leader-stores-sync-last-pull-v1',
   'leader-stores-pull-checkpoint-reset-v1', 'leader-stores-recovery-seeded-2026-08-26',
   'leader-stores-chassis-calendar-v1', 'leader-stores-report-notes-v1', 'leader-stores-scheduler-jobs',
@@ -8500,6 +8502,126 @@ document.getElementById('submitBtn').onclick = ()=>{
   renderGrid(); // tiles must redraw now — otherwise Qty on Hand looks stuck at the old number until something else happens to refresh the grid
 };
 
+
+/* ====================== KITS TO HAND OUT (tablet) ======================
+   The laptop's Kit Scheduler sends the next days' jobs and their kits here
+   (a zero-qty KITPLAN record through the normal sync). Tick a job when its
+   kit goes out, confirm what was issued — the issued lines come off stock
+   as issues (Parts Issued on the laptop, against the job), and the laptop
+   records the kit-out (KITOUT record): lines not handed out stay
+   outstanding there, and slips for the same job are checked (kit wins). */
+const KIT_PLAN_KEY = 'leader-stores-kitplan-v1';
+const KIT_OUT_DONE_KEY = 'leader-stores-kitout-v1';
+const KIT_PROBLEMS = ['Tarps arrived late', 'Supplier late with delivery', 'Stock not ordered'];
+let kitPlan = null, kitOutDone = {};
+try{ kitPlan = JSON.parse(localStorage.getItem(KIT_PLAN_KEY)) || null; }catch(e){ kitPlan = null; }
+try{ kitOutDone = JSON.parse(localStorage.getItem(KIT_OUT_DONE_KEY)) || {}; }catch(e){ kitOutDone = {}; }
+function saveKitOutDone(){ try{ localStorage.setItem(KIT_OUT_DONE_KEY, JSON.stringify(kitOutDone)); }catch(e){} }
+function fileKitPlan(txn){
+  const p = txn.meta.kitPlan;
+  if(kitPlan && kitPlan.sentAt && p.sentAt && p.sentAt < kitPlan.sentAt) return; // an older list arriving late
+  kitPlan = p;
+  try{ localStorage.setItem(KIT_PLAN_KEY, JSON.stringify(kitPlan)); }catch(e){}
+  if(document.getElementById('kitsOutOverlay')) renderKitsOut();
+}
+function kitEsc(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, c=> ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
+function kitDay(d){ return new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' }); }
+function kitOnHand(sku){ return Math.max(0, Number(qtyOnHand[sku]) || 0); }
+
+function openKitsOut(){
+  let ov = document.getElementById('kitsOutOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'kitsOutOverlay';
+    ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:500;';
+    document.body.appendChild(ov);
+  }
+  renderKitsOut();
+}
+function closeKitsOut(){ const ov = document.getElementById('kitsOutOverlay'); if(ov) ov.remove(); }
+
+function renderKitsOut(){
+  const ov = document.getElementById('kitsOutOverlay');
+  if(!ov) return;
+  const done = new Set([].concat(Object.keys(kitOutDone), (kitPlan && kitPlan.doneKeys) || []));
+  const stageHtml = (st, label, color)=>{
+    const jobs = ((kitPlan && kitPlan.stages && kitPlan.stages[st]) || []).filter(j=> !done.has(j.key));
+    const days = [...new Set(jobs.map(j=> j.day))];
+    return `<div style="flex:1 1 300px; border:1px solid var(--panel-line); border-radius:10px; padding:10px;">
+      <div style="font-weight:700; color:${color}; margin-bottom:6px;">${label}</div>
+      ${days.map(d=> `<div style="margin-bottom:8px;"><div style="font-size:13px; font-weight:700;">${kitDay(d)}</div>
+        ${jobs.filter(j=> j.day === d).map(j=> `<label style="display:flex; gap:10px; align-items:center; padding:8px 0; font-size:16px; cursor:pointer;">
+          <input type="checkbox" data-kit-tick="${kitEsc(j.key)}" style="width:24px; height:24px;"> <b>${kitEsc(j.nr)}</b> ${kitEsc(j.customer)} <span style="color:var(--text-faint); font-size:13px;">${kitEsc(j.type)}</span></label>`).join('')}</div>`).join('') || '<div style="color:var(--text-faint); font-size:13px;">Nothing planned.</div>'}
+    </div>`;
+  };
+  const outstanding = (kitPlan && kitPlan.outstanding) || [];
+  ov.innerHTML = `<div style="background:var(--panel); border-radius:12px; padding:16px; width:96%; max-width:900px; max-height:92vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <h3 style="margin:0;">📦 Kits to hand out</h3>
+      <button class="addjob-cancel" data-kit-close style="padding:10px 18px;">Close</button>
+    </div>
+    <div style="color:var(--text-faint); font-size:13px; margin:4px 0 10px;">${kitPlan ? `From the laptop's planner · ${new Date(kitPlan.sentAt).toLocaleString('en-ZA')}` : 'Nothing from the laptop yet — open 📦 Kits out in the laptop\'s Kit Scheduler (it sends the list here).'}</div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">${stageHtml('chassis', 'CHASSIS', 'var(--steel)')}${stageHtml('finals', 'FINALS', 'var(--gold)')}</div>
+    ${outstanding.length ? `<div style="margin-top:12px; border:2px solid var(--danger); border-radius:10px; padding:8px 10px;">
+      <div style="font-weight:700; color:var(--danger);">Outstanding — not handed out yet</div>
+      ${outstanding.map(o=> `<div style="font-size:14px; padding:4px 0;"><b>${kitEsc(o.nr)} ${kitEsc(o.customer)}</b> · ${kitEsc(o.name)} ×${o.qty} — <i>${kitEsc(o.problem)}</i></div>`).join('')}
+      <div style="color:var(--text-faint); font-size:12px;">Issue these from the laptop (Kits out → open) when the stock arrives.</div></div>` : ''}
+  </div>`;
+  ov.querySelector('[data-kit-close]').onclick = closeKitsOut;
+  ov.querySelectorAll('[data-kit-tick]').forEach(cb=> cb.onchange = ()=>{ cb.checked = false; openKitConfirm(cb.dataset.kitTick); });
+}
+
+function openKitConfirm(key){
+  const all = [].concat((kitPlan && kitPlan.stages && kitPlan.stages.chassis) || [], (kitPlan && kitPlan.stages && kitPlan.stages.finals) || []);
+  const job = all.find(j=> j.key === key);
+  if(!job) return;
+  const stage = key.split('|').pop();
+  const ov = document.getElementById('kitsOutOverlay');
+  ov.innerHTML = `<div style="background:var(--panel); border-radius:12px; padding:16px; width:96%; max-width:900px; max-height:92vh; overflow-y:auto;">
+    <h3 style="margin:0 0 4px;">📦 Kit out — ${kitEsc(job.nr)} ${kitEsc(job.customer)} · ${stage === 'chassis' ? 'Chassis' : 'Finals'}</h3>
+    <div style="color:var(--text-faint); font-size:13px; margin-bottom:8px;">Confirm what was handed out. Anything not handed out: lower the number (or 0) and pick why.</div>
+    <table style="width:100%; border-collapse:collapse; font-size:14px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:12px; color:var(--text-faint);"><th style="padding:4px;">Item</th><th style="text-align:right;">Kit</th><th style="text-align:right;">On hand</th><th style="text-align:right;">Issued</th><th>If not all — why</th></tr></thead>
+      <tbody>${job.lines.map((l,i)=>{ const oh = kitOnHand(l.sku), def = Math.min(l.planned, oh); return `<tr style="border-bottom:1px solid var(--panel-line);">
+        <td style="padding:6px 4px;">${kitEsc(l.name)}</td><td style="text-align:right;">${l.planned}</td><td style="text-align:right;">${oh}</td>
+        <td style="text-align:right;"><input type="number" min="0" step="any" inputmode="decimal" data-kq="${i}" value="${def}" style="width:70px; font-size:16px; text-align:right; padding:6px; border:1px solid var(--panel-line); border-radius:6px; background:${oh < l.planned ? 'rgba(201,86,75,0.12)' : 'var(--void)'}; color:var(--text);"></td>
+        <td><select data-kw="${i}" style="font-size:14px; padding:6px; border:1px solid var(--panel-line); border-radius:6px; background:var(--void); color:var(--text);"><option value="">—</option>${KIT_PROBLEMS.map(p=> `<option ${oh < l.planned && p === 'Stock not ordered' ? 'selected' : ''}>${p}</option>`).join('')}</select></td></tr>`; }).join('')}</tbody>
+    </table>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+      <button class="addjob-cancel" data-kc-back style="padding:12px 18px;">Back</button>
+      <button class="addjob-save" data-kc-ok style="padding:12px 18px;">✓ Kit out — take off stock</button>
+    </div></div>`;
+  ov.querySelector('[data-kc-back]').onclick = renderKitsOut;
+  ov.querySelector('[data-kc-ok]').onclick = ()=>{
+    const lines = [];
+    for(let i = 0; i < job.lines.length; i++){
+      const l = job.lines[i];
+      const q = Math.max(0, Number(ov.querySelector(`[data-kq="${i}"]`).value) || 0);
+      const why = ov.querySelector(`[data-kw="${i}"]`).value;
+      if(q < l.planned && !why){ alert(`${l.name}: ${q} of ${l.planned} — pick why the rest wasn't handed out.`); return; }
+      lines.push({ sku: l.sku, name: l.name, group: l.group, planned: Math.max(l.planned, q), issued: q, problem: q < l.planned ? why : null });
+    }
+    const today = new Date().toISOString().slice(0,10);
+    lines.forEach(l=>{
+      if(!l.issued) return;
+      adjustQtyOnHand(l.sku, -l.issued);
+      queueTransaction({ item_id: l.sku, type: 'issue', delta_qty: -l.issued,
+        meta: { item_name: l.name, date: today, jobNo: job.nr, customer: job.customer, worker: 'Kit out (tablet)', kitOut: key } });
+    });
+    const at = new Date().toISOString();
+    queueTransaction({ item_id: 'KITOUT', type: 'adjustment', delta_qty: 0,
+      meta: { kitOutRecord: { key, nr: job.nr, customer: job.customer, stage, date: job.day > today ? job.day : today, at, lines } } });
+    kitOutDone[key] = { at, nr: job.nr, customer: job.customer, stage, lines };
+    saveKitOutDone();
+    if(typeof renderGrid === 'function') try{ renderGrid(); }catch(e){}
+    renderKitsOut();
+  };
+}
+document.getElementById('kitsOutBtn').onclick = ()=>{
+  document.getElementById('moreMenuModal').classList.remove('show');
+  openKitsOut();
+};
+
 /* ====================== AFTERMARKET DELIVERIES (record only) ======================
    Goods that arrive for the Aftermarket department. They're received here
    but are NOT our stock: Qty on Hand never changes, nothing goes on our
@@ -10150,6 +10272,8 @@ function pinLaptopCorrectionNote(txn){
 function applyRemoteTransaction(txn){
   if(!txn || !txn.id || syncAppliedIds.has(txn.id)) return;
   if(txn.meta && txn.meta.aftermarket){ fileAftermarketTxn(txn); markApplied(txn.id); return; } // not our stock — record only
+  if(txn.meta && txn.meta.kitPlan){ try{ fileKitPlan(txn); }catch(e){} markApplied(txn.id); return; } // the laptop's kit list — no stock change
+  if(txn.meta && txn.meta.kitOutRecord){ markApplied(txn.id); return; } // a kit-out record — the laptop files it
   if(txn.type === 'spot_check'){
     // Incoming correction/count from another device (normally the laptop).
     // It's a snapshot as of when it was recorded there: slips this tablet

@@ -4710,7 +4710,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -7998,8 +7998,8 @@ function psKitOutRec(job, stage){ return psKitOut[job.key + '|' + stage] || null
 function psLinePending(l){ return Math.max(0, (Number(l.planned) || 0) - (Number(l.issued) || 0)); }
 
 // The kit lines for one job stage, with cylinders resolved to the customer's supplier
-function psKitLinesFor(job, stage){
-  const plan = psPlan();
+function psKitLinesFor(job, stage, planIn){
+  const plan = planIn || psPlan();
   const sup = (plan.cylGroups[job.group] || {}).supplier || psCylSupplierFor(job.group).supplier || null;
   const out = [];
   psKitForJob(job).lines.filter(l=> l.stage === stage).forEach(l=>{
@@ -8092,6 +8092,7 @@ function psOpenKitOut(jobKey, stage){
     saveState(); render();
     ov.remove();
     renderKitScheduler();
+    psSendKitPlan();
   };
 }
 
@@ -8117,7 +8118,7 @@ function psOpenKitRecord(kitKey){
           </td></tr>`; }).join('')}</tbody>
       </table>
       <div style="display:flex; justify-content:flex-end; margin-top:12px;"><button class="btn" data-kr-close>Close</button></div></div>`;
-    ov.querySelector('[data-kr-close]').onclick = ()=>{ ov.remove(); renderKitScheduler(); };
+    ov.querySelector('[data-kr-close]').onclick = ()=>{ ov.remove(); renderKitScheduler(); psSendKitPlan(); };
     ov.querySelectorAll('[data-kr-issue]').forEach(b=> b.onclick = ()=>{
       const l = rec.lines[+b.dataset.krIssue], pend = psLinePending(l);
       if(!job){ alert('This job is no longer on the imported schedule.'); return; }
@@ -8143,6 +8144,62 @@ function psOpenKitRecord(kitKey){
   document.body.appendChild(ov);
 }
 
+// The tablet's "Kits to hand out" list: the next 3 line-days per stage, with
+// each job's kit, plus outstanding lines. Sent through the normal sync as a
+// zero-qty record (item KITPLAN) whenever it changes.
+const PS_KITPLAN_SENT_KEY = 'leader-master-ps-kitplan-sent-v1';
+function psKitPlanPayload(){
+  if(!psSchedule) return null;
+  const plan = psPlan();
+  const jobs = Object.values(psSchedule.jobs);
+  const stages = {};
+  PS_STAGES.forEach(st=>{
+    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
+    const days = [...new Set(list.map(x=> x.d))].slice(0, 3);
+    stages[st] = list.filter(x=> days.includes(x.d)).map(x=> ({ key: x.j.key + '|' + st, nr: x.j.nr, customer: x.j.customer, type: x.j.type, day: x.d,
+      lines: psKitLinesFor(x.j, st, plan).filter(l=> l.sku).map(l=> ({ sku: l.sku, name: l.name, planned: l.planned, group: l.group })) }));
+  });
+  const outstanding = [];
+  Object.entries(psKitOut).forEach(([k, r])=> r.lines.forEach(l=>{ const pd = psLinePending(l); if(pd) outstanding.push({ key: k, nr: r.nr, customer: r.customer, stage: r.stage, name: l.name, qty: pd, problem: l.problem || '' }); }));
+  return { stages, outstanding, doneKeys: Object.keys(psKitOut) };
+}
+function psSendKitPlan(force){
+  try{
+    const payload = psKitPlanPayload();
+    if(!payload) return false;
+    const sig = JSON.stringify(payload);
+    if(!force && localStorage.getItem(PS_KITPLAN_SENT_KEY) === sig) return false;
+    localStorage.setItem(PS_KITPLAN_SENT_KEY, sig);
+    if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: 'KITPLAN', type: 'adjustment', delta_qty: 0,
+      meta: { kitPlan: Object.assign({ sentAt: new Date().toISOString() }, payload) } });
+    return true;
+  }catch(e){ return false; }
+}
+// A kit ticked on the tablet: the stock already came off through its issue
+// lines; here the laptop records the kit-out (same as a laptop tick) and the
+// slip rule applies (tick wins). Ticked on both devices: the tablet's
+// issues are reversed so the kit only comes off once.
+function psKitOutReceive(txn){
+  const r = txn.meta.kitOutRecord;
+  if(!r || !r.key) return;
+  if(psKitOut[r.key]){
+    ledger.filter(x=> x.kitOut === r.key && x.kitFromTablet && !x.notApplied && !x.deleted).forEach(x=>{
+      rqAdjust(x.sku, Number(x.qty) || 0, 'Kit ticked on both devices', x._id, `${x.name} ×${x.qty} — kit already ticked on the laptop`, rqNoteId());
+      x.notApplied = true;
+    });
+    logOverride({ action: 'Kit ticked on both devices', where: 'Sync from tablet', sku: '', item: `${r.nr} ${r.customer}`, field: 'kit', oldValue: '', newValue: 'tablet issues reversed', ref: r.key, stockChanged: true });
+    return;
+  }
+  psKitOut[r.key] = { at: r.at || txn.created_at, date: r.date || psToday(), nr: r.nr, customer: r.customer, stage: r.stage, fromTablet: true,
+    lines: (r.lines || []).map(l=> ({ sku: l.sku, name: l.name, planned: Number(l.planned) || 0, issued: Number(l.issued) || 0, problem: l.problem || null, group: l.group })) };
+  psKitOutSave();
+  const job = { nr: r.nr, customer: r.customer };
+  const skus = new Set((r.lines || []).filter(l=> Number(l.issued) > 0).map(l=> l.sku));
+  ledger.filter(x=> psSlipMatchesJob(x, job) && skus.has(x.sku)).forEach(x=> psReverseSlipForKit(x, r.key, r.stage));
+  logOverride({ action: 'Kit out (tablet)', where: 'Sync from tablet', sku: '', item: `${r.nr} ${r.customer} — ${PS_STAGE_LABEL[r.stage] || r.stage}`, field: 'kit', oldValue: '',
+    newValue: (r.lines || []).filter(l=> Number(l.issued) > 0).length + ' line(s) issued', ref: (r.lines || []).filter(l=> l.problem).map(l=> `${l.name}: ${l.problem}`).join('; '), stockChanged: true });
+}
+
 // Slip arriving AFTER the kit tick: the tick wins — reverse the slip line.
 function psKitOutCheckSlip(txn){
   if(!txn || txn.type !== 'issue' || !txn.meta || txn.meta.kitOut || !txn.meta.jobNo) return;
@@ -8166,8 +8223,11 @@ window.psRenderKitsOut = function(body){
   const outstanding = [];
   recs.forEach(r=> r.lines.forEach((l, i)=>{ const p = psLinePending(l); if(p) outstanding.push({ r, l, p }); }));
   body.innerHTML = `
-    <div style="font-size:20px; font-weight:700; margin-bottom:2px;">Kits to hand out</div>
-    <div class="sub" style="margin:0 0 10px;">Tick a job when its kit goes out — you confirm what was issued, and it comes off stock.</div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+      <div><div style="font-size:20px; font-weight:700; margin-bottom:2px;">Kits to hand out</div>
+      <div class="sub" style="margin:0 0 10px;">Tick a job when its kit goes out — you confirm what was issued, and it comes off stock. The tablet gets this list too (Input → ⚙ More → 📦 Kits to hand out).</div></div>
+      <button class="btn" id="psKitPlanSendBtn" title="Send this list to the tablet now">📤 Send to tablet</button>
+    </div>
     <div style="display:flex; gap:14px; flex-wrap:wrap;">
       ${PS_STAGES.map(st=> `<div style="flex:1 1 380px; border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px;">
         <div style="font-weight:700; color:${st === 'chassis' ? 'var(--steel)' : 'var(--gold)'}; margin-bottom:4px;">${PS_STAGE_LABEL[st].toUpperCase()}</div>
@@ -8184,6 +8244,8 @@ window.psRenderKitsOut = function(body){
     ${recs.length ? `<details style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700;">✓ Kits already out (${recs.length})</summary>
       ${recs.sort((a,b)=> b.at.localeCompare(a.at)).map(r=> `<div style="font-size:13px; padding:3px 0;">${new Date(r.at).toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' })} · <b>${psEsc(r.nr)} ${psEsc(r.customer)}</b> · ${PS_STAGE_LABEL[r.stage]} ${r.lines.some(l=> psLinePending(l)) ? '<span style="color:var(--danger);">⚠ outstanding</span>' : '✓'} <a href="#" data-ps-kitrec="${psEsc(r.k)}">open</a></div>`).join('')}</details>` : ''}`;
   body.querySelectorAll('[data-ps-kitout]').forEach(cb=> cb.onchange = ()=>{ cb.checked = false; psOpenKitOut(cb.dataset.psKitout, cb.dataset.psKitoutStage); });
+  document.getElementById('psKitPlanSendBtn').onclick = ()=>{ psSendKitPlan(true); alert('Sent to the tablet — it shows up there within a minute (once both are online).'); };
+  psSendKitPlan();
   body.querySelectorAll('[data-ps-kitrec]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psOpenKitRecord(a.dataset.psKitrec); });
 };
 
@@ -8409,6 +8471,8 @@ function applyRemoteStockTransaction(txn){
   // catches up and finds the same transaction in Supabase.
   if(!txn || !txn.id || syncAppliedIds.has(txn.id) || loadImportedLineIds().has(txn.id)) return;
   if(txn.meta && txn.meta.aftermarket){ fileAftermarketLine(txn); markSyncApplied(txn.id); return; } // not our stock — register only
+  if(txn.meta && txn.meta.kitPlan){ markSyncApplied(txn.id); return; } // the tablet's kit list — laptop's own
+  if(txn.meta && txn.meta.kitOutRecord){ try{ psKitOutReceive(txn); }catch(e){} markSyncApplied(txn.id); saveState(); return; }
   // Second guard against double-counting, independent of the applied-ids
   // memory: if this exact transaction is already in this laptop's own
   // history, it was applied before.
@@ -8453,6 +8517,7 @@ function applyRemoteStockTransaction(txn){
     }
   }
   addHistoryFromRemoteTransaction(txn, item.name, beforeQty);
+  if(txn.meta && txn.meta.kitOut){ const kr = ledger.find(x=> x._id === txn.id); if(kr){ kr.kitOut = txn.meta.kitOut; kr.kitFromTablet = true; } }
   if(typeof psKitOutCheckSlip === 'function'){ try{ psKitOutCheckSlip(txn); }catch(e){} }
   markSyncApplied(txn.id);
 }
