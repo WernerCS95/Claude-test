@@ -6763,7 +6763,7 @@ function psRenderCalendar(body){
   const chip = (j, stage, opts)=>{
     const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
     return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}${opts.pool ? ' · Production: ' + psFmtDay(j[stage+'Date']) : ''}"
-      style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:${psPicked && psPicked.key === j.key && psPicked.stage === stage ? '2px solid var(--gold)' : '1px solid var(--panel-line)'}; background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45}; ${opts.pool ? 'display:inline-block; margin-right:4px;' : ''}">
+      style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:${psPicked && psPicked.key === j.key && psPicked.stage === stage ? '2px solid var(--gold)' : '1px solid var(--panel-line)'}; background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still && (opts.pool || (psDate(j, stage) || '') >= psToday()) ? 1 : 0.45}; ${opts.pool ? 'display:inline-block; margin-right:4px;' : ''}">
       ${opts.pool ? `<span data-ps-place="${psEsc(j.key)}" data-ps-place-stage="${stage}" title="Place on Production's date" style="cursor:pointer; color:var(--success); font-weight:700;">＋</span> ` : ''}
       ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
       ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
@@ -6816,7 +6816,7 @@ function psRenderCalendar(body){
       <div style="display:flex; flex-wrap:wrap; gap:4px 18px; font-size:12px;">${list.map(m=> `<span>${psFmtDay(m.from)} → <b>${psFmtDay(m.to)}</b>: ${[m.chassis ? m.chassis + ' Chassis' : '', m.finals ? m.finals + ' Finals' : ''].filter(Boolean).join(', ')}</span>`).join('')}</div>
     </div>`;
   }
-  html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Click a job then click another day (or drag it) to move it (✎, lasts until the next import); ↺ puts it back on Production's date. Grey = not ticked "still to build".</div>`;
+  html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Click a job then click another day (or drag it) to move it (✎, lasts until the next import); ↺ puts it back on Production's date. Grey = not ticked "still to build", or the day has passed (treated as built — not ordered for).</div>`;
   for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
     const days = [];
     for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s)) days.push(s); }
@@ -7370,8 +7370,9 @@ function psOnHand(sku){ const it = psStockItem(sku); return it ? Math.max(0, Num
 
 function psPlan(){
   psSeqCache = null;
-  const demand = [], undefinedGroups = {}, undated = [];
-  if(!psSchedule) return { demand, items: {}, undefinedGroups, undated, cylGroups: {} };
+  const demand = [], undefinedGroups = {}, undated = [], past = [];
+  const today = psToday();
+  if(!psSchedule) return { demand, items: {}, undefinedGroups, undated, past, cylGroups: {} };
   const hist = psCylHistory();
   const cylGroups = {};
   Object.values(psSchedule.jobs).forEach(job=>{
@@ -7379,13 +7380,15 @@ function psPlan(){
     PS_STAGES.forEach(stage=>{
       if(!psIsPlanned(job, stage)) return;
       const needBy = psDate(job, stage);
+      if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
+      // A day already gone is treated as built — never ordered for
+      if(needBy < today){ past.push({ nr: job.nr, customer: job.customer, stage, needBy }); return; }
       const stageGroups = PS_GROUPS.filter(g=> g.stage === stage).map(g=> g.id);
       kit.missing.filter(m=> stageGroups.includes(m)).forEach(m=>{
         const g = PS_GROUPS.find(x=> x.id === m);
         const k = `${m}|${g.byVariant ? psVariantKey(job.type, job.axles) : job.type}`;
         (undefinedGroups[k] = undefinedGroups[k] || { group: m, label: g.label, type: job.type, axles: g.byVariant ? job.axles : '', jobs: [] }).jobs.push(job.nr + ' ' + job.customer);
       });
-      if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
       kit.lines.filter(l=> l.stage === stage).forEach(l=>{
         const row = { key: job.key, nr: job.nr, customer: job.customer, group: job.group, type: job.type, stage, kitGroup: l.group, needBy, qty: l.qty };
         if(l.cyl){
@@ -7427,7 +7430,7 @@ function psPlan(){
     it.need += d.qty; it.short += d.short;
     it.rows.push(d);
   });
-  return { demand, items, undefinedGroups, undated, cylGroups };
+  return { demand, items, undefinedGroups, undated, past, cylGroups };
 }
 
 window.psRenderAllocation = function(body){
@@ -7746,6 +7749,7 @@ window.psRenderBuy = function(body){
     ${psMode === 'manual' && !placed ? `<div style="padding:14px; border:2px solid var(--gold); border-radius:8px; margin-bottom:12px; font-size:14px;">
         No jobs are on the calendar yet, so there's nothing to buy for. <a href="#" id="psBuyGoCal">Place the coming jobs on the calendar</a> first.</div>` : ''}
     ${now.length ? table(now) : (placed || psMode !== 'manual' ? `<div style="padding:18px; text-align:center; font-size:16px; color:var(--success); font-weight:700;">✓ Nothing to buy — stock on hand covers every job until ${psFmtDay(cutoff)}.</div>` : '')}
+    ${plan.past.length ? `<div class="sub" style="margin-top:6px;">Left out: ${plan.past.length} job stage(s) dated before today — treated as already built. If one isn't built yet, move it to a day from today on the calendar.</div>` : ''}
     ${undefTypes.length ? `<div class="sub" style="margin-top:6px;">Not on this list yet: some parts aren't set up for ${undefTypes.map(psEsc).join(', ')} (e.g. axles, tyres). <a href="#" id="psBuyGoKit">Set them up</a>.</div>` : ''}
     ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Next month — also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later)}</div></details>` : ''}`;
   const dl = document.getElementById('psBuyDateLink'), di = document.getElementById('psBuyDate');
