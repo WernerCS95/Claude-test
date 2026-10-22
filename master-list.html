@@ -233,6 +233,8 @@ try{
           </select></label>
         <label style="font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
           <input type="number" id="psBehindInput" min="0" max="30" step="1" style="width:56px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> working days</label>
+        <label style="font-size:12.5px; white-space:nowrap;" title="Per line per day: 100 points per unit (an L+F link = 200). 600 = 3 links a day.">Capacity:
+          <input type="number" id="psCapacityInput" min="100" max="5000" step="100" style="width:66px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> points/day</label>
       </div>
       <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
         <button class="btn primary" id="psImportBtn">📥 Import Production Schedule (.xlsx)</button>
@@ -4683,7 +4685,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6459,7 +6461,7 @@ function psReadSheet(getCell, rowCount){
 }
 
 /* ---------- effective dates, still-to-build ---------- */
-// "Running behind" — every stage still to build is pushed back this many
+// "Running behind" — the queue for each line starts this many
 // working days (weekends skipped). Hand-moved jobs and finished stages stay
 // put. Cleared on the next import (Production's new schedule replaces it).
 const PS_BEHIND_KEY = 'leader-master-ps-behind-v1';
@@ -6475,14 +6477,68 @@ function psAddWorkingDays(ymd, n){
   while(left > 0){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
   return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
 }
+// Daily capacity per line (Chassis, Finals): 100 points per unit, so an
+// L+F link = 200 and 600 = 3 links a day.
+const PS_CAPACITY_KEY = 'leader-master-ps-capacity-v1';
+let psCapacity = 600;
+try{ psCapacity = Math.max(100, parseInt(localStorage.getItem(PS_CAPACITY_KEY), 10) || 600); }catch(e){ psCapacity = 600; }
+function psSetCapacity(n){
+  psCapacity = Math.max(100, Math.min(5000, parseInt(n, 10) || 600));
+  try{ localStorage.setItem(PS_CAPACITY_KEY, String(psCapacity)); }catch(e){}
+}
+function psJobPoints(job, stage){ return Math.max(1, job.units[stage].length) * 100; }
+function psNextWorkday(ymd){ const d = new Date(ymd + 'T00:00:00'); while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function psWorkingDaysBetween(a, b){ // a -> b, working days (0 if b <= a)
+  if(!a || !b || b <= a) return 0;
+  let n = 0, d = a; while(d < b && n < 400){ d = psAddWorkingDays(d, 1); n++; }
+  return n;
+}
+// The queue: each line works its planned jobs in Production's order, filling
+// each working day up to the capacity. The queue starts N working days
+// ("running behind") after Production's first open date; a job never goes
+// earlier than Production's own date; hand-moved jobs stay put but use up
+// their day's capacity; Finals keeps its gap after its Chassis.
+let psSeqCache = null;
+function psComputeSeq(){
+  const out = {};
+  if(!psSchedule) return out;
+  const jobs = Object.values(psSchedule.jobs);
+  PS_STAGES.forEach(stage=>{
+    const used = {}, items = [];
+    jobs.forEach(j=>{
+      if(!j[stage + 'Date'] || !psIsPlanned(j, stage)) return;
+      const pts = psJobPoints(j, stage);
+      const t = psTweaks[j.key] && psTweaks[j.key][stage];
+      if(t){ out[j.key + '|' + stage] = t; used[t] = (used[t] || 0) + pts; return; }
+      items.push({ j, pts, prod: j[stage + 'Date'], row: Math.min(...j.units[stage].map(u=> u.row || 1e9)) });
+    });
+    if(!items.length) return;
+    items.sort((a,b)=> a.prod.localeCompare(b.prod) || a.row - b.row || (+a.j.nr - +b.j.nr));
+    let cursor = psNextWorkday(psAddWorkingDays(items[0].prod, psBehind));
+    items.forEach(it=>{
+      let lower = psNextWorkday(it.prod);
+      if(stage === 'finals' && it.j.chassisDate){
+        const c = out[it.j.key + '|chassis'];
+        if(c){ const after = psAddWorkingDays(c, psWorkingDaysBetween(it.j.chassisDate, it.prod)); if(after > lower) lower = after; }
+      }
+      let day = cursor > lower ? cursor : lower;
+      while((used[day] || 0) > 0 && (used[day] || 0) + it.pts > psCapacity) day = psAddWorkingDays(day, 1);
+      used[day] = (used[day] || 0) + it.pts;
+      out[it.j.key + '|' + stage] = day;
+      cursor = day;
+    });
+  });
+  return out;
+}
 function psDate(job, stage){
   const t = psTweaks[job.key];
   if(t && t[stage]) return t[stage];
   const d = job[stage + 'Date'] || null;
-  if(d && psBehind > 0 && psStillToBuild(job, stage)) return psAddWorkingDays(d, psBehind);
-  return d;
+  if(!d || !psIsPlanned(job, stage)) return d;
+  if(!psSeqCache) psSeqCache = psComputeSeq();
+  return psSeqCache[job.key + '|' + stage] || d;
 }
-function psIsShifted(job, stage){ return psBehind > 0 && !psIsTweaked(job, stage) && !!job[stage + 'Date'] && psStillToBuild(job, stage); }
+function psIsShifted(job, stage){ return !psIsTweaked(job, stage) && !!job[stage + 'Date'] && psDate(job, stage) !== job[stage + 'Date']; }
 function psIsTweaked(job, stage){ return !!(psTweaks[job.key] && psTweaks[job.key][stage]); }
 // Default: still to build unless every unit on that stage shows 100%.
 // Werner's own tick overrides either way.
@@ -6587,6 +6643,7 @@ function psPctTxt(arr){
 }
 
 function renderKitScheduler(){
+  psSeqCache = null;
   const src = document.getElementById('psSourceLine');
   src.innerHTML = psSchedule
     ? `Schedule: <b>${psEsc(psSchedule.fileName)}</b> · imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} · ${Object.keys(psSchedule.jobs).length} jobs · ${psFmtDay(psSchedule.firstDate)} – ${psFmtDay(psSchedule.lastDate)}`
@@ -6596,6 +6653,7 @@ function renderKitScheduler(){
     let placed = 0; Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
     src.innerHTML += ` · <b style="color:var(--steel);">📅 ${placed} job stage(s) on your calendar</b>`;
   }
+  const ci = document.getElementById('psCapacityInput'); if(ci && document.activeElement !== ci) ci.value = psCapacity;
   const bi = document.getElementById('psBehindInput');
   if(bi && document.activeElement !== bi) bi.value = psBehind;
   if(psBehind > 0) src.innerHTML += ` · <b style="color:var(--danger);">⏱ ${psBehind} working day(s) behind — open stages shifted</b>`;
@@ -6621,6 +6679,7 @@ function renderKitScheduler(){
 }
 document.querySelectorAll('[data-ps-tab]').forEach(b=> b.onclick = ()=>{ psTab = b.dataset.psTab; renderKitScheduler(); });
 document.getElementById('psModeSelect').addEventListener('change', function(){ psMode = this.value === 'all' ? 'all' : 'manual'; psSavePlaced(); renderKitScheduler(); });
+document.getElementById('psCapacityInput').addEventListener('change', function(){ psSetCapacity(this.value); renderKitScheduler(); });
 document.getElementById('psBehindInput').addEventListener('change', function(){ psSetBehind(this.value); renderKitScheduler(); });
 
 let psFilter = '';
@@ -6676,7 +6735,7 @@ function psRenderCalendar(body){
       ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
       ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
       ${!opts.pool && manual ? ` <span data-ps-unplace="${psEsc(j.key)}" data-ps-unplace-stage="${stage}" title="Take off the calendar (back to the pool)" style="cursor:pointer; color:var(--text-faint);">↩</span>` : ''}
-      ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ` (${psBehind} day${psBehind === 1 ? '' : 's'} behind)`}</div>` : ''}
+      ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ' (in the queue)'}</div>` : ''}
     </div>`;
   };
   let html = '';
@@ -6720,7 +6779,7 @@ function psRenderCalendar(body){
     }));
     const list = Object.values(moves).sort((a,b)=> a.from.localeCompare(b.from));
     if(list.length) html += `<div style="border:1px solid var(--danger); border-radius:8px; padding:8px 10px; margin-bottom:10px;">
-      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⏱ Running ${psBehind} working day${psBehind === 1 ? '' : 's'} behind — where the work lands now</div>
+      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⏱ Where the work lands now — ${psBehind ? `${psBehind} working day${psBehind === 1 ? '' : 's'} behind, ` : ''}${psCapacity} points a day (${psCapacity / 200} links)</div>
       <div style="display:flex; flex-wrap:wrap; gap:4px 18px; font-size:12px;">${list.map(m=> `<span>${psFmtDay(m.from)} → <b>${psFmtDay(m.to)}</b>: ${[m.chassis ? m.chassis + ' Chassis' : '', m.finals ? m.finals + ' Finals' : ''].filter(Boolean).join(', ')}</span>`).join('')}</div>
     </div>`;
   }
@@ -6739,7 +6798,8 @@ function psRenderCalendar(body){
           // Jobs Production had on this day that now land on another day
           const left = jobs.filter(j=> onCal(j, stage) && j[stage+'Date'] === d && psDate(j, stage) !== d).sort((a,b)=> +a.nr - +b.nr);
           return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
-            <div style="font-size:10px; color:${color}; font-weight:700;">${psFmtDay(d)}</div>
+            ${(()=>{ const load = here.filter(j=> psIsPlanned(j, stage)).reduce((a,j)=> a + psJobPoints(j, stage), 0);
+              return `<div style="font-size:10px; color:${color}; font-weight:700; display:flex; justify-content:space-between;"><span>${psFmtDay(d)}</span>${load ? `<span style="color:${load > psCapacity ? 'var(--danger)' : 'var(--text-faint)'};">${load}/${psCapacity}</span>` : ''}</div>`; })()}
             ${here.map(j=> chip(j, stage, {})).join('')}
             ${left.map(j=> `<div title="Production had this here" style="font-size:10.5px; margin-top:3px; padding:2px 5px; border-radius:4px; border:1px dashed var(--text-faint); color:var(--text-faint);"><s>${psEsc(j.nr)} ${psEsc(j.customer)}</s> → ${psFmtDay(psDate(j, stage))}</div>`).join('')}
           </div>`;
@@ -7276,6 +7336,7 @@ function psCylSupplierFor(group, hist){
 function psOnHand(sku){ const it = psStockItem(sku); return it ? Math.max(0, Number(it.qty) || 0) : 0; }
 
 function psPlan(){
+  psSeqCache = null;
   const demand = [], undefinedGroups = {}, undated = [];
   if(!psSchedule) return { demand, items: {}, undefinedGroups, undated, cylGroups: {} };
   const hist = psCylHistory();
