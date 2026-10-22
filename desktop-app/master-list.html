@@ -6633,7 +6633,7 @@ function psRenderSchedule(body){
     const tw = psIsTweaked(j, stage);
     const us = j.units[stage];
     const sh = psIsShifted(j, stage);
-    return `<td style="white-space:nowrap;">${d ? psFmtDay(d) : '<span style="color:var(--text-faint);">not on schedule</span>'}${sh ? ` <span title="Production said ${psFmtDay(j[stage+'Date'])} — shifted ${psBehind} working day(s) for running behind" style="color:var(--danger); font-size:11px;">+${psBehind}</span>` : ''}${tw ? ` <span title="Moved by hand — Production said ${psFmtDay(j[stage+'Date'])}" style="color:var(--gold);">✎</span>` : ''}
+    return `<td style="white-space:nowrap;">${d ? psFmtDay(d) : '<span style="color:var(--text-faint);">not on schedule</span>'}${sh ? `<div style="color:var(--danger); font-size:11px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}</div>` : ''}${tw ? ` <span title="Moved by hand — Production said ${psFmtDay(j[stage+'Date'])}" style="color:var(--gold);">✎</span>` : ''}
       ${us.length ? `<div class="sub" style="margin:0;">${us.map(u=> u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}</div>` : ''}</td>
       <td style="text-align:center;"><input type="checkbox" data-ps-build="${psEsc(j.key)}" data-ps-stage="${stage}" ${still ? 'checked' : ''} title="Still to build at ${PS_STAGE_LABEL[stage]} — untick when this stage's parts are no longer needed"></td>`;
   };
@@ -6673,9 +6673,10 @@ function psRenderCalendar(body){
     return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}${opts.pool ? ' · Production: ' + psFmtDay(j[stage+'Date']) : ''}"
       style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:${psPicked && psPicked.key === j.key && psPicked.stage === stage ? '2px solid var(--gold)' : '1px solid var(--panel-line)'}; background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still ? 1 : 0.45}; ${opts.pool ? 'display:inline-block; margin-right:4px;' : ''}">
       ${opts.pool ? `<span data-ps-place="${psEsc(j.key)}" data-ps-place-stage="${stage}" title="Place on Production's date" style="cursor:pointer; color:var(--success); font-weight:700;">＋</span> ` : ''}
-      ${tw ? '✎ ' : ''}${!opts.pool && psIsShifted(j, stage) ? `<span style="color:var(--danger); font-size:10px;">+${psBehind}</span> ` : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
+      ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
       ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
       ${!opts.pool && manual ? ` <span data-ps-unplace="${psEsc(j.key)}" data-ps-unplace-stage="${stage}" title="Take off the calendar (back to the pool)" style="cursor:pointer; color:var(--text-faint);">↩</span>` : ''}
+      ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ` (${psBehind} day${psBehind === 1 ? '' : 's'} behind)`}</div>` : ''}
     </div>`;
   };
   let html = '';
@@ -6697,7 +6698,7 @@ function psRenderCalendar(body){
     </div>`;
   }
   const allDates = [];
-  jobs.forEach(j=> PS_STAGES.forEach(s=>{ if(onCal(j, s)) allDates.push(psDate(j, s)); }));
+  jobs.forEach(j=> PS_STAGES.forEach(s=>{ if(onCal(j, s)){ allDates.push(psDate(j, s)); if(j[s+'Date']) allDates.push(j[s+'Date']); } }));
   if(manual){
     // Always show this week to four weeks out, so there's somewhere to drop
     const t = psToday(); allDates.push(t, psAddWorkingDays(t, 20));
@@ -6710,6 +6711,19 @@ function psRenderCalendar(body){
   const start = new Date(monday(allDates[0]) + 'T00:00:00');
   const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
   const weekend = new Set(allDates.filter(d=> { const w = new Date(d + 'T00:00:00').getDay(); return w === 0 || w === 6; }));
+  {
+    const moves = {};
+    jobs.forEach(j=> PS_STAGES.forEach(st=>{
+      if(!onCal(j, st) || !j[st+'Date'] || psDate(j, st) === j[st+'Date'] || psIsTweaked(j, st)) return;
+      const k = `${j[st+'Date']}|${psDate(j, st)}`;
+      (moves[k] = moves[k] || { from: j[st+'Date'], to: psDate(j, st), chassis: 0, finals: 0 })[st]++;
+    }));
+    const list = Object.values(moves).sort((a,b)=> a.from.localeCompare(b.from));
+    if(list.length) html += `<div style="border:1px solid var(--danger); border-radius:8px; padding:8px 10px; margin-bottom:10px;">
+      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⏱ Running ${psBehind} working day${psBehind === 1 ? '' : 's'} behind — where the work lands now</div>
+      <div style="display:flex; flex-wrap:wrap; gap:4px 18px; font-size:12px;">${list.map(m=> `<span>${psFmtDay(m.from)} → <b>${psFmtDay(m.to)}</b>: ${[m.chassis ? m.chassis + ' Chassis' : '', m.finals ? m.finals + ' Finals' : ''].filter(Boolean).join(', ')}</span>`).join('')}</div>
+    </div>`;
+  }
   html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Click a job then click another day (or drag it) to move it (✎, lasts until the next import); ↺ puts it back on Production's date. Grey = not ticked "still to build".</div>`;
   for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
     const days = [];
@@ -6722,9 +6736,12 @@ function psRenderCalendar(body){
         <div style="width:62px; font-size:11px; font-weight:700; color:${color}; padding-top:4px;">${PS_STAGE_LABEL[stage].toUpperCase()}</div>
         ${days.map(d=>{
           const here = jobs.filter(j=> onCal(j, stage) && psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
+          // Jobs Production had on this day that now land on another day
+          const left = jobs.filter(j=> onCal(j, stage) && j[stage+'Date'] === d && psDate(j, stage) !== d).sort((a,b)=> +a.nr - +b.nr);
           return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
             <div style="font-size:10px; color:${color}; font-weight:700;">${psFmtDay(d)}</div>
             ${here.map(j=> chip(j, stage, {})).join('')}
+            ${left.map(j=> `<div title="Production had this here" style="font-size:10.5px; margin-top:3px; padding:2px 5px; border-radius:4px; border:1px dashed var(--text-faint); color:var(--text-faint);"><s>${psEsc(j.nr)} ${psEsc(j.customer)}</s> → ${psFmtDay(psDate(j, stage))}</div>`).join('')}
           </div>`;
         }).join('')}
       </div>`;
