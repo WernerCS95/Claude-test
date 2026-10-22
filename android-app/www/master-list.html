@@ -4709,7 +4709,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -7760,10 +7760,27 @@ function psPrintOrders(){
 /* ---------- Simple view: "What do we need to buy until month end?" ----------
    One list, grouped by supplier: item, how many to buy (rounded up to whole
    packs), order-by date. Built from the same plan as the detailed Order List. */
-function psBuyQty(r){
+// Order qty: exactly what's short, unless Werner typed or rounded it up
+// (kept per item and section until the shortfall itself changes).
+const PS_BUY_QTY_KEY = 'leader-master-ps-buy-qty-v1';
+let psBuyQtySet = {};
+try{ psBuyQtySet = JSON.parse(localStorage.getItem(PS_BUY_QTY_KEY)) || {}; }catch(e){ psBuyQtySet = {}; }
+function psBuyQty(r, sec){
   const it = psStockItem(r.sku);
   const pack = it && Number(it.packSize) > 1 ? Number(it.packSize) : 1;
-  return { qty: Math.ceil(r.short / pack) * pack, pack };
+  const o = psBuyQtySet[(sec || 'now') + '|' + r.sku];
+  const qty = o && o.base === r.short && Number(o.qty) >= 0 ? Number(o.qty) : r.short;
+  return { qty, pack, edited: qty !== r.short };
+}
+function psSetBuyQty(sec, sku, base, qty){
+  const k = sec + '|' + sku;
+  if(qty === '' || isNaN(qty) || Number(qty) === base) delete psBuyQtySet[k]; else psBuyQtySet[k] = { qty: Number(qty), base };
+  try{ localStorage.setItem(PS_BUY_QTY_KEY, JSON.stringify(psBuyQtySet)); }catch(e){}
+}
+function psBuyRoundOptions(n, pack){
+  const opts = computeRoundUpOptions(n).map(v=> ({ v, lbl: '↑' + v.toLocaleString() }));
+  if(pack > 1 && n % pack){ const pv = Math.ceil(n / pack) * pack; if(!opts.some(o=> o.v === pv)) opts.unshift({ v: pv, lbl: `↑${pv} (packs of ${pack})` }); }
+  return opts.sort((a,b)=> a.v - b.v);
 }
 function psBuyGroups(list){
   const by = {};
@@ -7806,7 +7823,7 @@ window.psRenderBuy = function(body){
   let placed = 0;
   Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
   const undefTypes = [...new Set(Object.values(plan.undefinedGroups).map(u=> u.type || '(no type)'))];
-  const table = list=> psBuyGroups(list).map(g=> `
+  const table = (list, sec)=> psBuyGroups(list).map(g=> `
     <div style="margin-bottom:14px; ${psNoPrint.has(g.sup) ? 'opacity:0.55;' : ''}">
       <div style="background:${psNoPrint.has(g.sup) ? 'var(--text-faint)' : 'var(--steel)'}; color:#fff; font-weight:700; padding:5px 10px; border-radius:6px 6px 0 0; display:flex; justify-content:space-between; align-items:center;">
         <span>${psEsc(g.sup)}</span>
@@ -7814,10 +7831,13 @@ window.psRenderBuy = function(body){
       </div>
       <table style="width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed;">
         <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:12px; color:var(--text-faint);"><th style="padding:6px 10px; width:38%;">Item</th><th style="text-align:right; padding:6px 10px; width:10%;">On hand</th><th style="text-align:right; padding:6px 10px; width:14%;">Order</th><th style="padding:6px 10px; width:38%;">To cover</th></tr></thead>
-        <tbody>${g.rows.map(r=>{ const b = psBuyQty(r); return `<tr style="border-bottom:1px solid var(--panel-line);" title="For: ${psEsc(r.jobs)}">
+        <tbody>${g.rows.map(r=>{ const b = psBuyQty(r, sec); return `<tr style="border-bottom:1px solid var(--panel-line);" title="For: ${psEsc(r.jobs)}">
           <td style="padding:7px 10px;">${psEsc(r.name)} <span style="color:var(--text-faint); font-size:11.5px;">${psEsc(r.sku === 'CYL-NO-SUPPLIER' ? '' : r.sku)}</span></td>
           <td style="padding:7px 10px; text-align:right;">${r.sku === 'CYL-NO-SUPPLIER' ? '' : Math.max(0, Number((psStockItem(r.sku) || {}).qty) || 0)}${plan.reserved[r.sku] ? `<div style="font-size:10.5px; color:var(--text-faint);" title="Kept for: ${psEsc(plan.reserved[r.sku].jobs.join(', '))}">${plan.reserved[r.sku].qty} kept for on-hold</div>` : ''}</td>
-          <td style="padding:7px 10px; text-align:right; font-weight:700; font-size:16px;">${b.qty}${b.pack > 1 ? ` <span style="font-weight:400; font-size:11.5px; color:var(--text-faint);">(packs of ${b.pack})</span>` : ''}</td>
+          <td style="padding:5px 10px; text-align:right;">
+            <input type="number" min="0" step="any" value="${b.qty}" data-ps-buyqty="${psEsc(r.sku)}" data-ps-buysec="${sec}" data-ps-buybase="${r.short}" title="Short: ${r.short}. Type over it or tap a round-up." style="width:78px; text-align:right; font-weight:700; font-size:15px; background:${b.edited ? 'rgba(184,134,46,0.15)' : 'var(--void)'}; color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;">
+            <div style="margin-top:3px; display:flex; gap:3px; justify-content:flex-end; flex-wrap:wrap;">${psBuyRoundOptions(b.qty, b.pack).map(o=> `<button type="button" data-ps-round="${o.v}" data-ps-round-sku="${psEsc(r.sku)}" data-ps-round-sec="${sec}" data-ps-round-base="${r.short}" style="font-size:10px; padding:1px 5px; background:var(--panel-raised); border:1px solid var(--panel-line); border-radius:4px; color:var(--steel); cursor:pointer;">${o.lbl}</button>`).join('')}${b.edited ? `<button type="button" data-ps-round="${r.short}" data-ps-round-sku="${psEsc(r.sku)}" data-ps-round-sec="${sec}" data-ps-round-base="${r.short}" title="Back to exactly what's short" style="font-size:10px; padding:1px 5px; background:none; border:1px solid var(--panel-line); border-radius:4px; color:var(--text-faint); cursor:pointer;">= ${r.short}</button>` : ''}</div>
+          </td>
           <td style="padding:7px 10px; font-size:12.5px;">${psCoverHtml(r)}</td></tr>`; }).join('')}</tbody>
       </table></div>`).join('');
   body.innerHTML = `
@@ -7827,15 +7847,15 @@ window.psRenderBuy = function(body){
         <div class="sub" style="margin:2px 0 0;">Month end + 2 working days · "To cover" = the work days the order is for · stock as it is on this laptop now · ${placed} job stage(s) planned
           · <a href="#" id="psBuyDateLink">change date</a><input type="date" id="psBuyDate" value="${cutoff}" style="display:none; margin-left:6px;"></div>
       </div>
-      ${now.length ? `<button class="btn primary" id="psBuyPrintBtn" style="font-size:14px;">🖨 Print buy list</button>` : ''}
+      ${now.length ? `<div style="display:flex; gap:6px;"><button class="btn" id="psBuySaveBtn" style="font-size:14px; border-color:var(--success); color:var(--success);">💾 Save to History</button><button class="btn primary" id="psBuyPrintBtn" style="font-size:14px;">🖨 Print</button></div>` : ''}
     </div>
     ${psMode === 'manual' && !placed ? `<div style="padding:14px; border:2px solid var(--gold); border-radius:8px; margin-bottom:12px; font-size:14px;">
         No jobs are on the calendar yet, so there's nothing to buy for. <a href="#" id="psBuyGoCal">Place the coming jobs on the calendar</a> first.</div>` : ''}
-    ${now.length ? table(now) : (placed || psMode !== 'manual' ? `<div style="padding:18px; text-align:center; font-size:16px; color:var(--success); font-weight:700;">✓ Nothing to buy — stock on hand covers every job until ${psFmtDay(cutoff)}.</div>` : '')}
+    ${now.length ? table(now, 'now') : (placed || psMode !== 'manual' ? `<div style="padding:18px; text-align:center; font-size:16px; color:var(--success); font-weight:700;">✓ Nothing to buy — stock on hand covers every job until ${psFmtDay(cutoff)}.</div>` : '')}
     ${plan.held.length ? `<div class="sub" style="margin-top:6px;">⏸ On hold, nothing ordered: ${plan.held.map(h=> psEsc(h.nr + ' ' + h.customer)).join(', ')}${Object.keys(plan.reserved).length ? ' — their tarps & hydraulics on the shelf are kept for them' : ''}.</div>` : ''}
     ${plan.past.length ? `<div class="sub" style="margin-top:6px;">Left out: ${plan.past.length} job stage(s) you moved by hand to a day that has passed. Move them to a day ahead if they're not built yet.</div>` : ''}
     ${undefTypes.length ? `<div class="sub" style="margin-top:6px;">Not on this list yet: some parts aren't set up for ${undefTypes.map(psEsc).join(', ')} (e.g. axles, tyres). <a href="#" id="psBuyGoKit">Set them up</a>.</div>` : ''}
-    ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Next month — also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later)}</div></details>` : ''}`;
+    ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Next month — also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later, 'later')}</div></details>` : ''}`;
   const dl = document.getElementById('psBuyDateLink'), di = document.getElementById('psBuyDate');
   dl.onclick = (e)=>{ e.preventDefault(); dl.style.display = 'none'; di.style.display = ''; di.focus(); };
   di.onchange = ()=>{ psCutoffSet = di.value || ''; try{ if(psCutoffSet) localStorage.setItem(PS_CUTOFF_KEY, psCutoffSet); else localStorage.removeItem(PS_CUTOFF_KEY); }catch(e){} renderKitScheduler(); };
@@ -7843,43 +7863,52 @@ window.psRenderBuy = function(body){
   const gc = document.getElementById('psBuyGoCal'); if(gc) gc.onclick = go('calendar');
   const gk = document.getElementById('psBuyGoKit'); if(gk) gk.onclick = go('kit');
   const pb = document.getElementById('psBuyPrintBtn'); if(pb) pb.onclick = psPrintBuyList;
+  const sb = document.getElementById('psBuySaveBtn'); if(sb) sb.onclick = psSaveBuyListToHistory;
   body.querySelectorAll('[data-ps-print-sup]').forEach(cb=> cb.onchange = ()=>{ psSetPrint(cb.dataset.psPrintSup, cb.checked); renderKitScheduler(); });
-};
-function psPrintBuyList(){
-  const { now: all, cutoff } = psOrderList();
-  const groups = psBuyGroups(all).filter(g=> !psNoPrint.has(g.sup));
-  const now = [].concat(...groups.map(g=> g.rows));
-  if(!now.length){ alert(all.length ? 'Every supplier is unticked for printing.' : 'Nothing to buy.'); return; }
-  const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const navy = [31, 78, 120];
-  const d = s=> s ? new Date(s + 'T00:00:00').toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' }) : '';
-  doc.setFontSize(14); doc.setTextColor(...navy);
-  doc.text('Leader Trailer Bodies', pageWidth - 14, 12, { align: 'right' });
-  doc.setFontSize(17); doc.text(`Buy list — until ${d(cutoff)}`, 14, 16);
-  doc.setFontSize(10); doc.setTextColor(90, 97, 105);
-  const skipped = psBuyGroups(all).filter(g=> psNoPrint.has(g.sup)).map(g=> g.sup);
-  doc.text(`${now.length} item(s)   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}${skipped.length ? '   ·   Not printed: ' + skipped.join(', ') : ''}`, 14, 22, { maxWidth: pageWidth - 28 });
-  let cursorY = 28;
-  groups.forEach(g=>{
-    if(cursorY > 250){ doc.addPage(); cursorY = 14; }
-    doc.setFontSize(11); doc.setTextColor(255,255,255); doc.setFillColor(...navy);
-    doc.rect(14, cursorY, pageWidth - 28, 6, 'F'); doc.text(g.sup, 16, cursorY + 4.3); cursorY += 6;
-    doc.autoTable({ startY: cursorY, margin: { left: 14, right: 14 }, theme: 'grid',
-      headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 9, lineColor: [185,194,204] },
-      bodyStyles: { fontSize: 9.5, textColor: [26,29,33] },
-      head: [['Item', 'SKU', 'On hand', 'Order', 'To cover']],
-      body: g.rows.map(r=>{ const b = psBuyQty(r); return [r.name, r.sku === 'CYL-NO-SUPPLIER' ? '' : r.sku,
-        r.sku === 'CYL-NO-SUPPLIER' ? '' : String(Math.max(0, Number((psStockItem(r.sku) || {}).qty) || 0)),
-        String(b.qty) + (b.pack > 1 ? ` (packs of ${b.pack})` : ''), psCoverText(r)]; }),
-      columnStyles: { 0: { cellWidth: 62 }, 1: { cellWidth: 24 }, 2: { cellWidth: 16, halign: 'right' }, 3: { cellWidth: 22, halign: 'right', fontStyle: 'bold', textColor: navy }, 4: { cellWidth: 58 } } });
-    cursorY = doc.lastAutoTable.finalY + 6;
+  body.querySelectorAll('[data-ps-buyqty]').forEach(inp=> inp.onchange = ()=>{
+    psSetBuyQty(inp.dataset.psBuysec, inp.dataset.psBuyqty, Number(inp.dataset.psBuybase), inp.value === '' ? '' : Math.max(0, Number(inp.value)));
+    renderKitScheduler();
   });
-  let y = cursorY + 16;
-  if(y > 280){ doc.addPage(); y = 30; }
-  doc.setFontSize(9); doc.setTextColor(91, 97, 105); doc.setDrawColor(26, 29, 33);
-  [['Prepared by (Werner)', 14], ['Approved by', 82], ['Date', 150]].forEach(([label, x])=>{ doc.line(x, y, x + 50, y); doc.text(label, x, y + 4); });
-  savePdfOutput(doc, 'buy-list');
+  body.querySelectorAll('[data-ps-round]').forEach(btn=> btn.onclick = ()=>{
+    psSetBuyQty(btn.dataset.psRoundSec, btn.dataset.psRoundSku, Number(btn.dataset.psRoundBase), Number(btn.dataset.psRound));
+    renderKitScheduler();
+  });
+};
+// The buy list as order-list lines (same shape as a Month End list line),
+// only suppliers ticked "Include in printing". Notes = the days it covers.
+function psBuyListLines(){
+  const { now, cutoff } = psOrderList();
+  const lines = [];
+  psBuyGroups(now).filter(g=> !psNoPrint.has(g.sup)).forEach(g=> g.rows.forEach(r=>{
+    if(r.sku === 'CYL-NO-SUPPLIER') return;
+    const b = psBuyQty(r, 'now');
+    if(!b.qty) return;
+    lines.push({ id: 'kb' + Date.now() + Math.random().toString(36).slice(2,7), sku: r.sku, name: r.name,
+      supplier: g.sup === 'No supplier set' ? '' : g.sup, onHand: Math.max(0, Number((psStockItem(r.sku) || {}).qty) || 0),
+      orderQty: b.qty, notes: 'To cover: ' + psCoverText(r) });
+  }));
+  return { lines, cutoff };
+}
+function psBuyListTitle(cutoff){
+  return 'Kit Order List — until ' + new Date(cutoff + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+}
+// Same printout as the Month End order list (per supplier, prices, totals)
+function psPrintBuyList(){
+  const { lines, cutoff } = psBuyListLines();
+  if(!lines.length){ alert('Nothing to print — no items, or every supplier is unticked.'); return; }
+  const bySupplier = {};
+  lines.forEach(l=>{ const sup = (l.supplier || '').trim() || 'No Supplier Set'; (bySupplier[sup] = bySupplier[sup] || []).push(l); });
+  const suppliers = Object.keys(bySupplier).sort((a,b)=> a==='No Supplier Set'?1 : b==='No Supplier Set'?-1 : a.localeCompare(b));
+  openPrintWindow(psBuyListTitle(cutoff), new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' }), suppliers, bySupplier, lines);
+}
+// Saved into the same Order History as the Month End / New Month lists
+function psSaveBuyListToHistory(){
+  const { lines, cutoff } = psBuyListLines();
+  if(!lines.length){ alert('Nothing to save — no items, or every supplier is unticked.'); return; }
+  orderHistory.unshift({ id: 'oh' + Date.now() + Math.random().toString(36).slice(2,7), listKey: 'kitScheduler', title: psBuyListTitle(cutoff),
+    savedAt: new Date().toISOString(), lines: JSON.parse(JSON.stringify(lines)) });
+  saveOrderHistory();
+  alert(`Saved to Order History (${lines.length} item${lines.length === 1 ? '' : 's'}) — find it under Order Lists → View History.`);
 }
 window.psRenderExtras = function(){
   const el = document.getElementById('psOrderCount');
