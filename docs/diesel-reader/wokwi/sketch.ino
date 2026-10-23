@@ -36,11 +36,16 @@ String two(int v){ return v < 10 ? String("0") + String(v) : String(v); }
 String dateStr(const DateTime& t){ return String(t.year()) + "-" + two(t.month()) + "-" + two(t.day()); }
 String timeStr(const DateTime& t){ return two(t.hour()) + ":" + two(t.minute()) + ":" + two(t.second()); }
 
-// CAM A: the display starts at 0.00 when the nozzle lifts, then counts up
+// CAM A: the display starts at 0.00 when the nozzle lifts, then counts up.
+// A pump display never counts DOWN during a fill, so a lower reading is
+// treated as a misread and ignored — the highest reading is the fill.
+float litresShown = 0;
 float readLitres(){
   int d = analogRead(PIN_LITRES) - potAtStart;
   if(d < 0) d = 0;
-  return d * MAX_LITRES / 4095.0;
+  float now = d * MAX_LITRES / 4095.0;
+  if(now > litresShown) litresShown = now;
+  return litresShown;
 }
 
 bool nozzleUp(){ return digitalRead(PIN_NOZZLE) == LOW; }
@@ -81,6 +86,7 @@ void setup(){
 void startFill(){
   filling = true;
   potAtStart = analogRead(PIN_LITRES);
+  litresShown = 0;
   fillStart = rtc.now();
   photoName = "IMG_" + String(fillStart.year()) + two(fillStart.month()) + two(fillStart.day()) + "_" +
               two(fillStart.hour()) + two(fillStart.minute()) + two(fillStart.second()) + ".jpg";
