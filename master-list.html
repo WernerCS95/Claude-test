@@ -4789,7 +4789,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
   'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-from-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
-  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1',
+  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1', 'leader-master-ol-supplier-page-v1', 'leader-master-ol-pick-layout-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -8143,7 +8143,7 @@ function psSaveBuyListToHistory(){
      1.2  Month End consumables    — non-kit parts, up to Min
      2    Kits for the New Month   — kit parts for jobs in the picked range
      2.1  New Month consumables    — non-kit parts, up to Max
-   plus Ruben Stoor parts (ticked per part) in their own sections at the end.
+   Ruben Stoor parts (ticked per part) are left off — Ruben makes his own list.
    Section 2 / 2.1 start from projected stock: stock + the FINAL Section
    1 / 1.2 order (after edits, unticked suppliers left out) − kits to month
    end. Kit parts ignore Min/Max unless ticked "keep Min/Max".
@@ -8164,9 +8164,7 @@ const OL_SECTIONS = [
   { id:'k1', no:'1',   title:'Kits to Month End',                             kind:'kit',  period:1 },
   { id:'c1', no:'1.2', title:'Month End — consumables & odds and ends (to Min)', kind:'cons', period:1, target:'min' },
   { id:'k2', no:'2',   title:'Kits for the New Month',                        kind:'kit',  period:2 },
-  { id:'c2', no:'2.1', title:'New Month — consumables & odds and ends (to Max)', kind:'cons', period:2, target:'max' },
-  { id:'r1', no:'R1',  title:'Ruben Stoor — Month End (to Min)',              kind:'cons', period:1, target:'min', ruben:true },
-  { id:'r2', no:'R2',  title:'Ruben Stoor — New Month (to Max)',              kind:'cons', period:2, target:'max', ruben:true }
+  { id:'c2', no:'2.1', title:'New Month — consumables & odds and ends (to Max)', kind:'cons', period:2, target:'max' }
 ];
 const OL_NO_SUP = 'No supplier set';
 
@@ -8281,7 +8279,7 @@ function olBuild(){
 
   // ---- Section 1.2 / R1: consumables to Min ----
   const consFor = ruben=> stock.filter(it=> it && it.sku && !it.noAutoOrder && (ruben ? olRuben.has(it.sku) : (!olRuben.has(it.sku) && !kitSkus.has(it.sku))));
-  [['c1', false], ['r1', true]].forEach(([sec, ruben])=>{
+  [['c1', false]].forEach(([sec, ruben])=>{
     consFor(ruben).forEach(it=>{
       const min = Number(it.min) || 0;
       if(min <= 0) return;
@@ -8306,7 +8304,7 @@ function olBuild(){
   addManual('k2', sku=> ({ kits: kq(2, sku), plus: 0, stock: proj(sku), projected: true }));
 
   // ---- Section 2.1 / R2: consumables to Max (projected stock) ----
-  [['c2', 'c1', false], ['r2', 'r1', true]].forEach(([sec, prev, ruben])=>{
+  [['c2', 'c1', false]].forEach(([sec, prev, ruben])=>{
     consFor(ruben).forEach(it=>{
       const max = Number(it.max) || 0;
       if(max <= 0) return;
@@ -8419,7 +8417,7 @@ function olRender(){
       <td style="text-align:center; white-space:nowrap;">
         <button type="button" data-ol-del="${psEsc(l.sku)}" data-ol-sec="${def.id}" data-ol-base="${l.sugg}" data-ol-manual="${l.manual ? 1 : ''}" title="Remove from this list" style="font-size:12px; padding:2px 7px; background:none; border:1px solid var(--panel-line); border-radius:4px; color:var(--danger); cursor:pointer;">✕</button>
         ${def.kind === 'kit' && !l.cyl ? `<div><a href="#" data-ol-keep="${psEsc(l.sku)}" style="font-size:10.5px;" title="Also keep this kit part at Min/Max">${olKitMinMax.has(l.sku) ? '✓ keeps Min/Max' : '+ Min/Max'}</a></div>` : ''}
-        ${def.kind === 'cons' ? `<div><a href="#" data-ol-ruben="${psEsc(l.sku)}" style="font-size:10.5px;" title="${olRuben.has(l.sku) ? 'Move back to production' : 'Move to Ruben Stoor'}">${olRuben.has(l.sku) ? '↩ production' : '→ Ruben Stoor'}</a></div>` : ''}
+        ${def.kind === 'cons' ? `<div><a href="#" data-ol-ruben="${psEsc(l.sku)}" style="font-size:10.5px;" title="Ruben orders this on his own list — leave it off ours">→ Ruben's list</a></div>` : ''}
       </td></tr>`;
   };
   const secHtml = def=>{
@@ -8465,7 +8463,8 @@ function olRender(){
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
       <h3 style="margin:0;">📋 Order List</h3>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="btn primary" id="olPrintBtn">🖨 Print Order List</button>
+        <button class="btn primary" id="olPrint1Btn" title="Sections 1 + 1.2">🖨 Print Month End list</button>
+        <button class="btn primary" id="olPrint2Btn" title="Sections 2 + 2.1" style="background:var(--gold); border-color:var(--gold);">🖨 Print New Month list</button>
         <button class="btn" id="olSaveBtn" style="border-color:var(--success); color:var(--success);">💾 Save to History</button>
         <button class="btn" id="olHistBtn" style="border-color:var(--gold); color:var(--gold);">📜 History</button>
         <button class="btn" id="olPick1Btn" title="One sheet per job and stage — not for buying">🖨 Picking sheets · Month End</button>
@@ -8477,16 +8476,20 @@ function olRender(){
       <span><b style="color:var(--steel);">Month End</b> (Sections 1 & 1.2): today → <input type="date" id="olTo1" value="${B.to1}" style="${inp}"> ${psCutoffSet ? '<a href="#" id="olTo1Reset" style="font-size:12px;">↺ month end + 2</a>' : '<span class="sub" style="margin:0;">(month end + 2 working days)</span>'}</span>
       <span><b style="color:var(--gold);">New Month</b> (Sections 2 & 2.1): <input type="date" id="olFrom2" value="${B.r2.from}" style="${inp}"> → <input type="date" id="olTo2" value="${B.r2.to}" style="${inp}"> ${B.r2.fromSet || B.r2.toSet ? '<a href="#" id="olR2Reset" style="font-size:12px;">↺ default</a>' : ''}</span>
     </div>
+    <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-top:6px; font-size:12.5px;">
+      <label style="cursor:pointer;"><input type="checkbox" id="olSupPage" ${olSupPerPage() ? 'checked' : ''}> New page per supplier (to hand a page to one supplier)</label>
+      <label>Picking sheets: <select id="olPickLayout" style="${inp}"><option value="job" ${olPickLayout() === 'job' ? 'selected' : ''}>by job</option><option value="group" ${olPickLayout() === 'group' ? 'selected' : ''}>by kit group (e.g. all Lights &amp; wiring together)</option></select></label>
+    </div>
     <div class="sub" style="margin:6px 0 0;">Stock on hand = the laptop's stock now (every issue already taken off — sync the tablet first). Kits: parts already issued to a job by slip aren't counted again; kits already handed out drop off. New Month uses projected stock: stock + your final Month End order − kits to month end. Unticked suppliers don't print and don't count in the projection.</div>
     ${warn.length ? `<div style="margin-top:8px; padding:8px 10px; border:1px solid var(--danger); border-radius:8px; font-size:12.5px;">${warn.map(w=> `<div style="padding:2px 0;">⚠ ${w}</div>`).join('')}</div>` : ''}
-    <details style="margin-top:8px;"><summary style="cursor:pointer; font-size:13px;"><b>Part settings</b> — Ruben Stoor (${olRuben.size}) · kit parts that keep Min/Max (${olKitMinMax.size}) · ${B.ignoredMinMax.length} kit part(s) with Min/Max ignored</summary>
+    <details style="margin-top:8px;"><summary style="cursor:pointer; font-size:13px;"><b>Part settings</b> — Ruben Stoor, left off (${olRuben.size}) · kit parts that keep Min/Max (${olKitMinMax.size}) · ${B.ignoredMinMax.length} kit part(s) with Min/Max ignored</summary>
       <div style="padding:8px 4px; font-size:12.5px;">
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
           <input list="olStockList" id="olSetInput" placeholder="Find a part: name or SKU" style="${inp} width:340px;">
-          <button class="btn" id="olSetRuben" style="padding:3px 10px; color:#7A4FA0; border-color:#7A4FA0;">Tick Ruben Stoor</button>
+          <button class="btn" id="olSetRuben" style="padding:3px 10px; color:#7A4FA0; border-color:#7A4FA0;" title="Ruben orders it on his own list — left off ours">Tick Ruben Stoor (leave off)</button>
           <button class="btn" id="olSetKeep" style="padding:3px 10px; color:var(--gold); border-color:var(--gold);">Kit part: keep Min/Max</button>
         </div>
-        <div style="margin-top:6px;"><b style="color:#7A4FA0;">Ruben Stoor:</b> ${rubenList || '<span class="sub" style="margin:0;">none ticked</span>'}</div>
+        <div style="margin-top:6px;"><b style="color:#7A4FA0;">Ruben Stoor — on his own list, left off ours:</b> ${rubenList || '<span class="sub" style="margin:0;">none ticked</span>'}</div>
         <div style="margin-top:4px;"><b style="color:var(--gold);">Kit parts keeping Min/Max:</b> ${keepList || '<span class="sub" style="margin:0;">none — kit parts order for jobs only</span>'}</div>
         ${B.ignoredMinMax.length ? `<div style="margin-top:4px;"><b>Kit parts whose Min/Max is ignored:</b> ${B.ignoredMinMax.map(sku=> `<a href="#" data-ol-keep="${psEsc(sku)}" title="Tick: keep Min/Max on top of kits" style="display:inline-block; margin:1px 8px 1px 0;">${psEsc(psItemName(sku))}</a>`).join('')}</div>` : ''}
       </div></details>
@@ -8499,7 +8502,10 @@ function olRender(){
 
   const $ = id=> document.getElementById(id);
   $('olCloseBtn').onclick = olClose;
-  $('olPrintBtn').onclick = olPrint;
+  $('olPrint1Btn').onclick = ()=> olPrintList(1);
+  $('olPrint2Btn').onclick = ()=> olPrintList(2);
+  $('olSupPage').onchange = function(){ try{ localStorage.setItem(OL_SUP_PAGE_KEY, this.checked ? '1' : '0'); }catch(e){} };
+  $('olPickLayout').onchange = function(){ try{ localStorage.setItem(OL_PICK_LAYOUT_KEY, this.value); }catch(e){} };
   $('olSaveBtn').onclick = olSaveToHistory;
   $('olHistBtn').onclick = ()=>{ renderOrderHistoryModal(); document.getElementById('orderHistoryModal').style.display = 'flex'; };
   $('olPick1Btn').onclick = ()=> olPickingSheets(1);
@@ -8562,81 +8568,172 @@ function olRender(){
 }
 
 /* ---------- Print: each section on a new page, each supplier on its own page ---------- */
-function olPrintableLines(B){
+/* ---------- Print: two lists in the original Order List layout ----------
+   Month End = Section 1 (kits) + Section 1.2 (consumables).
+   New Month = Section 2 (kits) + Section 2.1 (consumables).
+   Each section starts a new page; suppliers flow one after another and a
+   supplier block only moves to a new page when it won't fit (a supplier
+   longer than a page just continues). Toggle: new page per supplier.
+   Lines with Order Qty 0 and unticked suppliers are left off. */
+const OL_SUP_PAGE_KEY = 'leader-master-ol-supplier-page-v1';
+const OL_PICK_LAYOUT_KEY = 'leader-master-ol-pick-layout-v1';
+function olSupPerPage(){ try{ return localStorage.getItem(OL_SUP_PAGE_KEY) === '1'; }catch(e){ return false; } }
+function olPickLayout(){ try{ return localStorage.getItem(OL_PICK_LAYOUT_KEY) === 'group' ? 'group' : 'job'; }catch(e){ return 'job'; } }
+const OL_PDF = { margin: 10, rowH: 4.3, headH: 5, barH: 5.5, footH: 5 };
+const OL_LIST_TITLES = { 1: 'Month End Order List', 2: 'New Month Order List' };
+function olPrintableLines(B, period){
   const out = [];
-  OL_SECTIONS.forEach(def=> B.secs[def.id].lines.forEach(l=>{ if(l.printOn && l.qty > 0) out.push({ def, l }); }));
+  OL_SECTIONS.forEach(def=>{ if(period && def.period !== period) return; B.secs[def.id].lines.forEach(l=>{ if(l.printOn && l.qty > 0) out.push({ def, l }); }); });
   return out;
 }
-function olPrint(){
+// Room check: start a new page when this many mm won't fit (unless the page is still empty)
+function olEnsure(doc, st, need){
+  const H = doc.internal.pageSize.getHeight();
+  if(st.y + need > H - OL_PDF.margin && st.y > st.top + 1){ doc.addPage(); st.y = st.top; }
+}
+function olPrintList(period){
   const B = olBuild();
-  if(!olPrintableLines(B).length){ alert('Nothing to print — nothing to order, or every supplier is unticked.'); return; }
+  const items = olPrintableLines(B, period);
+  if(!items.length){ alert('Nothing to print on the ' + OL_LIST_TITLES[period] + ' — nothing to order, or every supplier is unticked.'); return; }
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-  const navy = [31, 78, 120], gold = [184, 134, 46], purple = [122, 79, 160];
+  const W = doc.internal.pageSize.getWidth(), M = OL_PDF.margin;
+  const navy = [31, 78, 120], gold = [184, 134, 46];
   const dl = x=> new Date(x + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'short', year:'numeric' });
-  const printed = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
-  let first = true;
-  OL_SECTIONS.forEach(def=>{
+  const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const range = period === 1 ? `Kits for jobs today to ${dl(B.to1)}` : `Kits for jobs ${dl(B.r2.from)} to ${dl(B.r2.to)}`;
+  const perSup = olSupPerPage();
+  const st = { y: M, top: M };
+  // List header (first page only) — as the original list
+  doc.setFontSize(12); doc.setTextColor(...navy); doc.text('Leader Trailer Bodies', W - M, M + 2, { align: 'right' });
+  doc.setFontSize(15); doc.text(OL_LIST_TITLES[period], M, M + 4);
+  doc.setFontSize(8.5); doc.setTextColor(90, 97, 105); doc.text(`Generated ${dateStr}   ·   ${range}`, M, M + 9);
+  st.y = M + 12;
+  let grand = 0, firstSection = true;
+  const allLines = [];
+  OL_SECTIONS.filter(def=> def.period === period).forEach(def=>{
     const lines = B.secs[def.id].lines.filter(l=> l.printOn && l.qty > 0);
     if(!lines.length) return;
-    const color = def.ruben ? purple : def.period === 1 ? navy : gold;
-    const period = def.period === 1 ? `Jobs today to ${dl(B.to1)}` : `Jobs ${dl(B.r2.from)} to ${dl(B.r2.to)}`;
+    if(!firstSection){ doc.addPage(); st.y = st.top; }
+    firstSection = false;
+    // Section heading
+    doc.setFillColor(...(def.period === 1 ? navy : gold)); doc.rect(M, st.y, W - 2*M, 7, 'F');
+    doc.setFontSize(11); doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold');
+    doc.text(`Section ${def.no} — ${def.title}`, M + 2, st.y + 4.9);
+    doc.setFont(undefined, 'normal'); doc.setFontSize(8);
+    doc.text(def.kind === 'kit' ? range : (def.period === 1 ? 'Up to Min' : 'Up to Max, after the Month End order'), W - M - 2, st.y + 4.9, { align: 'right' });
+    st.y += 9;
+    let secTotal = 0, firstSup = true;
     olGroups(lines).forEach(g=>{
-      if(!first) doc.addPage();
-      first = false;
-      doc.setFontSize(12); doc.setTextColor(...navy); doc.text('Leader Trailer Bodies', W - 14, 12, { align: 'right' });
-      doc.setFontSize(17); doc.text('Order List', 14, 15);
-      doc.setFontSize(9.5); doc.setTextColor(90, 97, 105); doc.text(`Printed ${printed}`, 14, 20.5);
-      doc.setFillColor(...color); doc.rect(14, 24, W - 28, 8, 'F');
-      doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-      doc.text(`Section ${def.no} — ${def.title}`, 16, 29.5);
-      doc.setFontSize(9); doc.text(def.kind === 'kit' ? period : (def.period === 1 ? 'Up to Min' : 'Up to Max'), W - 16, 29.5, { align: 'right' });
-      doc.setFontSize(13); doc.setTextColor(26, 29, 33); doc.text(`Supplier: ${g.sup}`, 14, 39);
-      const proj = def.period === 2 ? ' (projected)' : '';
-      const head = def.kind === 'kit' ? ['Part', 'SKU', 'Kits needed', 'Stock on hand' + proj, 'Order qty'] : ['Part', 'SKU', def.target === 'min' ? 'Min' : 'Max', 'Stock on hand' + proj, 'Order qty'];
-      doc.autoTable({ startY: 42, margin: { left: 14, right: 14 }, theme: 'grid',
-        head: [head],
-        body: g.lines.map(l=> [l.name, l.sku, def.kind === 'kit' ? (olFmt(l.kits) + (l.plus ? ` + ${l.plusLbl} ${olFmt(l.plus)}` : '')) : olFmt(l.target), olFmt(l.stock), olFmt(l.qty)]),
-        headStyles: { fillColor: [238, 241, 244], textColor: navy, fontSize: 9, lineColor: [185, 194, 204] },
-        bodyStyles: { fontSize: 9.5, textColor: [26, 29, 33] },
-        columnStyles: { 1: { cellWidth: 28 }, 2: { halign: 'right', cellWidth: 28 }, 3: { halign: 'right', cellWidth: 30 }, 4: { halign: 'right', cellWidth: 24, fontStyle: 'bold', textColor: navy } } });
-      let y = doc.lastAutoTable.finalY + 8;
-      doc.setFontSize(9); doc.setTextColor(90, 97, 105);
-      doc.text(`${g.lines.length} line(s)`, 14, y);
-      y += 16;
-      if(y > H - 14){ doc.addPage(); y = 30; }
-      doc.setDrawColor(26, 29, 33);
-      [['Prepared by (Werner)', 14], ['Approved by', 80], ['Date', 146]].forEach(([label, x])=>{ doc.line(x, y, x + 52, y); doc.text(label, x, y + 4); });
+      if(perSup && !firstSup){ doc.addPage(); st.y = st.top; }
+      firstSup = false;
+      // Keep the supplier header with its lines: move on if the whole block won't fit
+      const blockH = OL_PDF.barH + OL_PDF.headH + g.lines.length * OL_PDF.rowH + OL_PDF.footH + 3;
+      const pageRoom = doc.internal.pageSize.getHeight() - M - st.top;
+      olEnsure(doc, st, Math.min(blockH, pageRoom));
+      let supTotal = 0;
+      const proj = def.period === 2 ? ' (proj.)' : '';
+      const rows = g.lines.map(l=>{
+        const it = psStockItem(l.sku);
+        const price = it ? (Number(it.price) || 0) : 0, lineTotal = price * l.qty;
+        supTotal += lineTotal;
+        allLines.push({ sku: l.sku, name: l.name, supplier: l.supplier === OL_NO_SUP ? '' : l.supplier, onHand: l.stock, orderQty: l.qty });
+        return def.kind === 'kit'
+          ? [l.name, olFmt(l.kits) + (l.plus ? ` + ${l.plusLbl} ${olFmt(l.plus)}` : ''), olFmt(l.stock), olFmt(l.qty), fmtR(price), fmtR(lineTotal), l.jobs || '']
+          : [l.name, olFmt(l.stock), it && it.min != null ? String(it.min) : '—', it && it.max != null ? String(it.max) : '—', olFmt(l.qty), fmtR(price), fmtR(lineTotal), l.manual ? 'Added by hand' : ''];
+      });
+      secTotal += supTotal;
+      doc.setFillColor(...navy); doc.rect(M, st.y, W - 2*M, OL_PDF.barH, 'F');
+      doc.setFontSize(9.5); doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold');
+      doc.text(g.sup, M + 2, st.y + 3.9); doc.setFont(undefined, 'normal');
+      st.y += OL_PDF.barH;
+      const kit = def.kind === 'kit';
+      doc.autoTable({ startY: st.y, margin: { left: M, right: M, top: M, bottom: M }, theme: 'grid',
+        head: [kit ? ['Part', 'Kits needed', 'On Hand' + proj, 'Order Qty', 'Price', 'Line Total', 'Jobs'] : ['Part', 'On Hand' + proj, 'Min', 'Max', 'Order Qty', 'Price', 'Line Total', 'Notes']],
+        body: rows,
+        foot: [kit ? ['Supplier Total', '', '', '', '', fmtR(supTotal), ''] : ['Supplier Total', '', '', '', '', '', fmtR(supTotal), '']],
+        showFoot: 'lastPage', rowPageBreak: 'avoid',
+        styles: { fontSize: 7.5, cellPadding: { top: 0.7, bottom: 0.7, left: 1.3, right: 1.3 }, lineColor: [205, 210, 216], lineWidth: 0.15 },
+        headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 7.5 },
+        footStyles: { fillColor: [255,255,255], textColor: [20,20,20], fontStyle: 'bold', fontSize: 7.5 },
+        bodyStyles: { textColor: [26,29,33] },
+        columnStyles: kit
+          ? { 1: { halign: 'right', cellWidth: 15 }, 2: { halign: 'right', cellWidth: 15 }, 3: { halign: 'right', fontStyle: 'bold', textColor: navy, cellWidth: 14 }, 4: { halign: 'right', cellWidth: 18 }, 5: { halign: 'right', fontStyle: 'bold', cellWidth: 20 }, 6: { fontSize: 6.3, textColor: [91,97,105], cellWidth: 58 } }
+          : { 1: { halign: 'right', cellWidth: 17 }, 2: { halign: 'right', cellWidth: 11 }, 3: { halign: 'right', cellWidth: 11 }, 4: { halign: 'right', fontStyle: 'bold', textColor: navy, cellWidth: 16 }, 5: { halign: 'right', cellWidth: 20 }, 6: { halign: 'right', fontStyle: 'bold', cellWidth: 22 }, 7: { fontSize: 6.5, textColor: [91,97,105], cellWidth: 24 } } });
+      st.y = doc.lastAutoTable.finalY + 3;
     });
+    grand += secTotal;
+    olEnsure(doc, st, 6);
+    doc.setFontSize(9.5); doc.setTextColor(...navy); doc.setFont(undefined, 'bold');
+    doc.text(`Section ${def.no} total: ${fmtR(secTotal)}`, W - M, st.y + 3, { align: 'right' });
+    doc.setFont(undefined, 'normal');
+    st.y += 7;
   });
-  savePdfOutput(doc, 'order-list');
+  olEnsure(doc, st, 8);
+  doc.setFontSize(11.5); doc.setTextColor(...navy); doc.setFont(undefined, 'bold');
+  doc.text(`Grand Total: ${fmtR(grand)}`, W - M, st.y + 4, { align: 'right' });
+  doc.setFont(undefined, 'normal');
+  st.y += 8;
+  // Price Comparison — same as the original list, only when it has something to say
+  try{
+    const pcRows = buildOrderListPriceComparisonRows(allLines);
+    if(pcRows.length){
+      olEnsure(doc, st, 20);
+      doc.setFillColor(...navy); doc.rect(M, st.y, W - 2*M, OL_PDF.barH, 'F');
+      doc.setFontSize(9.5); doc.setTextColor(255, 255, 255); doc.text('Price Comparison', M + 2, st.y + 3.9); st.y += OL_PDF.barH;
+      let saving = 0;
+      doc.autoTable({ startY: st.y, margin: { left: M, right: M, top: M, bottom: M }, theme: 'grid',
+        head: [['Item', 'Qty on Order', 'Supplier Prices', 'Buy From', 'Saving/Unit', 'Saving on Order']],
+        body: pcRows.map(r=>{ saving += r.savingOnOrder || 0;
+          const prices = r.info.sorted.map(p=> `${p.supplier===supplierSettings.preferredSupplier?'* ':''}${p.supplier} ${fmtR(p.price)}${isOldPriceDate(p.date) ? ' (OLD)' : ''}`).join('\n');
+          if(r.info.priceNeeded) return [r.line.name, String(r.line.orderQty), prices, `* ${supplierSettings.preferredSupplier} — price needed`, '-', '-'];
+          return [r.line.name, String(r.line.orderQty), prices, `${r.info.buyFromRow===r.info.preferredRow?'* ':''}${r.info.buyFromRow.supplier}`, fmtR(r.info.savingPerUnit), fmtR(r.savingOnOrder)]; }),
+        styles: { fontSize: 7.5, cellPadding: { top: 0.7, bottom: 0.7, left: 1.3, right: 1.3 } },
+        headStyles: { fillColor: [238,241,244], textColor: navy },
+        columnStyles: { 1: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right', fontStyle: 'bold', textColor: navy } } });
+      st.y = doc.lastAutoTable.finalY + 3;
+      doc.setFontSize(9.5); doc.setTextColor(...navy); doc.text(`Saving on this order buying per policy: ${fmtR(saving)}`, W - M, st.y + 3, { align: 'right' });
+      st.y += 6;
+    }
+  }catch(e){}
+  olEnsure(doc, st, 18);
+  const signY = st.y + 12;
+  doc.setFontSize(8.5); doc.setTextColor(91, 97, 105); doc.setDrawColor(26, 29, 33);
+  [['Prepared by (Werner)', M], ['Approved by', M + 66], ['Date', M + 132]].forEach(([label, x])=>{ doc.line(x, signY, x + 55, signY); doc.text(label, x, signY + 4); });
+  savePdfOutput(doc, period === 1 ? 'order-list-month-end' : 'order-list-new-month');
 }
-function olTitle(B){
+function olTitle(B, period){
   const dl = x=> new Date(x + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'short' });
-  return `Order List — Month End to ${dl(B.to1)} · New Month ${dl(B.r2.from)}–${dl(B.r2.to)}`;
+  return period === 1 ? `Month End Order List — kits to ${dl(B.to1)}` : `New Month Order List — kits ${dl(B.r2.from)}–${dl(B.r2.to)}`;
 }
+// Saves the two lists as two snapshots in Order History
 function olSaveToHistory(){
   const B = olBuild();
-  const lines = olPrintableLines(B).map(({ def, l })=> ({ id: 'ol' + Date.now() + Math.random().toString(36).slice(2,7), sku: l.sku, name: l.name,
-    supplier: l.supplier === OL_NO_SUP ? '' : l.supplier, onHand: l.stock, orderQty: l.qty,
-    notes: `Section ${def.no} ${def.title}` + (l.jobsFull ? ' · ' + l.jobsFull : '') }));
-  if(!lines.length){ alert('Nothing to save — nothing to order, or every supplier is unticked.'); return; }
-  orderHistory.unshift({ id: 'oh' + Date.now() + Math.random().toString(36).slice(2,7), listKey: 'orderList', title: olTitle(B), savedAt: new Date().toISOString(), lines });
+  let n = 0;
+  [2, 1].forEach(period=>{
+    const lines = olPrintableLines(B, period).map(({ def, l })=> ({ id: 'ol' + Date.now() + Math.random().toString(36).slice(2,7), sku: l.sku, name: l.name,
+      supplier: l.supplier === OL_NO_SUP ? '' : l.supplier, onHand: l.stock, orderQty: l.qty,
+      notes: `Section ${def.no}` + (l.jobsFull ? ' · ' + l.jobsFull : '') }));
+    if(!lines.length) return;
+    orderHistory.unshift({ id: 'oh' + Date.now() + Math.random().toString(36).slice(2,7), listKey: period === 1 ? 'olMonthEnd' : 'olNewMonth', title: olTitle(B, period), savedAt: new Date().toISOString(), lines });
+    n++;
+  });
+  if(!n){ alert('Nothing to save — nothing to order, or every supplier is unticked.'); return; }
   saveOrderHistory();
-  alert(`Saved to Order History (${lines.length} line${lines.length === 1 ? '' : 's'}).`);
+  alert(`Saved to Order History (${n === 2 ? 'Month End and New Month lists' : '1 list'}).`);
 }
 
-/* ---------- Picking sheets: one per job and stage — not for buying ----------
-   Kit, already issued (slips for this job, either device — chassis takes
-   first), still to issue. Kits already handed out are left off; lines a
-   kit-out left outstanding get their own sheet at the end. */
+/* ---------- Picking sheets — not for buying ----------
+   Only job stages placed on the calendar in the period. Lines already
+   issued (slips for this job, either device — chassis takes first) are
+   left off; a job with everything issued is left off. Blocks flow down the
+   page, each kept together. Layout: by job, or by kit group (e.g. every
+   Lights & wiring kit for the period together). */
 function olPickingData(period){
   const B = olBuild(), today = B.today, out = [];
   if(!psSchedule) return { B, sheets: out };
-  const plan = B.plan;
+  const plan = B.plan, cylSkus = Object.values(PS_CYL_SKU);
   Object.values(psSchedule.jobs).forEach(job=>{
     const left = psIssuedToJob(job);
-    const cylSkus = Object.values(PS_CYL_SKU);
     PS_STAGES.forEach(stage=>{
       if(psIsKitOut(job, stage)) return;
       const lines = psKitLinesFor(job, stage, plan).map(l=>{
@@ -8644,70 +8741,103 @@ function olPickingData(period){
         const done = Math.min(left[ik] || 0, l.planned);
         if(done) left[ik] -= done;
         return Object.assign({}, l, { issued: done, still: l.planned - done });
-      });
-      if(!psIsPlanned(job, stage)) return;
+      }).filter(l=> l.still > 0);
+      if(!psIsPlanned(job, stage) || (psMode === 'manual' && !psIsPlaced(job, stage))) return;
       const date = psDate(job, stage);
       if(!date || !lines.length) return;
       const eff = date < today ? today : date;
       const p = eff <= B.to1 ? 1 : (eff >= B.r2.from && eff <= B.r2.to ? 2 : 0);
       if(p !== period) return;
-      out.push({ job, stage, date, overdue: date < today, lines });
+      out.push({ job, stage, date, eff, overdue: date < today, lines });
     });
   });
-  out.sort((a,b)=> (a.overdue ? today : a.date).localeCompare(b.overdue ? today : b.date) || (+a.job.nr - +b.job.nr) || PS_STAGES.indexOf(a.stage) - PS_STAGES.indexOf(b.stage));
+  out.sort((a,b)=> a.eff.localeCompare(b.eff) || (+a.job.nr - +b.job.nr) || PS_STAGES.indexOf(a.stage) - PS_STAGES.indexOf(b.stage));
   return { B, sheets: out };
 }
 function olPickingSheets(period){
   const { B, sheets } = olPickingData(period);
   const outstanding = [];
-  Object.values(psKitOut || {}).forEach(rec=> (rec.lines || []).forEach(l=>{ const p = psLinePending(l); if(p && l.sku) outstanding.push({ rec, l, p }); }));
-  if(!sheets.length && !(period === 1 && outstanding.length)){ alert('No kits to pick in this range.'); return; }
+  if(period === 1) Object.values(psKitOut || {}).forEach(rec=> (rec.lines || []).forEach(l=>{ const p = psLinePending(l); if(p && l.sku) outstanding.push({ rec, l, p }); }));
+  if(!sheets.length && !outstanding.length){ alert('Nothing to pick in this range — no placed jobs with parts still to issue.'); return; }
+  const layout = olPickLayout();
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const W = doc.internal.pageSize.getWidth();
-  const navy = [31, 78, 120];
+  const W = doc.internal.pageSize.getWidth(), M = OL_PDF.margin;
+  const navy = [31, 78, 120], gold = [184, 134, 46];
   const dl = x=> new Date(x + 'T00:00:00').toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' });
   const label = period === 1 ? `Kits to Month End (to ${dl(B.to1)})` : `Kits for the New Month (${dl(B.r2.from)} – ${dl(B.r2.to)})`;
-  const top = (title, sub)=>{
-    doc.setFontSize(12); doc.setTextColor(...navy); doc.text('Leader Trailer Bodies', W - 14, 12, { align: 'right' });
-    doc.setFontSize(16); doc.text(title, 14, 15);
-    doc.setFontSize(9.5); doc.setTextColor(90, 97, 105); doc.text(sub, 14, 20.5);
+  const st = { y: M, top: M };
+  doc.setFontSize(12); doc.setTextColor(...navy); doc.text('Leader Trailer Bodies', W - M, M + 2, { align: 'right' });
+  doc.setFontSize(15); doc.text('Picking Sheets — not an order', M, M + 4);
+  doc.setFontSize(8.5); doc.setTextColor(90, 97, 105);
+  doc.text(`${label} · ${layout === 'group' ? 'by kit group' : 'by job'} · only what is still to issue · printed ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, M, M + 9);
+  st.y = M + 13;
+  const tbl = { margin: { left: M, right: M, top: M, bottom: M }, theme: 'grid', rowPageBreak: 'avoid',
+    styles: { fontSize: 7.5, cellPadding: { top: 0.6, bottom: 0.6, left: 1.2, right: 1.2 }, lineColor: [205, 210, 216], lineWidth: 0.15 },
+    headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 7 }, bodyStyles: { textColor: [26,29,33] } };
+  const bar = (color, left, right)=>{
+    doc.setFillColor(...color); doc.rect(M, st.y, W - 2*M, OL_PDF.barH + 0.5, 'F');
+    doc.setFontSize(9.5); doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.text(left, M + 2, st.y + 4.2);
+    doc.setFont(undefined, 'normal'); doc.setFontSize(8); if(right) doc.text(right, W - M - 2, st.y + 4.2, { align: 'right' });
+    st.y += OL_PDF.barH + 0.5;
   };
-  const sign = ()=>{
-    let y = doc.lastAutoTable.finalY + 22;
-    if(y > 280){ doc.addPage(); y = 30; }
-    doc.setFontSize(9); doc.setTextColor(90, 97, 105); doc.setDrawColor(26, 29, 33);
-    [['Picked by', 14], ['Received by (foreman)', 80], ['Date', 146]].forEach(([t, x])=>{ doc.line(x, y, x + 52, y); doc.text(t, x, y + 4); });
-  };
-  let first = true;
-  sheets.forEach(s=>{
-    if(!first) doc.addPage();
-    first = false;
-    top('Picking Sheet — not an order', `${label} · printed ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`);
-    doc.setFillColor(...(s.stage === 'chassis' ? navy : [184, 134, 46])); doc.rect(14, 24, W - 28, 9, 'F');
-    doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-    doc.text(`${s.job.nr} ${s.job.customer} — ${PS_STAGE_LABEL[s.stage]}`, 16, 30.2);
-    doc.setFontSize(9.5); doc.text(`${s.overdue ? 'OVERDUE (was ' + dl(s.date) + ')' : dl(s.date)}`, W - 16, 30.2, { align: 'right' });
-    doc.setFontSize(10); doc.setTextColor(26, 29, 33);
-    doc.text(`Type: ${s.job.type || '—'}${s.job.axles ? '   ·   Axles: ' + s.job.axles : ''}`, 14, 39);
-    doc.autoTable({ startY: 42, margin: { left: 14, right: 14 }, theme: 'grid',
-      head: [['Item', 'SKU', 'Kit', 'Already issued', 'Still to issue', 'Picked']],
-      body: s.lines.map(l=> [l.name, l.sku || '', olFmt(l.planned), l.issued ? olFmt(l.issued) : '', l.still > 0 ? olFmt(l.still) : 'done', '']),
-      headStyles: { fillColor: [238, 241, 244], textColor: navy, fontSize: 9, lineColor: [185, 194, 204] },
-      bodyStyles: { fontSize: 10, textColor: [26, 29, 33], minCellHeight: 8 },
-      columnStyles: { 1: { cellWidth: 26 }, 2: { halign: 'right', cellWidth: 14 }, 3: { halign: 'right', cellWidth: 22 }, 4: { halign: 'right', cellWidth: 22, fontStyle: 'bold', textColor: navy }, 5: { cellWidth: 20 } },
-      didParseCell: (h)=>{ if(h.section === 'body' && s.lines[h.row.index] && !(s.lines[h.row.index].still > 0)) h.cell.styles.textColor = [150, 155, 160]; } });
-    sign();
-  });
-  if(period === 1 && outstanding.length){
-    if(!first) doc.addPage();
-    top('Outstanding — kits already handed out', 'Lines not handed out at kit-out. Issue them when the stock arrives (Kit Scheduler → Kits out → open).');
-    doc.autoTable({ startY: 26, margin: { left: 14, right: 14 }, theme: 'grid',
+  const block = (rowsN)=> olEnsure(doc, st, OL_PDF.barH + OL_PDF.headH + rowsN * 3.9 + 4);
+  if(layout === 'group'){
+    // One block per kit group + stage: every job's lines for that group together
+    const groups = [];
+    PS_GROUPS.forEach(g=> PS_STAGES.forEach(stage=>{
+      const rows = [];
+      sheets.filter(s=> s.stage === stage).forEach(s=> s.lines.filter(l=> l.group === g.id).forEach(l=> rows.push({ s, l })));
+      if(rows.length) groups.push({ g, stage, rows });
+    }));
+    groups.forEach(({ g, stage, rows })=>{
+      block(rows.length);
+      bar(stage === 'chassis' ? navy : gold, `${g.label} — ${PS_STAGE_LABEL[stage]}`, `${new Set(rows.map(r=> r.s.job.key)).size} job(s)`);
+      doc.autoTable(Object.assign({ startY: st.y,
+        head: [['Job', 'Date', 'Item', 'SKU', 'Kit', 'Issued', 'Still', 'Picked']],
+        body: rows.map(({ s, l })=> [`${s.job.nr} ${s.job.customer}`, s.overdue ? 'OVERDUE' : dl(s.date), l.name, l.sku || '', olFmt(l.planned), l.issued ? olFmt(l.issued) : '', olFmt(l.still), '']),
+        columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 19 }, 3: { cellWidth: 18 }, 4: { halign: 'right', cellWidth: 9 }, 5: { halign: 'right', cellWidth: 11 }, 6: { halign: 'right', fontStyle: 'bold', textColor: navy, cellWidth: 10 }, 7: { cellWidth: 13 } } }, tbl));
+      st.y = doc.lastAutoTable.finalY + 4;
+    });
+  } else {
+    // Two job blocks side by side; each block kept together in its column
+    const H = doc.internal.pageSize.getHeight(), gap = 4, cw = (W - 2*M - gap) / 2;
+    const colY = [st.y, st.y];
+    const estH = s=> OL_PDF.barH + 0.5 + 4.2 + s.lines.reduce((a,l)=> a + (String(l.name).length > 34 ? 5.5 : 3.0), 0) + 2;
+    sheets.forEach(s=>{
+      const h = estH(s);
+      let c = colY[0] <= colY[1] ? 0 : 1;
+      if(colY[c] + h > H - M){ const o = 1 - c; if(colY[o] + h <= H - M) c = o; else if(colY[0] > st.top + 1 || colY[1] > st.top + 1){ doc.addPage(); colY[0] = colY[1] = st.top; c = 0; } }
+      const x = M + c * (cw + gap), page0 = doc.internal.getCurrentPageInfo().pageNumber;
+      doc.setFillColor(...(s.stage === 'chassis' ? navy : gold)); doc.rect(x, colY[c], cw, OL_PDF.barH + 3.5, 'F');
+      doc.setFontSize(8.5); doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold');
+      doc.text(`${s.job.nr} ${s.job.customer} — ${PS_STAGE_LABEL[s.stage]}`, x + 1.5, colY[c] + 3.6, { maxWidth: cw - 30 });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(7);
+      doc.text(s.overdue ? `OVERDUE (was ${dl(s.date)})` : dl(s.date), x + cw - 1.5, colY[c] + 3.6, { align: 'right' });
+      doc.text(`${s.job.type || ''}${s.job.axles ? ' / ' + s.job.axles : ''}`, x + 1.5, colY[c] + 7.4, { maxWidth: cw - 3 });
+      doc.autoTable(Object.assign({}, tbl, { startY: colY[c] + OL_PDF.barH + 3.5, margin: { left: x, right: W - x - cw, top: M, bottom: M },
+        styles: { fontSize: 7, cellPadding: { top: 0.55, bottom: 0.55, left: 1, right: 1 }, lineColor: [205, 210, 216], lineWidth: 0.15 },
+        headStyles: { fillColor: [238,241,244], textColor: navy, fontSize: 6.5 },
+        head: [['Item', 'SKU', 'Kit', 'Issued', 'Still', 'Picked']],
+        body: s.lines.map(l=> [l.name, l.sku || '', olFmt(l.planned), l.issued ? olFmt(l.issued) : '', olFmt(l.still), '']),
+        columnStyles: { 1: { cellWidth: 15 }, 2: { halign: 'right', cellWidth: 7 }, 3: { halign: 'right', cellWidth: 9 }, 4: { halign: 'right', fontStyle: 'bold', textColor: navy, cellWidth: 8 }, 5: { cellWidth: 10 } } }));
+      if(doc.internal.getCurrentPageInfo().pageNumber !== page0){ colY[c] = doc.lastAutoTable.finalY + 4; colY[1 - c] = st.top; }
+      else colY[c] = doc.lastAutoTable.finalY + 4;
+    });
+    st.y = Math.max(colY[0], colY[1]);
+  }
+  if(outstanding.length){
+    block(outstanding.length);
+    bar([201, 86, 75], 'Outstanding — kits already handed out', 'issue when the stock arrives');
+    doc.autoTable(Object.assign({ startY: st.y,
       head: [['Job', 'Stage', 'Item', 'SKU', 'Still to issue', 'Why', 'Picked']],
       body: outstanding.map(o=> [`${o.rec.nr} ${o.rec.customer}`, PS_STAGE_LABEL[o.rec.stage] || '', o.l.name, o.l.sku, olFmt(o.p), o.l.problem || '', '']),
-      headStyles: { fillColor: [238, 241, 244], textColor: navy, fontSize: 9, lineColor: [185, 194, 204] },
-      bodyStyles: { fontSize: 9.5, textColor: [26, 29, 33], minCellHeight: 8 } });
-    sign();
+      columnStyles: { 4: { halign: 'right', fontStyle: 'bold', textColor: navy } } }, tbl));
+    st.y = doc.lastAutoTable.finalY + 4;
   }
+  olEnsure(doc, st, 16);
+  const y = st.y + 10;
+  doc.setFontSize(8.5); doc.setTextColor(90, 97, 105); doc.setDrawColor(26, 29, 33);
+  [['Picked by', M], ['Received by (foreman)', M + 66], ['Date', M + 132]].forEach(([t, x])=>{ doc.line(x, y, x + 55, y); doc.text(t, x, y + 4); });
   savePdfOutput(doc, period === 1 ? 'picking-sheets-month-end' : 'picking-sheets-new-month');
 }
 

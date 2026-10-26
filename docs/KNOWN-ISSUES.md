@@ -139,3 +139,14 @@ axle count guessed from the type name, editable in Kit per Type). The old Month
 End / New Month lists stay viewable; their print/copy/save buttons, and the Kit
 Scheduler's own buy-list prints, now point to the Order List. No data changed —
 new keys only (leader-master-ol-*, leader-master-ps-axle-count-v1), in the backup.
+
+**2.8.7 (2026-10-26) — fewer pages.** Two printouts in the original Order List
+layout (prices, supplier totals, grand total, price comparison, sign-off):
+🖨 Month End list (Sections 1 + 1.2) and 🖨 New Month list (Sections 2 + 2.1).
+New page per section only; suppliers flow and a supplier block moves to a new
+page only when it won't fit. Toggle "New page per supplier" (off by default).
+Ruben Stoor sections removed — Ruben makes his own list; parts ticked Ruben Stoor
+stay off ours. Picking sheets: only placed job stages in the period, lines still
+to issue only, two job blocks across the page (kept together), or "by kit group".
+Real schedule, 139 placed stages: order list 56 → 5 + 6 pages; picking sheets
+Month End 73 → 9, New Month 105 → 15.
