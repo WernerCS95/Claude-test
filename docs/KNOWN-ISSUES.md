@@ -150,3 +150,8 @@ stay off ours. Picking sheets: only placed job stages in the period, lines still
 to issue only, two job blocks across the page (kept together), or "by kit group".
 Real schedule, 139 placed stages: order list 56 → 5 + 6 pages; picking sheets
 Month End 73 → 9, New Month 105 → 15.
+
+**2.8.8 — Order List Close fixed.** The Order List's Close button shared an id
+(olCloseBtn) with the Override Log's, so it did nothing — and after opening the
+Order List, the Override Log's Close stopped working too. Renamed to
+olListCloseBtn; no duplicate ids left in master-list.html.

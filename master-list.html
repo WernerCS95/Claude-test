@@ -8469,7 +8469,7 @@ function olRender(){
         <button class="btn" id="olHistBtn" style="border-color:var(--gold); color:var(--gold);">📜 History</button>
         <button class="btn" id="olPick1Btn" title="One sheet per job and stage — not for buying">🖨 Picking sheets · Month End</button>
         <button class="btn" id="olPick2Btn" title="One sheet per job and stage — not for buying">🖨 Picking sheets · New Month</button>
-        <button class="btn" id="olCloseBtn">Close</button>
+        <button class="btn" id="olListCloseBtn">Close</button>
       </div>
     </div>
     <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:10px; padding:8px 10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel-raised); font-size:13px;">
@@ -8501,7 +8501,7 @@ function olRender(){
   panel.scrollTop = keepScroll;
 
   const $ = id=> document.getElementById(id);
-  $('olCloseBtn').onclick = olClose;
+  $('olListCloseBtn').onclick = olClose;
   $('olPrint1Btn').onclick = ()=> olPrintList(1);
   $('olPrint2Btn').onclick = ()=> olPrintList(2);
   $('olSupPage').onchange = function(){ try{ localStorage.setItem(OL_SUP_PAGE_KEY, this.checked ? '1' : '0'); }catch(e){} };
