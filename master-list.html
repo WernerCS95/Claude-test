@@ -7238,7 +7238,7 @@ const PS_GROUPS = [
   { id:'kingPins',     label:'King Pins & Bumper Bolts',     stage:'chassis' },
   { id:'axles',        label:'Axles',                        stage:'chassis', byVariant:true },
   { id:'huckBolts',    label:'Huck Bolts',                   stage:'chassis' },
-  { id:'fifthWheel',   label:'Fifth Wheel',                  stage:'chassis' },
+  { id:'fifthWheel',   label:'Fifth Wheel',                  stage:'finals' },
   { id:'tyres',        label:'Tyres & rims',                 stage:'finals' },
   { id:'lights',       label:'Lights & wiring',              stage:'finals' },
   { id:'mudguards',    label:'Mudguards / mudflaps',         stage:'finals' },
@@ -7253,6 +7253,9 @@ const PS_GROUPS = [
 const PS_CYL_SKU = { JOST: '8-600-018', Hydroscand: '8-600-019' };
 
 let psKit = { typeMap:{}, lines:{}, cyl:{} };
+// Which stage a kit group is issued at — Werner's pick (click the stage
+// label in Kit per Type), else the default above. Applies to every type.
+function psGroupStage(gid){ const g = PS_GROUPS.find(x=> x.id === gid); return (psKit.stages && psKit.stages[gid]) || (g ? g.stage : 'finals'); }
 function psKitLoad(){
   try{ psKit = Object.assign({ typeMap:{}, lines:{}, cyl:{} }, JSON.parse(localStorage.getItem(PS_KIT_KEY)) || {}); }catch(e){ psKit = { typeMap:{}, lines:{}, cyl:{} }; }
 }
@@ -7348,12 +7351,12 @@ function psKitForJob(job){
     if(g.cylinders){
       const c = psCylPerJob(job.type);
       if(c.qty === null || isNaN(c.qty)) missing.push(g.id);
-      else if(c.qty > 0) out.push({ group: g.id, stage: g.stage, cyl: true, qty: c.qty });
+      else if(c.qty > 0) out.push({ group: g.id, stage: psGroupStage(g.id), cyl: true, qty: c.qty });
       return;
     }
     const r = psGroupLines(job.type, job.axles, g.id);
     if(!r.lines) { missing.push(g.id); return; }
-    r.lines.forEach(l=>{ if(l.sku && Number(l.qty) > 0) out.push({ group: g.id, stage: g.stage, sku: l.sku, qty: Number(l.qty) }); });
+    r.lines.forEach(l=>{ if(l.sku && Number(l.qty) > 0) out.push({ group: g.id, stage: psGroupStage(g.id), sku: l.sku, qty: Number(l.qty) }); });
   });
   return { lines: out, missing };
 }
@@ -7394,7 +7397,7 @@ window.psRenderKit = function(body){
     return `<div style="border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px; margin-bottom:6px;">
       <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
         <b style="font-size:12.5px;">${g.label}${g.byVariant ? ` — <span style="color:var(--steel);">${psEsc(axles || '(no axle supplier)')}</span>` : ''}</b>
-        <span style="font-size:11px; color:${g.stage === 'chassis' ? 'var(--steel)' : 'var(--gold)'};">${PS_STAGE_LABEL[g.stage]} stage${r.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" data-ps-kit-reset="'+psEsc(key)+'" data-ps-kit-group="'+g.id+'">reset</a>' : ''}</span>
+        <span style="font-size:11px; color:${psGroupStage(g.id) === 'chassis' ? 'var(--steel)' : 'var(--gold)'};"><a href="#" data-ps-stage-toggle="${g.id}" title="Click to switch Chassis / Finals (all trailer types)" style="color:inherit; text-decoration:underline dotted;">${PS_STAGE_LABEL[psGroupStage(g.id)]} stage ⇄</a>${r.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" data-ps-kit-reset="'+psEsc(key)+'" data-ps-kit-group="'+g.id+'">reset</a>' : ''}</span>
       </div>
       ${r.lines ? (lines.length ? lines.map((l,i)=> lineRow(key, g.id, l, i)).join('') : '<div style="font-size:12px; color:var(--text-faint); margin:2px 0;">None for this type (defined as nothing).</div>') : '<div style="color:var(--danger); font-size:12px; margin:2px 0;">No definition — not planned until you add its items (or mark it "none").</div>'}
       <div style="display:flex; gap:6px; margin-top:4px;">
@@ -7405,7 +7408,7 @@ window.psRenderKit = function(body){
   const cyl = psCylPerJob(t);
   const blocks = PS_GROUPS.map(g=>{
     if(g.cylinders) return `<div style="border:1px solid var(--panel-line); border-radius:6px; padding:6px 8px; margin-bottom:6px;">
-      <div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">${g.label}</b><span style="font-size:11px; color:var(--gold);">Finals stage${cyl.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" id="psCylReset">reset</a>' : ''}</span></div>
+      <div style="display:flex; justify-content:space-between;"><b style="font-size:12.5px;">${g.label}</b><span style="font-size:11px; color:${psGroupStage(g.id) === 'chassis' ? 'var(--steel)' : 'var(--gold)'};"><a href="#" data-ps-stage-toggle="${g.id}" title="Click to switch Chassis / Finals (all trailer types)" style="color:inherit; text-decoration:underline dotted;">${PS_STAGE_LABEL[psGroupStage(g.id)]} stage ⇄</a>${cyl.edited ? ' · <span style="color:var(--gold);">edited</span> <a href="#" id="psCylReset">reset</a>' : ''}</span></div>
       <div style="font-size:12px; margin-top:4px;">Per job: <input type="number" min="0" step="1" id="psCylQty" value="${cyl.qty === null ? '' : cyl.qty}" placeholder="not defined" style="width:80px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
       <span class="sub">Supplier comes from the customer (Order List → Cylinder suppliers), never split.</span>
       ${cyl.qty === null ? '<span style="color:var(--danger);"> End Tipper family uses a different single cylinder — enter a qty only if it\'s a JOST/Hydroscand one.</span>' : ''}</div></div>`;
@@ -7464,6 +7467,15 @@ window.psRenderKit = function(body){
   body.querySelectorAll('[data-ps-kit-none]').forEach(b=> b.onclick = ()=>{
     psKit.lines[b.dataset.psKitNone] = psKit.lines[b.dataset.psKitNone] || {};
     psKit.lines[b.dataset.psKitNone][b.dataset.psKitGroup] = [];
+    psKitSave(); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-stage-toggle]').forEach(a=> a.onclick = (e)=>{
+    e.preventDefault();
+    const gid = a.dataset.psStageToggle, now = psGroupStage(gid), to = now === 'chassis' ? 'finals' : 'chassis';
+    const g = PS_GROUPS.find(x=> x.id === gid);
+    if(!confirm(`${g.label}: issue at the ${PS_STAGE_LABEL[to]} stage instead of ${PS_STAGE_LABEL[now]}?\n\nApplies to every trailer type. Kits already handed out stay as they are.`)) return;
+    psKit.stages = Object.assign({}, psKit.stages);
+    if(to === g.stage) delete psKit.stages[gid]; else psKit.stages[gid] = to;
     psKitSave(); renderKitScheduler();
   });
   body.querySelectorAll('[data-ps-kit-reset]').forEach(a=> a.onclick = (e)=>{
@@ -7535,7 +7547,7 @@ function psPlan(){
       if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
       // A day already gone is treated as built — never ordered for
       if(needBy < today){ past.push({ nr: job.nr, customer: job.customer, stage, needBy }); needBy = today; } // overdue: still to build, needed now
-      const stageGroups = PS_GROUPS.filter(g=> g.stage === stage).map(g=> g.id);
+      const stageGroups = PS_GROUPS.filter(g=> psGroupStage(g.id) === stage).map(g=> g.id);
       kit.missing.filter(m=> stageGroups.includes(m)).forEach(m=>{
         const g = PS_GROUPS.find(x=> x.id === m);
         const k = `${m}|${g.byVariant ? psVariantKey(job.type, job.axles) : job.type}`;
