@@ -4788,7 +4788,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-from-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -7738,8 +7738,10 @@ function psOrderList(){
   // is up to the cut-off, all of that customer's cylinders count as "now".
   const cylFirst = {};
   plan.demand.forEach(d=>{ if(d.cyl && (!cylFirst[d.group] || d.needBy < cylFirst[d.group])) cylFirst[d.group] = d.needBy; });
-  const isNow = r=> (r.cyl ? cylFirst[r.group] : r.needBy) <= cutoff;
-  return { rows, plan, today, cutoff, now: split(isNow), later: split(r=> !isNow(r)) };
+  const from = psFrom();
+  const when = r=> r.cyl ? cylFirst[r.group] : r.needBy;
+  const isNow = r=> when(r) >= from && when(r) <= cutoff;
+  return { rows, plan, today, cutoff, from, now: split(isNow), later: split(r=> when(r) > cutoff), before: split(r=> when(r) < from) };
 }
 // Cut-off: last day of this month + 2 working days unless set by hand
 const PS_CUTOFF_KEY = 'leader-master-ps-cutoff-v1';
@@ -7750,6 +7752,15 @@ function psCutoffAuto(){
   const last = new Date(t.getFullYear(), t.getMonth() + 1, 0);
   return psAddWorkingDays(psYmd(last.getFullYear(), last.getMonth()+1, last.getDate()), 2);
 }
+// Print range "From" date — blank = from today. Jobs before it still use
+// stock first (earlier jobs come first); they're just not on this list.
+const PS_FROM_KEY = 'leader-master-ps-from-v1';
+let psFromSet = '';
+try{ psFromSet = localStorage.getItem(PS_FROM_KEY) || ''; }catch(e){}
+function psFrom(){ return /^\d{4}-\d{2}-\d{2}$/.test(psFromSet) && psFromSet > psToday() ? psFromSet : psToday(); }
+function psSetFrom(v){ psFromSet = v || ''; try{ if(psFromSet) localStorage.setItem(PS_FROM_KEY, psFromSet); else localStorage.removeItem(PS_FROM_KEY); }catch(e){} }
+function psSetCutoff(v){ psCutoffSet = v || ''; try{ if(psCutoffSet) localStorage.setItem(PS_CUTOFF_KEY, psCutoffSet); else localStorage.removeItem(PS_CUTOFF_KEY); }catch(e){} }
+function psRangeText(){ const f = psFrom(), t = psCutoff(); return f > psToday() ? `${psFmtDay(f)} – ${psFmtDay(t)}` : `until ${psFmtDay(t)}`; }
 function psCutoff(){ return /^\d{4}-\d{2}-\d{2}$/.test(psCutoffSet) ? psCutoffSet : psCutoffAuto(); }
 function psStatusHtml(r){
   if(r.status === 'Covered') return '<span style="color:var(--success); font-weight:700;">Covered</span>';
@@ -7778,11 +7789,12 @@ window.psRenderOrders = function(body){
       <button class="btn primary" id="psPrintBtn">🖨 Print Order List</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel-raised);">
-      <label style="font-size:12.5px;"><b>Cut-off:</b> <input type="date" id="psCutoffInput" value="${cutoff}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;"></label>
+      <label style="font-size:12.5px;"><b>From:</b> <input type="date" id="psFromInput" value="${psFrom()}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;"></label>
+      <label style="font-size:12.5px;"><b>To:</b> <input type="date" id="psCutoffInput" value="${cutoff}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;"></label>
       <span class="sub" style="margin:0;">${psCutoffSet ? 'set by hand' : 'month end + 2 working days'} · ${psFmtDay(cutoff)}</span>
       ${psCutoffSet ? `<a href="#" id="psCutoffAuto" style="font-size:12px;">back to month end + 2</a>` : ''}
     </div>
-    <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">① To order now — jobs up to ${psFmtDay(cutoff)} (${now.length})</div>
+    <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">① To order — jobs ${psRangeText()} (${now.length})</div>
     ${now.length ? `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">${head}<tbody>${now.map(tr).join('')}</tbody></table>` : '<div class="sub">Nothing short up to the cut-off — covered by stock on hand.</div>'}
     <div style="font-weight:700; color:var(--steel); margin:16px 0 4px;">② New month — jobs after ${psFmtDay(cutoff)} (${later.length})</div>
     ${later.length ? `<table style="width:100%; border-collapse:collapse; font-size:12.5px;">${head}<tbody>${later.map(tr).join('')}</tbody></table>` : '<div class="sub">Nothing short after the cut-off.</div>'}
@@ -7799,6 +7811,7 @@ window.psRenderOrders = function(body){
     psLeadSave(); renderKitScheduler();
   });
   document.getElementById('psPrintBtn').onclick = psPrintOrders;
+  document.getElementById('psFromInput').onchange = function(){ psSetFrom(this.value); renderKitScheduler(); };
   document.getElementById('psCutoffInput').onchange = function(){
     psCutoffSet = this.value || '';
     try{ if(psCutoffSet) localStorage.setItem(PS_CUTOFF_KEY, psCutoffSet); else localStorage.removeItem(PS_CUTOFF_KEY); }catch(e){}
@@ -7819,7 +7832,7 @@ function psPrintOrders(){
   doc.text('Leader Trailer Bodies', pageWidth - 14, 12, { align: 'right' });
   doc.setFontSize(17); doc.text('Kit Order List', 14, 16);
   doc.setFontSize(10); doc.setTextColor(90, 97, 105);
-  doc.text(`Schedule: ${psSchedule.fileName}   ·   Cut-off ${new Date(cutoff + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}: ${now.length} to order now, ${later.length} for the new month   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, 14, 22, { maxWidth: pageWidth - 28 });
+  doc.text(`Schedule: ${psSchedule.fileName}   ·   Jobs ${psRangeText()}: ${now.length} to order, ${later.length} after that   ·   Printed: ${new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' })}`, 14, 22, { maxWidth: pageWidth - 28 });
   let cursorY = 28;
   const bar = (title)=>{
     doc.setFontSize(11); doc.setTextColor(255,255,255); doc.setFillColor(...navy);
@@ -7848,7 +7861,7 @@ function psPrintOrders(){
     cursorY = doc.lastAutoTable.finalY + 6;
   });
   };
-  section(`1. To order now — jobs up to ${d(cutoff)}`, now);
+  section(`1. To order — jobs ${psFrom() > psToday() ? d(psFrom()) + ' to ' + d(cutoff) : 'up to ' + d(cutoff)}`, now);
   section(`2. New month — jobs after ${d(cutoff)}`, later);
   const undef = Object.values(plan.undefinedGroups);
   if(undef.length){
@@ -7932,9 +7945,9 @@ function psSetPrint(sup, on){
 // Cylinders until the cut-off, per customer group: one supplier each (never
 // split), what comes from stock and what must be ordered.
 function psCylSummary(plan, cutoff){
-  const first = {};
+  const first = {}, from = psFrom();
   plan.demand.forEach(d=>{ if(d.cyl && (!first[d.group] || d.needBy < first[d.group])) first[d.group] = d.needBy; });
-  const rows = plan.demand.filter(d=> d.cyl && first[d.group] <= cutoff); // whole customer, never half
+  const rows = plan.demand.filter(d=> d.cyl && first[d.group] <= cutoff && first[d.group] >= from); // whole customer, never half
   const groups = {};
   rows.forEach(d=>{
     const g = groups[d.group] = groups[d.group] || { group: d.group, supplier: d.supplier, from: (plan.cylGroups[d.group] || {}).from, jobs: [], need: 0, stock: 0, order: 0, first: d.needBy };
@@ -7993,9 +8006,12 @@ window.psRenderBuy = function(body){
   body.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
       <div>
-        <div style="font-size:20px; font-weight:700;">What to buy until ${psFmtDay(cutoff)}</div>
-        <div class="sub" style="margin:2px 0 0;">Month end + 2 working days · "To cover" = the work days the order is for · stock as it is on this laptop now · ${placed} job stage(s) planned
-          · <a href="#" id="psBuyDateLink">change date</a><input type="date" id="psBuyDate" value="${cutoff}" style="display:none; margin-left:6px;"></div>
+        <div style="font-size:20px; font-weight:700;">What to buy ${psRangeText()}</div>
+        <div class="sub" style="margin:4px 0 0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          From <input type="date" id="psBuyFrom" value="${psFrom()}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;">
+          to <input type="date" id="psBuyDate" value="${cutoff}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;">
+          ${psFromSet || psCutoffSet ? '<a href="#" id="psBuyRangeReset">↺ today → month end + 2</a>' : '<span>(today → month end + 2 working days)</span>'}
+          · ${placed} job stage(s) planned</div>
       </div>
       ${now.length ? `<div style="display:flex; gap:6px;"><button class="btn" id="psBuySaveBtn" style="font-size:14px; border-color:var(--success); color:var(--success);">💾 Save to History</button><button class="btn primary" id="psBuyPrintBtn" style="font-size:14px;">🖨 Print</button></div>` : ''}
     </div>
@@ -8024,10 +8040,10 @@ window.psRenderBuy = function(body){
     ${plan.held.length ? `<div class="sub" style="margin-top:6px;">⏸ On hold, nothing ordered: ${plan.held.map(h=> psEsc(h.nr + ' ' + h.customer)).join(', ')}${Object.keys(plan.reserved).length ? ' — their tarps & hydraulics on the shelf are kept for them' : ''}.</div>` : ''}
     ${plan.past.length ? `<div class="sub" style="margin-top:6px;">Left out: ${plan.past.length} job stage(s) you moved by hand to a day that has passed. Move them to a day ahead if they're not built yet.</div>` : ''}
     ${undefTypes.length ? `<div class="sub" style="margin-top:6px;">Not on this list yet: some parts aren't set up for ${undefTypes.map(psEsc).join(', ')} (e.g. axles, tyres). <a href="#" id="psBuyGoKit">Set them up</a>.</div>` : ''}
-    ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Next month — also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later, 'later')}</div></details>` : ''}`;
-  const dl = document.getElementById('psBuyDateLink'), di = document.getElementById('psBuyDate');
-  dl.onclick = (e)=>{ e.preventDefault(); dl.style.display = 'none'; di.style.display = ''; di.focus(); };
-  di.onchange = ()=>{ psCutoffSet = di.value || ''; try{ if(psCutoffSet) localStorage.setItem(PS_CUTOFF_KEY, psCutoffSet); else localStorage.removeItem(PS_CUTOFF_KEY); }catch(e){} renderKitScheduler(); };
+    ${later.length ? `<details style="margin-top:14px;"><summary style="cursor:pointer; font-weight:700;">Also needed after ${psFmtDay(cutoff)} (${later.length} items)</summary><div style="margin-top:8px;">${table(later, 'later')}</div></details>` : ''}`;
+  document.getElementById('psBuyDate').onchange = function(){ psSetCutoff(this.value); renderKitScheduler(); };
+  document.getElementById('psBuyFrom').onchange = function(){ psSetFrom(this.value); renderKitScheduler(); };
+  const rr = document.getElementById('psBuyRangeReset'); if(rr) rr.onclick = (e)=>{ e.preventDefault(); psSetFrom(''); psSetCutoff(''); renderKitScheduler(); };
   const go = (tab)=> (e)=>{ e.preventDefault(); psShowDetails = true; try{ localStorage.setItem('leader-master-ps-details-v1','1'); }catch(err){} psTab = tab; renderKitScheduler(); };
   const gc = document.getElementById('psBuyGoCal'); if(gc) gc.onclick = go('calendar');
   const gk = document.getElementById('psBuyGoKit'); if(gk) gk.onclick = go('kit');
@@ -8070,7 +8086,9 @@ function psCylFor(r){
   return Object.entries(by).map(([g,q])=> `${g} ${q}`).join(', ');
 }
 function psBuyListTitle(cutoff){
-  return 'Kit Order List — until ' + new Date(cutoff + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const d = x=> new Date(x + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  const f = psFrom();
+  return 'Kit Order List — ' + (f > psToday() ? d(f) + ' to ' + d(cutoff) : 'until ' + d(cutoff));
 }
 // Same printout as the Month End order list (per supplier, prices, totals)
 function psPrintBuyList(){
