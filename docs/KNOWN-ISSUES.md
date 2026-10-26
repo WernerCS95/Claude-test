@@ -123,3 +123,19 @@ No full undo: mark one issued line as a problem and only that line goes back.
 The laptop sends the tablet its list as a zero-qty KITPLAN record; the tablet
 sends a zero-qty KITOUT record with what was issued. Install the laptop EXE
 before the tablet APK (an older laptop would treat those records as stock items).
+
+## 14. One Order List instead of four overlapping prints (2.8.6, 2026-10-26)
+
+Admin → 📋 Order Lists now opens one Order List: Section 1 Kits to Month End,
+1.2 Month End consumables (to Min), 2 Kits for the New Month (picked range),
+2.1 New Month consumables (to Max), plus Ruben Stoor sections (tick per part).
+Each supplier prints on its own page. Section 2 / 2.1 start from projected
+stock = stock + the final Section 1 / 1.2 order (edits included, unticked
+suppliers left out) − kits to month end. Kit parts ignore Min/Max unless ticked
+"keep Min/Max". Parts already issued to a job by slip are no longer counted again
+in the kit demand (whole planner). Kit lists print as picking sheets only (one
+per job and stage). SAF kits are checked for 2 airbags per axle (warning only;
+axle count guessed from the type name, editable in Kit per Type). The old Month
+End / New Month lists stay viewable; their print/copy/save buttons, and the Kit
+Scheduler's own buy-list prints, now point to the Order List. No data changed —
+new keys only (leader-master-ol-*, leader-master-ps-axle-count-v1), in the backup.
