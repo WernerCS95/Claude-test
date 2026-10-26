@@ -4788,7 +4788,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // file has, so older backups without these still restore as before. The
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
-  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1',
+  'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -7655,6 +7655,8 @@ window.psRenderAllocation = function(body){
       <tbody>${cylRows || '<tr><td colspan="6" class="sub">No cylinders needed on this schedule.</td></tr>'}</tbody></table>
     <div style="font-weight:700; margin-bottom:4px;">Coverage per job — stock handed out in need-by order</div>
     <table style="width:100%; border-collapse:collapse; font-size:12.5px;"><thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line);"><th>Job</th><th>Type</th><th style="color:var(--steel);">Chassis</th><th style="color:var(--gold);">Finals</th></tr></thead><tbody>${jobRows}</tbody></table>`;
+  body.querySelectorAll('[data-ps-cylfix-place]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psSetPlaced(a.dataset.psCylfixPlace, 'finals', true); psSetPlaced(a.dataset.psCylfixPlace, 'chassis', true); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-cylfix-build]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); const k = a.dataset.psCylfixBuild; psBuildMarks[k] = Object.assign({}, psBuildMarks[k], { finals: true }); psSave(); renderKitScheduler(); });
   body.querySelectorAll('[data-ps-cyl]').forEach(sel=> sel.onchange = ()=>{
     if(sel.value) psCylSupplier[sel.dataset.psCyl] = sel.value; else delete psCylSupplier[sel.dataset.psCyl];
     psCylSave(); renderKitScheduler();
@@ -7949,6 +7951,25 @@ function psCylSummary(plan, cutoff){
   });
   return { list, tot, noSupplier: list.filter(g=> !g.supplier) };
 }
+// Every job of a customer on the schedule, and whether its cylinders count —
+// so a job that isn't "picking up" shows why, with a one-click fix.
+function psCylJobStatus(group, plan){
+  const jobs = Object.values(psSchedule.jobs).filter(j=> j.group === group).sort((a,b)=> +a.nr - +b.nr);
+  return jobs.map(j=>{
+    const st = 'finals';
+    const counted = plan.demand.some(d=> d.cyl && d.key === j.key);
+    if(counted) return `<span title="${psEsc(j.customer)} — counted">${psEsc(j.nr)}</span>`;
+    let why = '', fix = '';
+    if(psIsKitOut(j, st)) why = 'kit out';
+    else if(psIsHeld(j)) why = 'on hold';
+    else if(!psStillToBuild(j, st)) { why = 'Build? unticked'; fix = `<a href="#" data-ps-cylfix-build="${psEsc(j.key)}">tick</a>`; }
+    else if(psMode === 'manual' && !psIsPlaced(j, st)) { why = 'not on calendar'; fix = `<a href="#" data-ps-cylfix-place="${psEsc(j.key)}">＋ place</a>`; }
+    else if(psCylPerJob(j.type).qty === 0) why = `no cylinders set for ${j.type}`;
+    else why = 'not counted';
+    const tone = why === 'kit out' ? 'var(--success)' : 'var(--danger)';
+    return `<span style="color:${tone};" title="${psEsc(j.customer)}">${psEsc(j.nr)} <i>(${why}${fix ? ' · ' + fix : ''})</i></span>`;
+  }).join(', ');
+}
 window.psRenderBuy = function(body){
   const { now, later, cutoff, plan } = psOrderList();
   let placed = 0;
@@ -7987,7 +8008,7 @@ window.psRenderBuy = function(body){
           <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:11.5px; color:var(--text-faint);"><th style="padding:4px 8px;">Customer</th><th>Jobs</th><th>Supplier</th><th style="text-align:right;">Needed</th><th style="text-align:right;">From stock</th><th style="text-align:right; padding-right:8px;">To order</th></tr></thead>
           <tbody>${cs.list.map(g=> `<tr style="border-bottom:1px solid var(--panel-line);">
             <td style="padding:5px 8px;"><b>${psEsc(g.group)}</b></td>
-            <td style="font-size:12px;">${psEsc(g.jobs.join(', '))}</td>
+            <td style="font-size:12px;">${psCylJobStatus(g.group, plan)}</td>
             <td><select data-ps-cyl="${psEsc(g.group)}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 4px;">
               <option value="">${g.supplier ? `Auto: ${g.supplier}` : 'Pick one'}</option>
               <option value="JOST" ${psCylSupplier[g.group] === 'JOST' ? 'selected' : ''}>JOST</option>
@@ -8015,6 +8036,8 @@ window.psRenderBuy = function(body){
   const pb = document.getElementById('psBuyPrintBtn'); if(pb) pb.onclick = psPrintBuyList;
   const sb = document.getElementById('psBuySaveBtn'); if(sb) sb.onclick = psSaveBuyListToHistory;
   body.querySelectorAll('[data-ps-print-sup]').forEach(cb=> cb.onchange = ()=>{ psSetPrint(cb.dataset.psPrintSup, cb.checked); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-cylfix-place]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psSetPlaced(a.dataset.psCylfixPlace, 'finals', true); psSetPlaced(a.dataset.psCylfixPlace, 'chassis', true); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-cylfix-build]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); const k = a.dataset.psCylfixBuild; psBuildMarks[k] = Object.assign({}, psBuildMarks[k], { finals: true }); psSave(); renderKitScheduler(); });
   body.querySelectorAll('[data-ps-cyl]').forEach(sel=> sel.onchange = ()=>{
     if(sel.value) psCylSupplier[sel.dataset.psCyl] = sel.value; else delete psCylSupplier[sel.dataset.psCyl];
     psCylSave(); renderKitScheduler();
@@ -8176,6 +8199,7 @@ function psOpenKitOut(jobKey, stage){
     // still belongs to tomorrow's slot); never earlier than today.
     const lineDay = psDate(job, stage);
     psKitOut[kitKey] = { at: new Date().toISOString(), date: lineDay && lineDay > psToday() ? lineDay : psToday(), nr: job.nr, customer: job.customer, stage, lines: recLines };
+    try{ const u = JSON.parse(localStorage.getItem('leader-master-ps-kitout-undone-v1')) || []; localStorage.setItem('leader-master-ps-kitout-undone-v1', JSON.stringify(u.filter(k=> k !== kitKey))); }catch(e){}
     psKitOutSave();
     logOverride({ action: 'Kit out', where: 'Kit Scheduler', sku: '', item: `${job.nr} ${job.customer} — ${PS_STAGE_LABEL[stage]}`, field: 'kit', oldValue: '', newValue: recLines.filter(l=> l.issued).length + ' line(s) issued',
       ref: recLines.filter(l=> l.problem).map(l=> `${l.name}: ${l.problem}`).join('; '), stockChanged: true });
@@ -8207,8 +8231,15 @@ function psOpenKitRecord(kitKey){
             ${l.issued > 0 ? `<select data-kr-problem="${i}" title="Only this line goes back on stock" style="font-size:11.5px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px;"><option value="">Problem with this line…</option>${PS_KIT_PROBLEMS.map(p=> `<option>${p}</option>`).join('')}</select>` : ''}
           </td></tr>`; }).join('')}</tbody>
       </table>
-      <div style="display:flex; justify-content:flex-end; margin-top:12px;"><button class="btn" data-kr-close>Close</button></div></div>`;
+      <div style="display:flex; justify-content:space-between; gap:8px; margin-top:12px;">
+        <button class="btn" data-kr-undo style="border-color:var(--danger); color:var(--danger);">↩ Undo this kit — issued by mistake</button>
+        <button class="btn" data-kr-close>Close</button></div></div>`;
     ov.querySelector('[data-kr-close]').onclick = ()=>{ ov.remove(); renderKitScheduler(); psSendKitPlan(); };
+    ov.querySelector('[data-kr-undo]').onclick = ()=>{
+      if(!confirm(`Undo the whole kit for ${rec.nr} ${rec.customer} (${PS_STAGE_LABEL[rec.stage]})?\n\nEverything it took off stock goes back (both devices), slips it had cancelled count again, and the job is back on the list to hand out.`)) return;
+      psUndoKitOut(kitKey);
+      ov.remove(); renderKitScheduler(); psSendKitPlan(true);
+    };
     ov.querySelectorAll('[data-kr-issue]').forEach(b=> b.onclick = ()=>{
       const l = rec.lines[+b.dataset.krIssue], pend = psLinePending(l);
       if(!job){ alert('This job is no longer on the imported schedule.'); return; }
@@ -8251,7 +8282,8 @@ function psKitPlanPayload(){
   });
   const outstanding = [];
   Object.entries(psKitOut).forEach(([k, r])=> r.lines.forEach(l=>{ const pd = psLinePending(l); if(pd) outstanding.push({ key: k, nr: r.nr, customer: r.customer, stage: r.stage, name: l.name, qty: pd, problem: l.problem || '' }); }));
-  return { stages, outstanding, doneKeys: Object.keys(psKitOut) };
+  let undone = []; try{ undone = (JSON.parse(localStorage.getItem('leader-master-ps-kitout-undone-v1')) || []).filter(k=> !psKitOut[k]); }catch(e){}
+  return { stages, outstanding, doneKeys: Object.keys(psKitOut), undoneKeys: undone };
 }
 function psSendKitPlan(force){
   try{
@@ -8288,6 +8320,29 @@ function psKitOutReceive(txn){
   ledger.filter(x=> psSlipMatchesJob(x, job) && skus.has(x.sku)).forEach(x=> psReverseSlipForKit(x, r.key, r.stage));
   logOverride({ action: 'Kit out (tablet)', where: 'Sync from tablet', sku: '', item: `${r.nr} ${r.customer} — ${PS_STAGE_LABEL[r.stage] || r.stage}`, field: 'kit', oldValue: '',
     newValue: (r.lines || []).filter(l=> Number(l.issued) > 0).length + ' line(s) issued', ref: (r.lines || []).filter(l=> l.problem).map(l=> `${l.name}: ${l.problem}`).join('; '), stockChanged: true });
+}
+
+// Undo a whole kit-out (ticked by mistake): stock back on both devices,
+// slips it had cancelled count again, the record is removed (kept in the
+// Override Log) and the job is back on the list to hand out.
+function psUndoKitOut(kitKey){
+  const rec = psKitOut[kitKey];
+  if(!rec) return;
+  let back = 0;
+  ledger.filter(r=> r.kitOut === kitKey && !r.deleted && !r.notApplied).forEach(r=>{
+    rqAdjust(r.sku, Number(r.qty) || 0, 'Kit out undone (issued by mistake)', r._id, `${r.name} ×${r.qty} — kit undone, back on stock`, rqNoteId());
+    r.notApplied = true; r.returnedReason = 'Kit out undone';
+    back++;
+  });
+  ledger.filter(r=> r.coveredByKit === kitKey && r.notApplied && !r.deleted).forEach(r=>{
+    rqAdjust(r.sku, -(Number(r.qty) || 0), 'Kit out undone — slip counts again', r._id, `${r.name} ×${r.qty} — slip counts again (kit undone)`, rqNoteId());
+    r.notApplied = false; delete r.coveredByKit;
+  });
+  logOverride({ action: 'Kit out undone', where: 'Kit Scheduler', sku: '', item: `${rec.nr} ${rec.customer} — ${PS_STAGE_LABEL[rec.stage] || rec.stage}`, field: 'kit',
+    oldValue: back + ' line(s) issued', newValue: 'all back on stock', ref: kitKey, stockChanged: true });
+  try{ const u = JSON.parse(localStorage.getItem('leader-master-ps-kitout-undone-v1')) || []; u.push(kitKey); localStorage.setItem('leader-master-ps-kitout-undone-v1', JSON.stringify(u.slice(-200))); }catch(e){}
+  delete psKitOut[kitKey];
+  psKitOutSave(); saveState(); render();
 }
 
 // Slip arriving AFTER the kit tick: the tick wins — reverse the slip line.
@@ -8331,8 +8386,8 @@ window.psRenderKitsOut = function(body){
         <span><b>${psEsc(o.r.nr)} ${psEsc(o.r.customer)}</b> · ${psEsc(o.l.name)} <b>×${o.p}</b> — <i>${psEsc(o.l.problem || '')}</i></span>
         <a href="#" data-ps-kitrec="${psEsc(o.r.k)}">open</a></div>`).join('')}
     </div>` : ''}
-    ${recs.length ? `<details style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700;">✓ Kits already out (${recs.length})</summary>
-      ${recs.sort((a,b)=> b.at.localeCompare(a.at)).map(r=> `<div style="font-size:13px; padding:3px 0;">${new Date(r.at).toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' })} · <b>${psEsc(r.nr)} ${psEsc(r.customer)}</b> · ${PS_STAGE_LABEL[r.stage]} ${r.lines.some(l=> psLinePending(l)) ? '<span style="color:var(--danger);">⚠ outstanding</span>' : '✓'} <a href="#" data-ps-kitrec="${psEsc(r.k)}">open</a></div>`).join('')}</details>` : ''}`;
+    ${recs.length ? `<details open style="margin-top:12px;"><summary style="cursor:pointer; font-weight:700;">✓ Kits already out (${recs.length}) — open one to fix a line or undo it</summary>
+      ${recs.sort((a,b)=> b.at.localeCompare(a.at)).map(r=> `<div style="font-size:13px; padding:3px 0;">${new Date(r.at).toLocaleDateString('en-ZA', { weekday:'short', day:'2-digit', month:'short' })} · <b>${psEsc(r.nr)} ${psEsc(r.customer)}</b> · ${PS_STAGE_LABEL[r.stage]}${r.fromTablet ? ' · <span class="sub" style="margin:0;">ticked on the tablet</span>' : ''} ${r.lines.some(l=> psLinePending(l)) ? '<span style="color:var(--danger);">⚠ outstanding</span>' : '✓'} <a href="#" data-ps-kitrec="${psEsc(r.k)}">open</a></div>`).join('')}</details>` : ''}`;
   body.querySelectorAll('[data-ps-kitout]').forEach(cb=> cb.onchange = ()=>{ cb.checked = false; psOpenKitOut(cb.dataset.psKitout, cb.dataset.psKitoutStage); });
   document.getElementById('psKitPlanSendBtn').onclick = ()=>{ psSendKitPlan(true); alert('Sent to the tablet — it shows up there within a minute (once both are online).'); };
   psSendKitPlan();

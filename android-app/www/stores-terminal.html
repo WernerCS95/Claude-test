@@ -8522,6 +8522,9 @@ function fileKitPlan(txn){
   if(kitPlan && kitPlan.sentAt && p.sentAt && p.sentAt < kitPlan.sentAt) return; // an older list arriving late
   kitPlan = p;
   try{ localStorage.setItem(KIT_PLAN_KEY, JSON.stringify(kitPlan)); }catch(e){}
+  // A kit undone on the laptop (ticked by mistake) comes back on the list here too
+  (p.undoneKeys || []).forEach(k=>{ if(kitOutDone[k]) delete kitOutDone[k]; });
+  saveKitOutDone();
   if(document.getElementById('kitsOutOverlay')) renderKitsOut();
 }
 function kitEsc(v){ return String(v == null ? '' : v).replace(/[&<>"]/g, c=> ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c])); }
