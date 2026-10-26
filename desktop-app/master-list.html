@@ -248,18 +248,15 @@ try{
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
         <div id="psSourceLine" class="sub" style="margin:0;"></div>
-        <span style="font-size:12.5px; white-space:nowrap;" title="The day the next job still to build is worked on, per line. Default: the next working day. Jobs queue from there in Production's order.">▶ Next work starts —
-          Chassis <input type="date" id="psStartChassis" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;">
-          Finals <input type="date" id="psStartFinals" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;">
-          <button class="btn" id="psStartTodayBtn" type="button" title="Both lines start on the next working day again (and follow the calendar from now on)" style="padding:3px 10px; font-size:12px;">↺ Today</button></span>
+        <span id="psStartWrap" style="display:none;"><input type="date" id="psStartChassis"><input type="date" id="psStartFinals"><button id="psStartTodayBtn" type="button"></button></span>
         <label class="ps-detail" style="font-size:12.5px; white-space:nowrap;">Plan from:
           <select id="psModeSelect" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
             <option value="manual">Only jobs I place on the calendar</option>
             <option value="all">Whole Production schedule</option>
           </select></label>
-        <label class="ps-detail" style="font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
+        <label class="ps-detail" style="display:none !important; font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
           <input type="number" id="psBehindInput" min="0" max="30" step="1" style="width:56px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> working days</label>
-        <label class="ps-detail" style="font-size:12.5px; white-space:nowrap;" title="Per line per day: 100 points per unit (an L+F link = 200). 600 = 3 links a day.">Capacity:
+        <label class="ps-detail" style="display:none !important; font-size:12.5px; white-space:nowrap;" title="Per line per day: 100 points per unit (an L+F link = 200). 600 = 3 links a day.">Capacity:
           <input type="number" id="psCapacityInput" min="100" max="5000" step="100" style="width:66px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> points/day</label>
       </div>
       <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
@@ -6663,11 +6660,13 @@ function psComputeSeq(){
 function psDate(job, stage){
   const t = psTweaks[job.key];
   if(t && t[stage]) return t[stage];
-  const d = job[stage + 'Date'] || null;
-  if(!d || !psIsPlanned(job, stage)) return d;
-  if(!psSeqCache) psSeqCache = psComputeSeq();
-  return psSeqCache[job.key + '|' + stage] || d;
+  // The app never moves a job: it sits on Production's date until Werner
+  // moves it (kit-out keeps the day it was handed out for).
+  try{ const ko = psKitOut[job.key + '|' + stage]; if(ko && ko.date) return ko.date; }catch(e){}
+  return job[stage + 'Date'] || null;
 }
+// Still to build, on the calendar, but its day has passed — needs a new day
+function psIsOverdue(job, stage){ const d = psDate(job, stage); return !!d && d < psToday() && psIsPlanned(job, stage) && !psIsKitOut(job, stage); }
 function psIsShifted(job, stage){ return !psIsTweaked(job, stage) && !!job[stage + 'Date'] && psDate(job, stage) !== job[stage + 'Date']; }
 function psIsTweaked(job, stage){ return !!(psTweaks[job.key] && psTweaks[job.key][stage]); }
 // Default: still to build unless every unit on that stage shows 100%.
@@ -6804,7 +6803,7 @@ function renderKitScheduler(){
   const ci = document.getElementById('psCapacityInput'); if(ci && document.activeElement !== ci) ci.value = psCapacity;
   const bi = document.getElementById('psBehindInput');
   if(bi && document.activeElement !== bi) bi.value = psBehind;
-  if(psBehind > 0) src.innerHTML += ` · <b style="color:var(--danger);">⏱ ${psBehind} working day(s) behind — open stages shifted</b>`;
+
   const mv = psSchedule && psSchedule.moved;
   const movedN = mv && !mv.firstImport ? mv.added.length + mv.removed.length + mv.earlier.length + mv.later.length : 0;
   document.getElementById('psMovedCount').textContent = movedN ? `(${movedN})` : '';
@@ -6886,12 +6885,12 @@ function psRenderCalendar(body){
   const manual = psMode === 'manual';
   const ymdLocal = d=> psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
   const monday = ymd=>{ const d = new Date(ymd + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return ymdLocal(d); };
-  const onCal = (j, s)=> !psIsHeld(j) && !!psDate(j, s) && (!manual || (psIsPlaced(j, s) && psStillToBuild(j, s)));
+  const onCal = (j, s)=> !psIsHeld(j) && !!psDate(j, s) && (psDate(j, s) >= psToday() || psIsKitOut(j, s)) && (!manual || (psIsPlaced(j, s) && psStillToBuild(j, s)));
   const chip = (j, stage, opts)=>{
     const still = psStillToBuild(j, stage), tw = psIsTweaked(j, stage);
     return `<div draggable="true" data-ps-chip="${psEsc(j.key)}" data-ps-chip-stage="${stage}" title="${psEsc(j.type)} · ${psEsc(j.axles)} · ${j.units[stage].map(u=>u.suffix).join('+')} · ${psPctTxt(j[stage+'Pct'])}${opts.pool ? ' · Production: ' + psFmtDay(j[stage+'Date']) : ''}"
       style="font-size:11px; margin-top:3px; padding:3px 5px; border-radius:4px; cursor:grab; border:${psPicked && psPicked.key === j.key && psPicked.stage === stage ? '2px solid var(--gold)' : '1px solid var(--panel-line)'}; background:${still ? 'var(--panel-raised)' : 'transparent'}; opacity:${still && (opts.pool || (psDate(j, stage) || '') >= psToday()) ? 1 : 0.45}; ${opts.pool ? 'display:inline-block; margin-right:4px;' : ''}">
-      ${opts.pool ? `<span data-ps-place="${psEsc(j.key)}" data-ps-place-stage="${stage}" title="Place on Production's date" style="cursor:pointer; color:var(--success); font-weight:700;">＋</span> ` : ''}
+      ${opts.pool && !opts.overdue ? `<span data-ps-place="${psEsc(j.key)}" data-ps-place-stage="${stage}" title="Place on Production's date" style="cursor:pointer; color:var(--success); font-weight:700;">＋</span> ` : ''}
       ${tw ? '✎ ' : ''}<b>${psEsc(j.nr)}</b> ${psEsc(j.customer)}
       ${!opts.pool && tw ? ` <span data-ps-reset="${psEsc(j.key)}" data-ps-reset-stage="${stage}" title="Back to Production's date" style="cursor:pointer; color:var(--gold);">↺</span>` : ''}
       ${!opts.pool && manual ? ` <span data-ps-unplace="${psEsc(j.key)}" data-ps-unplace-stage="${stage}" title="Take off the calendar (back to the pool)" style="cursor:pointer; color:var(--text-faint);">↩</span>` : ''}
@@ -6899,10 +6898,20 @@ function psRenderCalendar(body){
         ? ` <span data-ps-kitrec-cal="${psEsc(j.key + '|' + stage)}" title="Kit is out — open" style="cursor:pointer; color:var(--success); font-weight:700;">✓ Kit out${psKitOut[j.key + '|' + stage].lines.some(l=> psLinePending(l)) ? ' <span style="color:var(--danger);">⚠</span>' : ''}</span>`
         : ` <span data-ps-kitout-btn="${psEsc(j.key)}" data-ps-kitout-btn-stage="${stage}" title="Kit handed out — confirm and take off stock" style="cursor:pointer; color:var(--success); font-weight:700;">☐ Kit</span>`) : ''}
       ${!opts.pool ? ` <span data-ps-hold="${psEsc(j.key)}" title="Put this job on hold — off the line, nothing ordered; its tarps & hydraulics stay kept for it" style="cursor:pointer; color:var(--text-faint);">⏸</span>` : ''}
-      ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ' (in the queue)'}</div>` : ''}
+      ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ''}</div>` : ''}
     </div>`;
   };
   let html = '';
+  const overdue = [];
+  jobs.forEach(j=> PS_STAGES.forEach(st=>{ if(!psIsHeld(j) && psIsOverdue(j, st)) overdue.push({ j, st }); }));
+  if(overdue.length){
+    overdue.sort((a,b)=> psDate(a.j, a.st).localeCompare(psDate(b.j, b.st)) || (+a.j.nr - +b.j.nr));
+    html += `<div style="border:2px solid var(--danger); border-radius:8px; padding:8px; margin-bottom:12px;">
+      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⏰ Overdue — place me (${overdue.length}) · still to build, their day has passed. Click a job, then click its real day below.</div>
+      ${PS_STAGES.map(st=>{ const it = overdue.filter(o=> o.st === st); if(!it.length) return '';
+        return `<div style="margin-bottom:4px;"><span style="font-size:11px; font-weight:700; color:${st === 'chassis' ? 'var(--steel)' : 'var(--gold)'};">${PS_STAGE_LABEL[st].toUpperCase()}</span><br>${it.map(o=> chip(o.j, st, { pool: true, overdue: true })).join('')}</div>`; }).join('')}
+    </div>`;
+  }
   const heldJobs = jobs.filter(j=> psIsHeld(j)).sort((a,b)=> +a.nr - +b.nr);
   if(heldJobs.length){
     html += `<div style="border:1px solid var(--text-faint); border-radius:8px; padding:8px; margin-bottom:12px;">
@@ -6928,7 +6937,8 @@ function psRenderCalendar(body){
     </div>`;
   }
   const allDates = [];
-  jobs.forEach(j=> PS_STAGES.forEach(s=>{ if(onCal(j, s)){ allDates.push(psDate(j, s)); if(j[s+'Date']) allDates.push(j[s+'Date']); } }));
+  jobs.forEach(j=> PS_STAGES.forEach(s=>{ if(onCal(j, s)) allDates.push(psDate(j, s)); }));
+  allDates.push(psToday());
   if(manual){
     // Always show this week to four weeks out, so there's somewhere to drop
     const t = psToday(); allDates.push(t, psAddWorkingDays(t, 20));
@@ -6938,7 +6948,7 @@ function psRenderCalendar(body){
     psWireCalendar(body); return;
   }
   allDates.sort();
-  const start = new Date(monday(allDates[0]) + 'T00:00:00');
+  const start = new Date(monday(allDates[0] < psToday() ? psToday() : allDates[0]) + 'T00:00:00');
   const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
   const weekend = new Set(allDates.filter(d=> { const w = new Date(d + 'T00:00:00').getDay(); return w === 0 || w === 6; }));
   {
@@ -6949,12 +6959,9 @@ function psRenderCalendar(body){
       (moves[k] = moves[k] || { from: j[st+'Date'], to: psDate(j, st), chassis: 0, finals: 0 })[st]++;
     }));
     const list = Object.values(moves).sort((a,b)=> a.from.localeCompare(b.from));
-    if(list.length) html += `<div style="border:1px solid var(--danger); border-radius:8px; padding:8px 10px; margin-bottom:10px;">
-      <div style="font-weight:700; color:var(--danger); margin-bottom:4px;">⏱ Where the work lands now — ${psBehind ? `${psBehind} working day${psBehind === 1 ? '' : 's'} behind, ` : ''}${psCapacity} points a day (${psCapacity / 200} links)</div>
-      <div style="display:flex; flex-wrap:wrap; gap:4px 18px; font-size:12px;">${list.map(m=> `<span>${psFmtDay(m.from)} → <b>${psFmtDay(m.to)}</b>: ${[m.chassis ? m.chassis + ' Chassis' : '', m.finals ? m.finals + ' Finals' : ''].filter(Boolean).join(', ')}</span>`).join('')}</div>
-    </div>`;
+    // (no automatic moves any more — nothing to summarise)
   }
-  html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Click a job then click another day (or drag it) to move it (✎, lasts until the next import); ↺ puts it back on Production's date. Grey = not ticked "still to build", or the day has passed (treated as built — not ordered for).</div>`;
+  html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Jobs stay where you put them — the app never moves one. Click a job, then click another day (or drag it) to move it (✎); ↺ puts it back on Production's date. Moves last until the next import.</div>`;
   for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
     const days = [];
     for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s)) days.push(s); }
@@ -6967,10 +6974,9 @@ function psRenderCalendar(body){
         ${days.map(d=>{
           const here = jobs.filter(j=> onCal(j, stage) && psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
           // Jobs Production had on this day that now land on another day
-          const left = jobs.filter(j=> onCal(j, stage) && j[stage+'Date'] === d && psDate(j, stage) !== d).sort((a,b)=> +a.nr - +b.nr);
+          const left = [];
           return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
-            ${(()=>{ const load = here.filter(j=> psIsPlanned(j, stage)).reduce((a,j)=> a + psJobPoints(j, stage), 0);
-              return `<div style="font-size:10px; color:${color}; font-weight:700; display:flex; justify-content:space-between;"><span>${psFmtDay(d)}</span>${load ? `<span style="color:${load > psCapacity ? 'var(--danger)' : 'var(--text-faint)'};">${load}/${psCapacity}</span>` : ''}</div>`; })()}
+            <div style="font-size:10px; color:${color}; font-weight:700; display:flex; justify-content:space-between;"><span>${psFmtDay(d)}</span>${here.length ? `<span style="color:var(--text-faint);">${here.length} job${here.length === 1 ? '' : 's'}</span>` : ''}</div>
             ${here.map(j=> chip(j, stage, {})).join('')}
             ${left.map(j=> `<div title="Production had this here" style="font-size:10.5px; margin-top:3px; padding:2px 5px; border-radius:4px; border:1px dashed var(--text-faint); color:var(--text-faint);"><s>${psEsc(j.nr)} ${psEsc(j.customer)}</s> → ${psFmtDay(psDate(j, stage))}</div>`).join('')}
           </div>`;
@@ -7525,10 +7531,10 @@ function psPlan(){
     const kit = psKitForJob(job);
     PS_STAGES.forEach(stage=>{
       if(!psIsPlanned(job, stage) || psIsKitOut(job, stage)) return;
-      const needBy = psDate(job, stage);
+      let needBy = psDate(job, stage);
       if(!needBy){ undated.push({ nr: job.nr, customer: job.customer, stage }); return; }
       // A day already gone is treated as built — never ordered for
-      if(needBy < today){ past.push({ nr: job.nr, customer: job.customer, stage, needBy }); return; }
+      if(needBy < today){ past.push({ nr: job.nr, customer: job.customer, stage, needBy }); needBy = today; } // overdue: still to build, needed now
       const stageGroups = PS_GROUPS.filter(g=> g.stage === stage).map(g=> g.id);
       kit.missing.filter(m=> stageGroups.includes(m)).forEach(m=>{
         const g = PS_GROUPS.find(x=> x.id === m);
@@ -8238,7 +8244,7 @@ function psKitPlanPayload(){
   const jobs = Object.values(psSchedule.jobs);
   const stages = {};
   PS_STAGES.forEach(st=>{
-    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
+    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) < psToday() ? psToday() : psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
     const days = [...new Set(list.map(x=> x.d))].slice(0, 3);
     stages[st] = list.filter(x=> days.includes(x.d)).map(x=> ({ key: x.j.key + '|' + st, nr: x.j.nr, customer: x.j.customer, type: x.j.type, day: x.d,
       lines: psKitLinesFor(x.j, st, plan).filter(l=> l.sku).map(l=> ({ sku: l.sku, name: l.name, planned: l.planned, group: l.group })) }));
@@ -8299,7 +8305,7 @@ window.psRenderKitsOut = function(body){
   const today = psToday();
   const jobs = Object.values(psSchedule.jobs);
   const upcoming = st=>{
-    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
+    const list = jobs.filter(j=> psIsPlanned(j, st) && !psIsKitOut(j, st) && psDate(j, st)).map(j=> ({ j, d: psDate(j, st) < psToday() ? psToday() : psDate(j, st) })).sort((a,b)=> a.d.localeCompare(b.d) || (+a.j.nr - +b.j.nr));
     const days = [...new Set(list.map(x=> x.d))].slice(0, 3);
     return days.map(d=> ({ d, items: list.filter(x=> x.d === d) }));
   };
