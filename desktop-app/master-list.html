@@ -7812,7 +7812,7 @@ window.psRenderOrders = function(body){
   body.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
       <div class="sub" style="margin:0;">${psMode === 'manual' ? '<b>Only jobs on your calendar are counted.</b> ' : ''}Today ${psFmtDay(psToday())}. Order-by = need-by minus lead time in working days (default ${PS_DEFAULT_LEAD_DAYS} = 48h). Laptop on-hand stock, allocated in need-by order.</div>
-      <button class="btn primary" id="psPrintBtn" title="Buying prints from the one Order List now">📋 Order List — print from here</button>
+      <button class="btn primary" id="psPrintBtn">🖨 Print Order List</button>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel-raised);">
       <label style="font-size:12.5px;"><b>From:</b> <input type="date" id="psFromInput" value="${psFrom()}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;"></label>
@@ -7836,7 +7836,7 @@ window.psRenderOrders = function(body){
     if(v === '' || v === PS_DEFAULT_LEAD_DAYS) delete psLead[inp.dataset.psLead]; else psLead[inp.dataset.psLead] = v;
     psLeadSave(); renderKitScheduler();
   });
-  document.getElementById('psPrintBtn').onclick = ()=> olOpen();
+  document.getElementById('psPrintBtn').onclick = psPrintOrders;
   document.getElementById('psFromInput').onchange = function(){ psSetFrom(this.value); renderKitScheduler(); };
   document.getElementById('psCutoffInput').onchange = function(){
     psCutoffSet = this.value || '';
@@ -8039,7 +8039,7 @@ window.psRenderBuy = function(body){
           ${psFromSet || psCutoffSet ? '<a href="#" id="psBuyRangeReset">↺ today → month end + 2</a>' : '<span>(today → month end + 2 working days)</span>'}
           · ${placed} job stage(s) planned</div>
       </div>
-      <div style="display:flex; gap:6px;"><button class="btn primary" id="psBuyOpenOl" style="font-size:14px;" title="Buying prints from the one Order List now">📋 Order List — print from here</button></div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">${now.length ? `<button class="btn" id="psBuySaveBtn" style="font-size:14px; border-color:var(--success); color:var(--success);">💾 Save to History</button><button class="btn primary" id="psBuyPrintBtn" style="font-size:14px;">🖨 Print</button>` : ''}<button class="btn" id="psPick1Btn" style="font-size:14px;" title="Not for buying — what to hand out per job">🖨 Picking sheets · Month End</button><button class="btn" id="psPick2Btn" style="font-size:14px;" title="Not for buying — what to hand out per job">🖨 Picking sheets · New Month</button></div>
     </div>
     ${(()=>{ const cs = psCylSummary(plan, cutoff); if(!cs.list.length) return '';
       return `<div style="border:2px solid var(--steel); border-radius:8px; padding:8px 10px; margin-bottom:14px;">
@@ -8075,7 +8075,8 @@ window.psRenderBuy = function(body){
   const gk = document.getElementById('psBuyGoKit'); if(gk) gk.onclick = go('kit');
   const pb = document.getElementById('psBuyPrintBtn'); if(pb) pb.onclick = psPrintBuyList;
   const sb = document.getElementById('psBuySaveBtn'); if(sb) sb.onclick = psSaveBuyListToHistory;
-  const ol = document.getElementById('psBuyOpenOl'); if(ol) ol.onclick = ()=> olOpen();
+  const pk1 = document.getElementById('psPick1Btn'); if(pk1) pk1.onclick = ()=> olPickingSheets(1);
+  const pk2 = document.getElementById('psPick2Btn'); if(pk2) pk2.onclick = ()=> olPickingSheets(2);
   body.querySelectorAll('[data-ps-print-sup]').forEach(cb=> cb.onchange = ()=>{ psSetPrint(cb.dataset.psPrintSup, cb.checked); renderKitScheduler(); });
   body.querySelectorAll('[data-ps-cylfix-place]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psSetPlaced(a.dataset.psCylfixPlace, 'finals', true); psSetPlaced(a.dataset.psCylfixPlace, 'chassis', true); renderKitScheduler(); });
   body.querySelectorAll('[data-ps-cylfix-build]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); const k = a.dataset.psCylfixBuild; psBuildMarks[k] = Object.assign({}, psBuildMarks[k], { finals: true }); psSave(); renderKitScheduler(); });
@@ -8461,7 +8462,7 @@ function olRender(){
   panel.innerHTML = `
     <datalist id="olStockList">${stock.map(s=> `<option value="${psEsc(s.name)} — ${psEsc(s.sku)}">`).join('')}</datalist>
     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-      <h3 style="margin:0;">📋 Order List</h3>
+      <h3 style="margin:0;">🧪 Order List (beta) <span class="sub" style="font-size:12px; font-weight:400;">trial — the Month End / New Month lists are the ones to order from</span></h3>
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button class="btn primary" id="olPrint1Btn" title="Sections 1 + 1.2">🖨 Print Month End list</button>
         <button class="btn primary" id="olPrint2Btn" title="Sections 2 + 2.1" style="background:var(--gold); border-color:var(--gold);">🖨 Print New Month list</button>
@@ -8495,7 +8496,7 @@ function olRender(){
       </div></details>
     ${OL_SECTIONS.map(secHtml).join('')}
     <div style="margin-top:14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-      <a href="#" id="olOldLists" style="font-size:12px; color:var(--text-faint);">Old Month End / New Month lists (view only)</a>
+      <a href="#" id="olOldLists" style="font-size:12px;">← Back to the Month End / New Month order lists</a>
       <span class="sub" style="margin:0;">${psSchedule ? `Schedule: ${psEsc(psSchedule.fileName)}` : 'No production schedule imported — kits sections are empty.'}</span>
     </div>`;
   panel.scrollTop = keepScroll;
@@ -8841,11 +8842,18 @@ function olPickingSheets(period){
   savePdfOutput(doc, period === 1 ? 'picking-sheets-month-end' : 'picking-sheets-new-month');
 }
 
-// The one Order List is what the Order Lists button opens now. The old
-// Month End / New Month lists stay viewable (and their history), but their
-// own print / copy / save buttons are hidden — buying prints from here.
-document.getElementById('orderListsBtn').onclick = olOpen;
-['orderSheetCopyBtn', 'orderSheetPrintBtn', 'orderSheetSaveHistoryBtn'].forEach(id=>{ const b = document.getElementById(id); if(b) b.style.display = 'none'; });
+// 📋 Order Lists opens the Month End / New Month lists (as 2.8.5). The
+// four-section list is behind the beta button in that window.
+(()=>{ // 🧪 Order List (beta) — the four-section list, kept but not used by default
+  const hist = document.getElementById('orderSheetViewHistoryBtn');
+  if(!hist || document.getElementById('olBetaBtn')) return;
+  const b = document.createElement('button');
+  b.className = 'btn'; b.id = 'olBetaBtn'; b.textContent = '🧪 Order List (beta)';
+  b.title = 'Four-section list (kits + consumables per period) — trial only';
+  b.style.cssText = 'border-color:var(--text-faint); color:var(--text-faint);';
+  b.onclick = ()=>{ document.getElementById('orderSheetModal').style.display = 'none'; olOpen(); };
+  hist.parentNode.insertBefore(b, hist.nextSibling);
+})();
 
 /* ---------- Kit out: issue a job's kit by tick ----------
    Tick a job stage when its kit is handed out. You confirm what was issued

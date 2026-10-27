@@ -6,8 +6,8 @@ Same app — no data move. **Never uninstall.**
 
 ## Build + install (laptop, Command Prompt)
 1. `cd /d "C:\Users\werne\OneDrive\Desktop\Claude-test"` then `git pull origin claude/blissful-mccarthy-k7if0c`
-2. `cd desktop-app` → `npm run dist` → `dir dist\*.exe` → **Leader Master List Setup 2.8.8.exe**, today's time
-3. Close the app, run **Leader Master List Setup 2.8.8.exe** over the top.
+2. `cd desktop-app` → `npm run dist` → `dir dist\*.exe` → **Leader Master List Setup 2.8.9.exe**, today's time
+3. Close the app, run **Leader Master List Setup 2.8.9.exe** over the top.
 
 ## First run
 4. Admin → **📅 Kit Scheduler** → **📥 Import Production Schedule (.xlsx)** → pick Production's weekly file.
@@ -16,7 +16,7 @@ Same app — no data move. **Never uninstall.**
 7. **🧰 Kit per Type** — check each type's "Kit based on"; fill in or mark "none"
    for groups showing "not defined" (Axles, Tyres & rims, Air/brake, Nameplates).
 8. **🧮 Allocation** — set JOST / Hydroscand per customer where it says "pick one".
-9. **📋 Order Lists** (Admin toolbar) — two buying lists: **🖨 Print Month End list** (Sections 1 + 1.2) and **🖨 Print New Month list** (Sections 2 + 2.1); picking sheets from the same screen.
+9. **📋 Order Lists** (Admin toolbar) — Month End (to Min) and New Month (to Max), as before. Kit Scheduler → 🛒 What to buy has the kit order list print and the picking sheets.
 
 Each new schedule: import it → **🔀 What Moved** shows what changed.
 

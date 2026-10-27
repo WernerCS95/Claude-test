@@ -155,3 +155,14 @@ Month End 73 → 9, New Month 105 → 15.
 (olCloseBtn) with the Override Log's, so it did nothing — and after opening the
 Order List, the Override Log's Close stopped working too. Renamed to
 olListCloseBtn; no duplicate ids left in master-list.html.
+
+**2.8.9 (2026-10-27) — back to the old ordering lists.** The four-section
+New Month list missed parts needed for the new month. 📋 Order Lists opens the
+Month End (to Min) and New Month (to Max) lists again, exactly as 2.8.5 — same
+code, every item with a Min/Max including kit parts (2.8.6 never changed any
+item's Min/Max; only the beta list ignored them). Their Copy / Print / Save
+buttons are back. Kit Scheduler's What to buy and Order List prints are back,
+with Picking sheets · Month End / New Month next to them. The four-section list
+stays behind 🧪 Order List (beta) in the Order Lists window — not used by
+default. Kept: picking sheets, and slips already issued to a job not counted
+again in the kit demand. No saved data or Order History changed.
