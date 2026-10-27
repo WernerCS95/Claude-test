@@ -185,6 +185,7 @@ try{
         <div class="tb-menu-panel">
           <button class="btn" id="directorStatementBtn">📊 Director Statement</button>
           <button class="btn" id="printSpotCheckListBtn">🖨 Print Spot Check List</button>
+          <button class="btn" id="printFullCountAdminBtn">🖨 Print Full Count Sheet</button>
           <button class="btn" id="overrideLogBtn">📜 Override Log</button>
         </div>
       </div>
@@ -2377,6 +2378,63 @@ cycleCountInput.addEventListener('change', ()=>{
   setCycleCountBatchSize(n);
 });
 
+
+/* ====================== PRINT FULL COUNT SHEET (from Admin) ======================
+   Prints the same sheets as Input → Full Count → Print Full Count Sheet by
+   calling Input's own print (same item list, order and 30-per-page), so the
+   pages still match "Enter Full Count Results" page for page. Works inside
+   the Leader app, where Input and Admin are loaded side by side. */
+function fcInputWindow(){
+  try{
+    const f = window.parent && window.parent !== window && window.parent.document.getElementById('sectionInput');
+    const w = f && f.contentWindow;
+    return w && typeof w.getFullCountItems === 'function' && typeof w.printCountPages === 'function' ? w : null;
+  }catch(e){ return null; }
+}
+document.getElementById('printFullCountAdminBtn').onclick = ()=>{
+  const inp = fcInputWindow();
+  if(!inp){ alert('Open this from the Leader app (Input and Admin together) — the count sheet comes from the Input side so its pages match "Enter Full Count Results".'); return; }
+  let size = 30;
+  try{ size = inp.Function('return FULL_COUNT_PAGE_SIZE')() || 30; }catch(e){}
+  const items = inp.getFullCountItems();
+  if(!items.length){ alert('No countable items found.'); return; }
+  const pages = inp.paginateItems(items, size);
+  let ov = document.getElementById('fcAdminModal');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'fcAdminModal'; ov.className = 'modal-bg';
+  ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:300;';
+  ov.innerHTML = `<div style="background:var(--panel); border-radius:10px; padding:18px; max-width:520px; width:94%; max-height:88vh; overflow-y:auto;">
+    <h3 style="margin:0 0 4px;">🖨 Print Full Count Sheet</h3>
+    <div class="sub" style="margin-bottom:10px;">${items.length} items total → ${pages.length} pages of ${size}. Same sheets as the tablet's Full Count, so the pages match "Enter Full Count Results". Pick how many people are counting today.</div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <label>People counting: <input type="number" id="fcAdminPeople" min="1" value="1" style="width:70px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:4px 6px;"></label>
+      <button class="btn primary" id="fcAdminGo">Split pages</button>
+    </div>
+    <div id="fcAdminResults"></div>
+    <div style="display:flex; justify-content:flex-end; margin-top:10px;"><button class="btn" id="fcAdminClose">Close</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const close = ()=> ov.remove();
+  document.getElementById('fcAdminClose').onclick = close;
+  const go = ()=>{
+    const n = parseInt(document.getElementById('fcAdminPeople').value, 10);
+    if(isNaN(n) || n < 1){ alert('Enter at least 1 person.'); return; }
+    const parts = inp.splitPagesAmongPeople(pages.length, n);
+    const res = document.getElementById('fcAdminResults');
+    res.innerHTML = parts.map(a=>{
+      const from = a.startPage * size + 1, to = Math.min((a.startPage + a.pageCount) * size, items.length);
+      return `<button class="btn" data-fc-person="${a.person}" data-fc-start="${a.startPage}" data-fc-count="${a.pageCount}" style="width:100%; margin-bottom:6px; text-align:left; border-color:var(--success); color:var(--success);">🖨 Person ${a.person} — ${a.pageCount} page${a.pageCount === 1 ? '' : 's'} (items ${from}–${to})</button>`;
+    }).join('') + `<button class="btn" id="fcAdminAll" style="width:100%; border-color:var(--gold); color:var(--gold);">🖨 Print Everything (all ${pages.length} pages, one document)</button>`;
+    res.querySelectorAll('[data-fc-person]').forEach(b=> b.onclick = ()=>{
+      const start = +b.dataset.fcStart, count = +b.dataset.fcCount;
+      inp.printCountPages(pages, Array.from({ length: count }, (_, i)=> start + i), 'Person ' + b.dataset.fcPerson);
+    });
+    document.getElementById('fcAdminAll').onclick = ()=> inp.printCountPages(pages, pages.map((_, i)=> i), null);
+  };
+  document.getElementById('fcAdminGo').onclick = go;
+  go();
+};
 
 document.getElementById('printSpotCheckListBtn').onclick = ()=>{
   const lines = buildSpotCheckPrintList();

@@ -166,3 +166,12 @@ with Picking sheets · Month End / New Month next to them. The four-section list
 stays behind 🧪 Order List (beta) in the Order Lists window — not used by
 default. Kept: picking sheets, and slips already issued to a job not counted
 again in the kit demand. No saved data or Order History changed.
+
+## 15. Print Full Count Sheet from Admin (2.8.10, 2026-10-27)
+
+Admin → 🖨 Reports ▾ → 🖨 Print Full Count Sheet. Same split-by-people screen as
+Input → Full Count. It calls Input's own print (getFullCountItems /
+paginateItems / printCountPages in the Input frame), so the sheets are exactly
+the tablet's: same items, order and 30 per page — page numbers still match
+"Enter Full Count Results". Needs the Leader app (Input + Admin together);
+master-list.html opened on its own says so instead of printing.
