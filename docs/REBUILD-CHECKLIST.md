@@ -5,7 +5,7 @@ Follow this in order, every time, even for a "tiny" change. The stale-build bug 
 ## Before you start
 
 - [ ] **Confirm which file you actually edited.** All real editing happens in the two root files: `stores-terminal.html` and `master-list.html`. If you (or Claude Code) edited a copy inside `desktop-app/`, `android-app/www/`, etc. directly instead, stop — copy your change into the root file first, so there's one true source.
-- [ ] **If you used Dev Mode's Capacitor setup** (`docs/DEV-MODE.md`), check `android-app/capacitor.config.json` and `master-list-android-app/capacitor.config.json` right now — neither should have a `"server"` key in it. If one does, delete that whole `"server": { ... }` block before continuing, or the app you ship will try to load from your laptop forever.
+- [ ] **If you used Dev Mode's Capacitor setup** (`docs/DEV-MODE.md`), check `android-app/capacitor.config.json` right now — it should not have a `"server"` key in it. If it does, delete that whole `"server": { ... }` block before continuing, or the app you ship will try to load from your laptop forever.
 
 ## 1. Copy the source files into the two app wrappers
 
@@ -35,7 +35,7 @@ fc /B master-list.html android-app\www\master-list.html
 ```
 "no differences encountered" = good. Repeat for each pair.
 
-`desktop-terminal-app/` and `master-list-android-app/` are **retired** — kept only as a fallback to the pre-merge apps. Don't build them for normal use.
+The retired pre-merge apps (`desktop-terminal-app/`, `master-list-android-app/`) were removed in 2.9.0; they're in git history.
 
 ## 2. Build each app
 

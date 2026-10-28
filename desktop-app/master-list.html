@@ -249,16 +249,11 @@ try{
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
         <div id="psSourceLine" class="sub" style="margin:0;"></div>
-        <span id="psStartWrap" style="display:none;"><input type="date" id="psStartChassis"><input type="date" id="psStartFinals"><button id="psStartTodayBtn" type="button"></button></span>
         <label class="ps-detail" style="font-size:12.5px; white-space:nowrap;">Plan from:
           <select id="psModeSelect" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;">
             <option value="manual">Only jobs I place on the calendar</option>
             <option value="all">Whole Production schedule</option>
           </select></label>
-        <label class="ps-detail" style="display:none !important; font-size:12.5px; white-space:nowrap;" title="Pushes every stage still to build back by this many working days (weekends skipped). Hand-moved jobs and finished stages stay put. Cleared on the next import.">⏱ Running behind:
-          <input type="number" id="psBehindInput" min="0" max="30" step="1" style="width:56px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> working days</label>
-        <label class="ps-detail" style="display:none !important; font-size:12.5px; white-space:nowrap;" title="Per line per day: 100 points per unit (an L+F link = 200). 600 = 3 links a day.">Capacity:
-          <input type="number" id="psCapacityInput" min="100" max="5000" step="100" style="width:66px; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 5px;"> points/day</label>
       </div>
       <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
         <button class="btn primary" id="psImportBtn">📥 Import Production Schedule (.xlsx)</button>
@@ -2866,16 +2861,6 @@ function issuesLast12Months(sku){
   return ledger.filter(r=> !r.deleted && r.sku === sku && r.date && new Date(r.date) >= cutoff)
     .reduce((s,r)=> s + (Number(r.qty)||0), 0);
 }
-// Saving measured vs the MOST EXPENSIVE priced supplier, per the brief's own example.
-function savingInfoForSku(sku){
-  const sorted = sortedPricesForSku(sku);
-  if(sorted.length < 2) return null;
-  const cheapest = sorted[0];
-  const mostExpensive = sorted[sorted.length - 1];
-  const savingPerUnit = mostExpensive.price - cheapest.price;
-  const savingPct = mostExpensive.price > 0 ? (savingPerUnit / mostExpensive.price) * 100 : 0;
-  return { sorted, cheapest, mostExpensive, savingPerUnit, savingPct };
-}
 
 // A preferred-supplier row may have no price yet ("can supply, price not
 // known") — that still counts as a preferred-supplier item, so this looks
@@ -4847,7 +4832,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
   'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-from-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
-  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1', 'leader-master-ol-supplier-page-v1', 'leader-master-ol-pick-layout-v1',
+  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1', 'leader-master-ps-day-changes-v1', 'leader-master-ol-supplier-page-v1', 'leader-master-ol-pick-layout-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'
@@ -6625,97 +6610,175 @@ function psReadSheet(getCell, rowCount){
   return { units, jobs, flags };
 }
 
-/* ---------- effective dates, still-to-build ---------- */
-// "Running behind" — the queue for each line starts this many
-// working days (weekends skipped). Hand-moved jobs and finished stages stay
-// put. Cleared on the next import (Production's new schedule replaces it).
-const PS_BEHIND_KEY = 'leader-master-ps-behind-v1';
-let psBehind = 0;
-try{ psBehind = Math.max(0, parseInt(localStorage.getItem(PS_BEHIND_KEY), 10) || 0); }catch(e){ psBehind = 0; }
-function psSetBehind(n){
-  psBehind = Math.max(0, Math.min(30, parseInt(n, 10) || 0));
-  try{ localStorage.setItem(PS_BEHIND_KEY, String(psBehind)); }catch(e){}
+/* ---------- Working days: weekends, public holidays and day changes ----------
+   A day is worked when it's Mon–Fri and not a public holiday — unless Werner
+   marked it otherwise in 📆 Day changes (a working Saturday, a holiday worked,
+   a voting day off, a Friday off). Everything that counts working days uses
+   psIsWorkday: lead times, month end + 2, the calendar. */
+// South African public holidays (Sunday holidays already moved to the Monday)
+const PS_SA_HOLIDAYS = {
+  '2026-01-01': "New Year's Day", '2026-03-21': 'Human Rights Day', '2026-04-03': 'Good Friday', '2026-04-06': 'Family Day',
+  '2026-04-27': 'Freedom Day', '2026-05-01': "Workers' Day", '2026-06-16': 'Youth Day', '2026-08-10': "National Women's Day (Mon)",
+  '2026-09-24': 'Heritage Day', '2026-12-16': 'Day of Reconciliation', '2026-12-25': 'Christmas Day', '2026-12-26': 'Day of Goodwill',
+  '2027-01-01': "New Year's Day", '2027-03-22': 'Human Rights Day (Mon)', '2027-03-26': 'Good Friday', '2027-03-29': 'Family Day',
+  '2027-04-27': 'Freedom Day', '2027-05-01': "Workers' Day", '2027-06-16': 'Youth Day', '2027-08-09': "National Women's Day",
+  '2027-09-24': 'Heritage Day', '2027-12-16': 'Day of Reconciliation', '2027-12-25': 'Christmas Day', '2027-12-27': 'Day of Goodwill (Mon)'
+};
+// { off: { ymd: note }, work: { ymd: note }, moves: [{ id, kind, day, to, at, list }] }
+const PS_DAYS_KEY = 'leader-master-ps-day-changes-v1';
+let psDays = { off: {}, work: {}, moves: [] };
+try{ psDays = Object.assign({ off: {}, work: {}, moves: [] }, JSON.parse(localStorage.getItem(PS_DAYS_KEY)) || {}); }catch(e){}
+function psDaysSave(){ try{ localStorage.setItem(PS_DAYS_KEY, JSON.stringify(psDays)); }catch(e){ alert('Could not save the day changes: ' + e.message); } }
+function psDow(ymd){ return new Date(ymd + 'T00:00:00').getDay(); }
+function psIsWorkday(ymd){
+  if(psDays.work[ymd] !== undefined) return true;
+  if(psDays.off[ymd] !== undefined) return false;
+  if(PS_SA_HOLIDAYS[ymd]) return false;
+  const w = psDow(ymd);
+  return w !== 0 && w !== 6;
 }
+// What the calendar shows on a day that isn't a normal weekday
+function psDayNote(ymd){
+  const hol = PS_SA_HOLIDAYS[ymd], w = psDow(ymd);
+  if(psDays.work[ymd] !== undefined) return { work: true, text: hol ? `${hol} — worked` : (w === 0 || w === 6 ? 'Working ' + (w === 6 ? 'Saturday' : 'Sunday') : 'Working') + (psDays.work[ymd] ? ' · ' + psDays.work[ymd] : '') };
+  if(psDays.off[ymd] !== undefined) return { work: false, text: 'Off' + (psDays.off[ymd] ? ' · ' + psDays.off[ymd] : '') };
+  if(hol) return { work: false, text: 'Public holiday · ' + hol };
+  return null;
+}
+function psShiftDay(ymd, n){ const d = new Date(ymd + 'T00:00:00'); d.setDate(d.getDate() + n); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
 function psAddWorkingDays(ymd, n){
-  const d = new Date(ymd + 'T00:00:00');
-  let left = n;
-  while(left > 0){ d.setDate(d.getDate() + 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
-  return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
+  let d = ymd, left = n;
+  while(left > 0){ d = psShiftDay(d, 1); if(psIsWorkday(d)) left--; }
+  return d;
 }
-// Daily capacity per line (Chassis, Finals): 100 points per unit, so an
-// L+F link = 200 and 600 = 3 links a day.
-const PS_CAPACITY_KEY = 'leader-master-ps-capacity-v1';
-let psCapacity = 600;
-try{ psCapacity = Math.max(100, parseInt(localStorage.getItem(PS_CAPACITY_KEY), 10) || 600); }catch(e){ psCapacity = 600; }
-function psSetCapacity(n){
-  psCapacity = Math.max(100, Math.min(5000, parseInt(n, 10) || 600));
-  try{ localStorage.setItem(PS_CAPACITY_KEY, String(psCapacity)); }catch(e){}
+function psMinusWorkingDays(ymd, n){
+  let d = ymd, left = n;
+  while(left > 0){ d = psShiftDay(d, -1); if(psIsWorkday(d)) left--; }
+  return d;
 }
-function psJobPoints(job, stage){ return Math.max(1, job.units[stage].length) * 100; }
-function psNextWorkday(ymd){ const d = new Date(ymd + 'T00:00:00'); while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
-function psWorkingDaysBetween(a, b){ // a -> b, working days (0 if b <= a)
-  if(!a || !b || b <= a) return 0;
-  let n = 0, d = a; while(d < b && n < 400){ d = psAddWorkingDays(d, 1); n++; }
-  return n;
-}
-// The queue: each line works its planned jobs in Production's order, filling
-// each working day up to the capacity. The queue starts N working days
-// ("running behind") after Production's first open date; a job never goes
-// earlier than Production's own date; hand-moved jobs stay put but use up
-// their day's capacity; Finals keeps its gap after its Chassis.
-// "Next work starts" per line: the day the next job still to build will be
-// worked on. Default: the next working day. Every job still to build queues
-// from that day — nothing still to build is ever dated in the past.
-const PS_START_KEY = 'leader-master-ps-start-v1';
-let psStartSet = {};
-try{ psStartSet = JSON.parse(localStorage.getItem(PS_START_KEY)) || {}; }catch(e){ psStartSet = {}; }
-function psStart(stage){
-  const today = psToday();
-  const v = psStartSet[stage];
-  if(/^\d{4}-\d{2}-\d{2}$/.test(v || '') && v >= today) return psNextWorkday(v);
-  return psAddWorkingDays(today, 1);
-}
-function psSetStart(stage, v){
-  if(v) psStartSet[stage] = v; else delete psStartSet[stage];
-  try{ localStorage.setItem(PS_START_KEY, JSON.stringify(psStartSet)); }catch(e){}
-}
-let psSeqCache = null;
-function psComputeSeq(){
-  const out = {};
+// Job stages on a day that a day change can move (still to build, kit not out)
+function psStagesOn(day){
+  const out = [];
   if(!psSchedule) return out;
-  const jobs = Object.values(psSchedule.jobs);
-  PS_STAGES.forEach(stage=>{
-    const used = {}, items = [];
-    jobs.forEach(j=>{
-      if(!j[stage + 'Date'] || !psIsPlanned(j, stage)) return;
-      const pts = psJobPoints(j, stage);
-      const ko = psIsKitOut(j, stage) ? psKitOut[j.key + '|' + stage] : null;
-      if(ko){ out[j.key + '|' + stage] = ko.date; used[ko.date] = (used[ko.date] || 0) + pts; return; }
-      const t = psTweaks[j.key] && psTweaks[j.key][stage];
-      if(t){ out[j.key + '|' + stage] = t; used[t] = (used[t] || 0) + pts; return; }
-      items.push({ j, pts, prod: j[stage + 'Date'], row: Math.min(...j.units[stage].map(u=> u.row || 1e9)) });
-    });
-    if(!items.length) return;
-    items.sort((a,b)=> a.prod.localeCompare(b.prod) || a.row - b.row || (+a.j.nr - +b.j.nr));
-    const start = psStart(stage);
-    let cursor = psNextWorkday(psAddWorkingDays(items[0].prod, psBehind));
-    if(cursor < start) cursor = start;
-    items.forEach(it=>{
-      let lower = psNextWorkday(it.prod);
-      if(lower < start) lower = start;
-      if(stage === 'finals' && it.j.chassisDate){
-        const c = out[it.j.key + '|chassis'];
-        if(c){ const after = psAddWorkingDays(c, psWorkingDaysBetween(it.j.chassisDate, it.prod)); if(after > lower) lower = after; }
-      }
-      let day = cursor > lower ? cursor : lower;
-      while((used[day] || 0) > 0 && (used[day] || 0) + it.pts > psCapacity) day = psAddWorkingDays(day, 1);
-      used[day] = (used[day] || 0) + it.pts;
-      out[it.j.key + '|' + stage] = day;
-      cursor = day;
-    });
-  });
+  Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{
+    if(psDate(j, st) === day && psStillToBuild(j, st) && !psIsKitOut(j, st) && !psIsHeld(j)) out.push({ key: j.key, stage: st });
+  }));
   return out;
 }
+// A. Swap a lost day with a worked one: the jobs in between move one working
+// day towards the worked day. Worked Sat 31 Oct, off Wed 4 Nov → Mon→Sat,
+// Tue→Mon, Wed→Tue. Friday off, the following Saturday worked → Fri→Sat.
+function psShiftPlan(offDay, workDay){
+  const lo = offDay < workDay ? offDay : workDay, hi = offDay < workDay ? workDay : offDay;
+  const seq = [];
+  for(let d = lo; d <= hi; d = psShiftDay(d, 1)) if(d === offDay || d === workDay || psIsWorkday(d)) seq.push(d);
+  const map = [];
+  if(workDay < offDay) for(let i = 1; i < seq.length; i++) map.push({ from: seq[i], to: seq[i-1] });
+  else for(let i = 0; i < seq.length - 1; i++) map.push({ from: seq[i], to: seq[i+1] });
+  return map;
+}
+function psRunShift(offDay, workDay){
+  const map = psShiftPlan(offDay, workDay);
+  const list = [];
+  map.forEach(m=> psStagesOn(m.from).forEach(s=> list.push({ key: s.key, stage: s.stage, from: m.from, to: m.to, prevTweak: (psTweaks[s.key] || {})[s.stage] || null })));
+  list.forEach(x=> psSetTweak(x.key, x.stage, x.to));
+  psDays.moves.unshift({ id: 'dm' + Date.now(), kind: 'shift', day: offDay, to: workDay, at: new Date().toISOString(), list });
+  psDaysSave(); psSave();
+  return list.length;
+}
+// B. Shorter week — the lost day's jobs come off the calendar (back to the
+// pool) to be placed on a catch-up day by hand.
+function psRunCatchUp(offDay){
+  const list = psStagesOn(offDay).filter(s=> psIsPlaced(psSchedule.jobs[s.key], s.stage));
+  list.forEach(s=> psSetPlaced(s.key, s.stage, false));
+  psDays.moves.unshift({ id: 'dm' + Date.now(), kind: 'later', day: offDay, at: new Date().toISOString(), list });
+  psDaysSave(); psSavePlaced();
+  return list.length;
+}
+function psUndoMove(id){
+  const m = psDays.moves.find(x=> x.id === id);
+  if(!m) return;
+  m.list.forEach(x=>{
+    const job = psSchedule && psSchedule.jobs[x.key];
+    if(!job) return;
+    if(m.kind === 'shift'){ if(psDate(job, x.stage) === x.to) psSetTweak(x.key, x.stage, x.prevTweak || job[x.stage + 'Date']); }
+    else psSetPlaced(x.key, x.stage, true);
+  });
+  psDays.moves = psDays.moves.filter(x=> x.id !== id);
+  psDaysSave(); psSave(); psSavePlaced();
+}
+// Set (or clear, when it's Production's own date) a job stage's day
+function psSetTweak(key, stage, date){
+  const job = psSchedule && psSchedule.jobs[key];
+  if(!job) return;
+  if(!date || job[stage + 'Date'] === date){ if(psTweaks[key]){ delete psTweaks[key][stage]; if(!Object.keys(psTweaks[key]).length) delete psTweaks[key]; } }
+  else psTweaks[key] = Object.assign({}, psTweaks[key], { [stage]: date });
+}
+
+// 📆 Day changes box (top of the Calendar tab) — stays open once opened
+let psDaysBoxOpen = false;
+function psDaysBoxHtml(){
+  const today = psToday(), until = psShiftDay(today, 120);
+  const inp = 'background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;';
+  const days = new Set([...Object.keys(psDays.off), ...Object.keys(psDays.work), ...Object.keys(PS_SA_HOLIDAYS).filter(d=> psDow(d) !== 0 && psDow(d) !== 6)]);
+  const rows = [...days].filter(d=> d >= psShiftDay(today, -7) && d <= until).sort().map(d=>{
+    const n = psDayNote(d), hol = PS_SA_HOLIDAYS[d], custom = psDays.off[d] !== undefined || psDays.work[d] !== undefined;
+    const jobs = n && !n.work ? psStagesOn(d).length : 0;
+    const works = Object.keys(psDays.work).sort();
+    const near = works.filter(w=> Math.abs(new Date(w) - new Date(d)) <= 14 * 864e5).sort((a,b)=> Math.abs(new Date(a) - new Date(d)) - Math.abs(new Date(b) - new Date(d)))[0] || '';
+    return `<tr style="border-bottom:1px solid var(--panel-line);">
+      <td style="padding:4px 6px; white-space:nowrap;"><b>${psFmtDay(d)}</b></td>
+      <td style="color:${n && n.work ? 'var(--success)' : 'var(--danger)'};">${psEsc(n ? n.text : '')}</td>
+      <td style="white-space:nowrap;">${hol ? `<a href="#" data-ps-hol-work="${d}">${psDays.work[d] !== undefined ? 'Not worked' : 'Mark worked'}</a>` : ''}${custom && !hol ? `<a href="#" data-ps-day-del="${d}" title="Remove this day change">✕ remove</a>` : ''}</td>
+      <td>${jobs ? `<span style="color:var(--danger); font-weight:700;">${jobs} job stage(s) on it</span>
+        → <input type="date" data-ps-shift-to="${d}" value="${near}" style="${inp}"> <button class="btn" data-ps-shift="${d}" style="padding:2px 8px; font-size:12px;" title="Jobs in between move one working day towards that day">A. Shift to this working day</button>
+        ${psMode === 'manual' ? `<button class="btn" data-ps-catchup="${d}" style="padding:2px 8px; font-size:12px;" title="Take them off the calendar — place them on a catch-up day">B. Catch up later</button>` : ''}` : ''}</td></tr>`;
+  }).join('');
+  const moves = psDays.moves.slice(0, 6).map(m=> `<div style="font-size:12px; padding:2px 0;">${new Date(m.at).toLocaleDateString('en-ZA', { day:'2-digit', month:'short' })} · ${m.kind === 'shift' ? `Shifted to ${psFmtDay(m.to)} for ${psFmtDay(m.day)} off` : `${psFmtDay(m.day)} off — taken off the calendar to catch up`} · ${m.list.length} job stage(s) <a href="#" data-ps-undo-move="${m.id}">undo</a></div>`).join('');
+  return `<details id="psDaysBox" ${psDaysBoxOpen || rows.includes('job stage(s) on it') ? 'open' : ''} style="border:1px solid var(--steel); border-radius:8px; padding:8px; margin-bottom:12px;">
+    <summary style="cursor:pointer; font-weight:700;">📆 Day changes — working Saturdays, days off, public holidays</summary>
+    <div class="sub" style="margin:6px 0;">Public holidays are off unless marked worked. Add a working Saturday or a day off below. A day off with jobs on it: <b>A</b> moves the jobs in between one working day towards the day you work instead (e.g. work Sat, off Wed → Mon→Sat, Tue→Mon, Wed→Tue), <b>B</b> takes them off the calendar to place on a catch-up day. Nothing moves until you click.</div>
+    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+      <input type="date" id="psDayDate" style="${inp}">
+      <select id="psDayKind" style="${inp}"><option value="work">Working day (e.g. Saturday)</option><option value="off">Day off</option></select>
+      <input id="psDayNote" placeholder="Note, e.g. Voting day" style="${inp} width:180px;">
+      <button class="btn primary" id="psDayAdd" style="padding:3px 10px;">Add</button>
+    </div>
+    ${rows ? `<table style="width:100%; border-collapse:collapse; font-size:12.5px;"><tbody>${rows}</tbody></table>` : '<div class="sub" style="margin:0;">No day changes or holidays in the next 4 months.</div>'}
+    ${moves ? `<div style="margin-top:6px;"><b style="font-size:12px;">Done:</b>${moves}</div>` : ''}
+  </details>`;
+}
+function psWireDaysBox(body){
+  const box = body.querySelector('#psDaysBox');
+  if(!box) return;
+  box.addEventListener('toggle', ()=>{ psDaysBoxOpen = box.open; });
+  const add = body.querySelector('#psDayAdd');
+  add.onclick = ()=>{
+    const d = body.querySelector('#psDayDate').value, kind = body.querySelector('#psDayKind').value, note = body.querySelector('#psDayNote').value.trim();
+    if(!d){ alert('Pick a date first.'); return; }
+    delete psDays.off[d]; delete psDays.work[d];
+    psDays[kind][d] = note;
+    psDaysSave(); renderKitScheduler();
+  };
+  body.querySelectorAll('[data-ps-day-del]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); delete psDays.off[a.dataset.psDayDel]; delete psDays.work[a.dataset.psDayDel]; psDaysSave(); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-hol-work]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); const d = a.dataset.psHolWork; if(psDays.work[d] !== undefined) delete psDays.work[d]; else psDays.work[d] = ''; psDaysSave(); renderKitScheduler(); });
+  body.querySelectorAll('[data-ps-shift]').forEach(b=> b.onclick = ()=>{
+    const off = b.dataset.psShift, to = (body.querySelector(`[data-ps-shift-to="${off}"]`) || {}).value;
+    if(!to || to === off){ alert('Pick the day you work instead (e.g. the working Saturday).'); return; }
+    if(!psIsWorkday(to)){ alert(`${psFmtDay(to)} isn't a working day yet — add it as a working day first.`); return; }
+    const map = psShiftPlan(off, to).filter(m=> psStagesOn(m.from).length);
+    if(!confirm(`Move jobs one working day towards ${psFmtDay(to)}:\n\n${map.map(m=> `${psFmtDay(m.from)} → ${psFmtDay(m.to)}  (${psStagesOn(m.from).length} job stage(s))`).join('\n')}\n\nShows as hand moves (✎). Undo any time.`)) return;
+    psRunShift(off, to); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-catchup]').forEach(b=> b.onclick = ()=>{
+    const off = b.dataset.psCatchup;
+    if(!confirm(`Take the jobs on ${psFmtDay(off)} off the calendar?\n\nThey go back to the job pool — click one, then its catch-up day. Undo any time.`)) return;
+    psRunCatchUp(off); renderKitScheduler();
+  });
+  body.querySelectorAll('[data-ps-undo-move]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); psUndoMove(a.dataset.psUndoMove); renderKitScheduler(); });
+}
+
+/* ---------- effective dates, still-to-build ---------- */
 function psDate(job, stage){
   const t = psTweaks[job.key];
   if(t && t[stage]) return t[stage];
@@ -6813,13 +6876,12 @@ function psImportWorkbook(arrayBuffer, fileName){
   const dates = res.units.map(u=> u.date).filter(Boolean).sort();
   const warn = res.flags.filter(f=> f.level === 'warn').length;
   const msg = `${fileName}\n\n${jobCount} jobs (${res.units.length} unit rows), ${dates[0]} to ${dates[dates.length-1]}.\n${warn} thing(s) flagged to check.\n\n` +
-    (psSchedule ? `This replaces the schedule imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} (${psSchedule.fileName}).\nManual calendar moves${psBehind ? ` and "running behind ${psBehind} day(s)"` : ''} are cleared. Your "still to build" ticks are kept.\n\nImport it?` : 'Import it?');
+    (psSchedule ? `This replaces the schedule imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} (${psSchedule.fileName}).\nManual calendar moves are cleared. Your "still to build" ticks are kept.\n\nImport it?` : 'Import it?');
   if(!confirm(msg)) return;
   const moved = psCompare(psSchedule ? psSchedule.jobs : null, res.jobs);
   if(psSchedule){ try{ localStorage.setItem(PS_PREV_SCHEDULE_KEY, JSON.stringify(psSchedule)); }catch(e){} }
   psSchedule = { importedAt: new Date().toISOString(), fileName, sheet: sheetName, jobs: res.jobs, units: res.units, flags: res.flags, moved, firstDate: dates[0], lastDate: dates[dates.length-1] };
   psTweaks = {};
-  psSetBehind(0);
   psSave();
   psTab = (moved.firstImport || !psShowDetails) ? 'buy' : 'moved';
   renderKitScheduler();
@@ -6846,7 +6908,6 @@ function psPctTxt(arr){
 }
 
 function renderKitScheduler(){
-  psSeqCache = null;
   const src = document.getElementById('psSourceLine');
   src.innerHTML = psSchedule
     ? `Schedule: <b>${psEsc(psSchedule.fileName)}</b> · imported ${new Date(psSchedule.importedAt).toLocaleString('en-ZA')} · ${Object.keys(psSchedule.jobs).length} jobs · ${psFmtDay(psSchedule.firstDate)} – ${psFmtDay(psSchedule.lastDate)}`
@@ -6856,12 +6917,6 @@ function renderKitScheduler(){
     let placed = 0; Object.values(psSchedule.jobs).forEach(j=> PS_STAGES.forEach(st=>{ if(psIsPlanned(j, st)) placed++; }));
     src.innerHTML += ` · <b style="color:var(--steel);">📅 ${placed} job stage(s) on your calendar</b>`;
   }
-  ['chassis','finals'].forEach(st=>{ const el = document.getElementById(st === 'chassis' ? 'psStartChassis' : 'psStartFinals'); if(!el) return; if(document.activeElement !== el) el.value = psStart(st);
-    const byHand = !!psStartSet[st] && psStartSet[st] >= psToday(); el.style.borderColor = byHand ? 'var(--gold)' : 'var(--panel-line)'; el.title = byHand ? 'Set by hand — ↺ Today to follow the calendar again' : 'Next working day (follows the calendar)'; });
-  const tb = document.getElementById('psStartTodayBtn'); if(tb) tb.style.display = (psStartSet.chassis || psStartSet.finals) ? '' : 'none';
-  const ci = document.getElementById('psCapacityInput'); if(ci && document.activeElement !== ci) ci.value = psCapacity;
-  const bi = document.getElementById('psBehindInput');
-  if(bi && document.activeElement !== bi) bi.value = psBehind;
 
   const mv = psSchedule && psSchedule.moved;
   const movedN = mv && !mv.firstImport ? mv.added.length + mv.removed.length + mv.earlier.length + mv.later.length : 0;
@@ -6894,11 +6949,6 @@ document.getElementById('psDetailsBtn').onclick = ()=>{
   renderKitScheduler();
 };
 document.getElementById('psModeSelect').addEventListener('change', function(){ psMode = this.value === 'all' ? 'all' : 'manual'; psSavePlaced(); renderKitScheduler(); });
-document.getElementById('psStartTodayBtn').onclick = ()=>{ psSetStart('chassis', ''); psSetStart('finals', ''); renderKitScheduler(); };
-document.getElementById('psStartChassis').addEventListener('change', function(){ psSetStart('chassis', this.value); renderKitScheduler(); });
-document.getElementById('psStartFinals').addEventListener('change', function(){ psSetStart('finals', this.value); renderKitScheduler(); });
-document.getElementById('psCapacityInput').addEventListener('change', function(){ psSetCapacity(this.value); renderKitScheduler(); });
-document.getElementById('psBehindInput').addEventListener('change', function(){ psSetBehind(this.value); renderKitScheduler(); });
 
 let psFilter = '';
 function psRenderSchedule(body){
@@ -6960,7 +7010,7 @@ function psRenderCalendar(body){
       ${!opts.pool && j[stage+'Date'] && psDate(j, stage) !== j[stage+'Date'] ? `<div style="font-size:10px; color:var(--danger); margin-top:1px;">⇢ moved from ${psFmtDay(j[stage+'Date'])}${tw ? ' (by hand)' : ''}</div>` : ''}
     </div>`;
   };
-  let html = '';
+  let html = psDaysBoxHtml();
   const overdue = [];
   jobs.forEach(j=> PS_STAGES.forEach(st=>{ if(!psIsHeld(j) && psIsOverdue(j, st)) overdue.push({ j, st }); }));
   if(overdue.length){
@@ -7004,12 +7054,12 @@ function psRenderCalendar(body){
   }
   if(!allDates.length){
     body.innerHTML = html + `<div class="sub" style="padding:14px;">No dated jobs.</div>`;
-    psWireCalendar(body); return;
+    psWireCalendar(body); psWireDaysBox(body); return;
   }
   allDates.sort();
   const start = new Date(monday(allDates[0] < psToday() ? psToday() : allDates[0]) + 'T00:00:00');
   const end = new Date(allDates[allDates.length-1] + 'T00:00:00');
-  const weekend = new Set(allDates.filter(d=> { const w = new Date(d + 'T00:00:00').getDay(); return w === 0 || w === 6; }));
+  const weekend = new Set(allDates.filter(d=> { const w = psDow(d); return w === 0 || w === 6; }));
   {
     const moves = {};
     jobs.forEach(j=> PS_STAGES.forEach(st=>{
@@ -7023,7 +7073,7 @@ function psRenderCalendar(body){
   html += `<div class="sub" style="margin-bottom:8px;">${manual ? 'Your calendar — only these jobs are planned and ordered for.' : 'Whole schedule.'} Jobs stay where you put them — the app never moves one. Click a job, then click another day (or drag it) to move it (✎); ↺ puts it back on Production's date. Moves last until the next import.</div>`;
   for(const wk = new Date(start); wk <= end; wk.setDate(wk.getDate() + 7)){
     const days = [];
-    for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s)) days.push(s); }
+    for(let i = 0; i < 7; i++){ const d = new Date(wk); d.setDate(d.getDate() + i); const s = ymdLocal(d); if(i < 5 || weekend.has(s) || psIsWorkday(s)) days.push(s); }
     html += `<div style="margin-bottom:14px; border:1px solid var(--panel-line); border-radius:8px; padding:8px;">
       <div style="font-weight:700; margin-bottom:6px;">Week of ${psFmtDay(days[0])}</div>`;
     PS_STAGES.forEach(stage=>{
@@ -7034,8 +7084,10 @@ function psRenderCalendar(body){
           const here = jobs.filter(j=> onCal(j, stage) && psDate(j, stage) === d).sort((a,b)=> +a.nr - +b.nr);
           // Jobs Production had on this day that now land on another day
           const left = [];
-          return `<div data-ps-drop="${stage}" data-ps-date="${d}" style="flex:1; min-width:110px; min-height:44px; border:1px dashed var(--panel-line); border-radius:6px; padding:4px; background:var(--void);">
+          const note = psDayNote(d), off = !psIsWorkday(d);
+          return `<div ${off ? '' : `data-ps-drop="${stage}" data-ps-date="${d}"`} title="${off ? 'Not a working day — add it as a working day in 📆 Day changes to use it' : ''}" style="flex:1; min-width:110px; min-height:44px; border:1px ${off ? 'solid var(--danger)' : 'dashed var(--panel-line)'}; border-radius:6px; padding:4px; background:${off ? 'rgba(201,86,75,0.10)' : note ? 'rgba(46,125,50,0.08)' : 'var(--void)'};">
             <div style="font-size:10px; color:${color}; font-weight:700; display:flex; justify-content:space-between;"><span>${psFmtDay(d)}</span>${here.length ? `<span style="color:var(--text-faint);">${here.length} job${here.length === 1 ? '' : 's'}</span>` : ''}</div>
+            ${note ? `<div style="font-size:10px; font-weight:700; color:${note.work ? 'var(--success)' : 'var(--danger)'};">${psEsc(note.text)}</div>` : ''}
             ${here.map(j=> chip(j, stage, {})).join('')}
             ${left.map(j=> `<div title="Production had this here" style="font-size:10.5px; margin-top:3px; padding:2px 5px; border-radius:4px; border:1px dashed var(--text-faint); color:var(--text-faint);"><s>${psEsc(j.nr)} ${psEsc(j.customer)}</s> → ${psFmtDay(psDate(j, stage))}</div>`).join('')}
           </div>`;
@@ -7046,6 +7098,7 @@ function psRenderCalendar(body){
   }
   body.innerHTML = html;
   psWireCalendar(body);
+  psWireDaysBox(body);
 }
 // Click-to-move: click a job (pool or calendar), then click a day on the
 // same stage row. Click the job again to cancel.
@@ -7107,13 +7160,7 @@ function psWireCalendar(body){
   });
 }
 function psMoveJob(key, stage, date){
-  const job = psSchedule && psSchedule.jobs[key];
-  if(!job) return;
-  if(job[stage + 'Date'] === date){
-    if(psTweaks[key]){ delete psTweaks[key][stage]; if(!Object.keys(psTweaks[key]).length) delete psTweaks[key]; }
-  } else {
-    psTweaks[key] = Object.assign({}, psTweaks[key], { [stage]: date });
-  }
+  psSetTweak(key, stage, date);
   psSave(); renderKitScheduler();
 }
 
@@ -7600,7 +7647,6 @@ function psCylSupplierFor(group, hist){
 function psOnHand(sku){ const it = psStockItem(sku); return it ? Math.max(0, Number(it.qty) || 0) : 0; }
 
 function psPlan(){
-  psSeqCache = null;
   const demand = [], undefinedGroups = {}, undated = [], past = [];
   const today = psToday();
   if(!psSchedule) return { demand, items: {}, undefinedGroups, undated, past, cylGroups: {}, reserved: {}, held: [] };
@@ -7761,12 +7807,6 @@ function psLeadSave(){ try{ localStorage.setItem(PS_LEAD_KEY, JSON.stringify(psL
 psLeadLoad();
 function psLeadDays(sku){ const v = psLead[sku]; return (v === undefined || v === null || v === '') ? PS_DEFAULT_LEAD_DAYS : Number(v); }
 function psToday(){ const d = new Date(); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
-function psMinusWorkingDays(ymd, n){
-  const d = new Date(ymd + 'T00:00:00');
-  let left = n;
-  while(left > 0){ d.setDate(d.getDate() - 1); const w = d.getDay(); if(w !== 0 && w !== 6) left--; }
-  return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate());
-}
 function psSupplierOf(sku){
   const it = psStockItem(sku);
   if(it && it.supplier) return it.supplier;
@@ -7846,12 +7886,6 @@ function psSetFrom(v){ psFromSet = v || ''; try{ if(psFromSet) localStorage.setI
 function psSetCutoff(v){ psCutoffSet = v || ''; try{ if(psCutoffSet) localStorage.setItem(PS_CUTOFF_KEY, psCutoffSet); else localStorage.removeItem(PS_CUTOFF_KEY); }catch(e){} }
 function psRangeText(){ const f = psFrom(), t = psCutoff(); return f > psToday() ? `${psFmtDay(f)} – ${psFmtDay(t)}` : `until ${psFmtDay(t)}`; }
 function psCutoff(){ return /^\d{4}-\d{2}-\d{2}$/.test(psCutoffSet) ? psCutoffSet : psCutoffAuto(); }
-function psStatusHtml(r){
-  if(r.status === 'Covered') return '<span style="color:var(--success); font-weight:700;">Covered</span>';
-  if(r.status === 'Late') return '<span style="background:var(--danger); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700;">Late</span>';
-  if(r.status === 'ORDER TODAY') return '<span style="background:var(--gold); color:#fff; padding:2px 6px; border-radius:4px; font-weight:700;">ORDER TODAY</span>';
-  return `<span style="color:var(--steel); font-weight:700;">Order by ${psFmtDay(r.orderBy)}</span>`;
-}
 
 window.psRenderOrders = function(body){
   const { rows, plan, cutoff, now, later } = psOrderList();
@@ -8011,11 +8045,6 @@ function psCoverText(r){
 function psCoverHtml(r){
   const c = psCoverDays(r);
   return psEsc(c.cur.join(' · ')) + (c.next.length ? (c.cur.length ? ' · ' : '') + `<b style="color:var(--steel);">New month: ${psEsc(c.next.join(', '))}</b>` : '');
-}
-function psWhenHtml(r){
-  if(r.status === 'Late') return '<b style="color:var(--danger);">LATE — order now</b>';
-  if(r.status === 'ORDER TODAY') return '<b style="color:var(--gold);">Today</b>';
-  return psFmtDay(r.orderBy);
 }
 // Suppliers left off the printout (e.g. Swagefast — ordered once a month).
 // They still show on screen. Remembered on this laptop.
@@ -8927,7 +8956,6 @@ const PS_KIT_PROBLEMS = ['Tarps arrived late', 'Supplier late with delivery', 'S
 let psKitOut = {};
 try{ psKitOut = JSON.parse(localStorage.getItem(PS_KITOUT_KEY)) || {}; }catch(e){ psKitOut = {}; }
 function psKitOutSave(){ try{ localStorage.setItem(PS_KITOUT_KEY, JSON.stringify(psKitOut)); }catch(e){} }
-function psKitOutRec(job, stage){ return psKitOut[job.key + '|' + stage] || null; }
 function psLinePending(l){ return Math.max(0, (Number(l.planned) || 0) - (Number(l.issued) || 0)); }
 
 // The kit lines for one job stage, with cylinders resolved to the customer's supplier

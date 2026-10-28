@@ -16,17 +16,11 @@ cd desktop-app
 npm run dev
 ```
 
-**Stores Terminal (desktop copy):**
-```
-cd desktop-terminal-app
-npm run dev
-```
-
 A window opens exactly like the real app, except its DevTools panel (the same console used to catch the `window.prompt()` bug) opens automatically alongside it. Leave this window and the PowerShell window it's running in both open while you work.
 
 ### How to use it
 
-Open `desktop-app\master-list.html` (or `desktop-terminal-app\stores-terminal.html`) in a plain text editor — Notepad works, VS Code is nicer if you have it. Make a small change (a label, some display text), save the file, and switch back to the dev window. It reloads itself within a second or two, showing your change.
+Open `desktop-app\master-list.html` (or `desktop-app\stores-terminal.html`) in a plain text editor — Notepad works, VS Code is nicer if you have it. Make a small change (a label, some display text), save the file, and switch back to the dev window. It reloads itself within a second or two, showing your change.
 
 ### ⚠️ Real limitation #1 — this is your REAL data, not a test copy
 
@@ -104,7 +98,3 @@ Same as Electron's dev mode: the Supabase connection is baked into the HTML rega
 ### ⚠️ Before you build a real `.apk` again
 
 **You must put `capacitor.config.json` back to its normal, non-dev form** (no `server` key at all) before running a real "Build APK(s)." If you forget, the shipped app will try to load from your laptop's dev server forever — and break the moment you close that server or leave the WiFi network. The Rebuild Checklist (`docs/REBUILD-CHECKLIST.md`) has a step that checks for exactly this.
-
-### Same setup for Master List's tablet app
-
-Identical process inside `master-list-android-app`, using its own `capacitor.config.dev-example.json` and a different port (`8101`, so you can run both dev servers at once if you ever need to).

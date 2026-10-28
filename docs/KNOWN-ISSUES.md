@@ -175,3 +175,22 @@ paginateItems / printCountPages in the Input frame), so the sheets are exactly
 the tablet's: same items, order and 30 per page — page numbers still match
 "Enter Full Count Results". Needs the Leader app (Input + Admin together);
 master-list.html opened on its own says so instead of printing.
+
+## 16. Day changes — working Saturdays, days off, public holidays (2.9.0, 2026-10-28)
+
+Kit Scheduler → Calendar → 📆 Day changes. SA public holidays 2026–2027 are built
+in (off unless "Mark worked"); add a working day (e.g. Saturday) or a day off
+(e.g. voting day) by date. Off days show red on the calendar and take no drops;
+worked Saturdays get a column. A day off with jobs on it: **A. Shift to this
+working day** moves the jobs in between one working day towards the worked day
+(work Sat 31 Oct, off Wed 4 Nov → Mon→Sat, Tue→Mon, Wed→Tue) as hand moves;
+**B. Catch up later** takes them off the calendar into the job pool. Both have
+Undo. psIsWorkday drives every working-day count (lead times, month end + 2,
+picking ranges). Stored in leader-master-ps-day-changes-v1 (in the backup).
+A new schedule import clears hand moves as before; day changes stay.
+
+**Cleanup in 2.9.0:** removed the retired planner queue (capacity, running behind,
+next-work-starts, sequencer — hidden since 2.8.1), 6 unused functions, and the
+retired pre-merge apps desktop-terminal-app/ and master-list-android-app/ (in git
+history). BUILD-AND-INSTALL.md rewritten for the two current builds; old install
+notes moved to docs/archive/. No data keys changed.
