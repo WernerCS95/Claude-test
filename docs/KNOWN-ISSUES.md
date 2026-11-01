@@ -218,3 +218,14 @@ here to name the exact rejection.
   sent to the tablet).
 - Input now records the last send error (leader-stores-sync-last-error-v1).
 If the queue stays stuck, read the error on that screen — it names the part.
+
+**Cause found and FIXED in 2.9.3.** Both send loops (Input flushSyncOutbox,
+Admin flushMasterOutbox) kept their own copy of the queue while waiting for the
+server, then saved that copy back — wiping everything queued in the meantime.
+Anything saved in one go (a Full Count page, Stock Count → Save All, a multi-line
+slip while online) sent only its FIRST line; the queue then looked empty. Proven
+with a fake server: 5 queued → 1 arrived (before), 5 arrived (after). Now each
+round re-reads the queue and removes only the record actually sent.
+Recovery: 🔎 Check counts reached Admin → Bring all across (Admin + tablet).
+Older batches from the tablet may also have lost lines on the way to the laptop —
+compare tablet and laptop stock once both run 2.9.3.

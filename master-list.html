@@ -9477,16 +9477,20 @@ async function flushMasterOutbox(){
   if(!supabaseClient || masterFlushInFlight) return;
   masterFlushInFlight = true;
   try{
+    // Re-read the queue every round and remove only the record just sent —
+    // keeping a copy across the wait for the server and saving it back used
+    // to wipe everything queued meanwhile (a Save All only sent its first line).
+    const sent = id=> saveMasterOutbox(loadMasterOutbox().filter(t=> t.id !== id));
     let outbox = loadMasterOutbox();
     while(outbox.length){
       const txn = outbox[0];
       const { error } = await supabaseClient.from('stock_transactions').insert(txn);
       if(error){
-        if(error.code === '23505'){ outbox.shift(); saveMasterOutbox(outbox); continue; }
+        if(error.code === '23505'){ sent(txn.id); outbox = loadMasterOutbox(); continue; }
         break; // likely offline — stop, retry later
       }
-      outbox.shift();
-      saveMasterOutbox(outbox);
+      sent(txn.id);
+      outbox = loadMasterOutbox();
     }
   }catch(e){ console.error('Master sync push failed — will retry', e); }
   masterFlushInFlight = false;

@@ -10199,13 +10199,18 @@ async function flushSyncOutbox(){
   if(!supabaseClient || syncFlushInFlight) return;
   syncFlushInFlight = true;
   try{
+    // Re-read the queue every round and remove only the record just sent.
+    // (It used to keep its own copy across the wait for the server and save
+    // that back — wiping everything queued meanwhile, so a page of counts
+    // saved together only ever sent its first line.)
+    const sent = id=> saveSyncOutbox(loadSyncOutbox().filter(t=> t.id !== id));
     let outbox = loadSyncOutbox();
     while(outbox.length){
       const txn = outbox[0];
       const { error } = await supabaseClient.from('stock_transactions').insert(txn);
       if(error){
         // Row already exists (retried after a success we didn't hear back from) — treat as sent, move on.
-        if(error.code === '23505'){ outbox.shift(); saveSyncOutbox(outbox); continue; }
+        if(error.code === '23505'){ sent(txn.id); outbox = loadSyncOutbox(); continue; }
         // 23514 = a CHECK constraint rejected this row outright (e.g. a
         // transaction type the database schema doesn't know about yet) —
         // retrying won't ever succeed, and leaving it queued would silently
@@ -10214,13 +10219,14 @@ async function flushSyncOutbox(){
         // whole outbox stall on one permanently-broken row.
         if(error.code === '23514'){
           console.error('Sync push permanently rejected by the database (schema mismatch?) — dropping this transaction, not retrying:', txn, error);
-          outbox.shift(); saveSyncOutbox(outbox); continue;
+          noteSyncError(error, txn);
+          sent(txn.id); outbox = loadSyncOutbox(); continue;
         }
         noteSyncError(error, txn);
         break; // likely offline — stop and retry later, whatever's left stays queued
       }
-      outbox.shift();
-      saveSyncOutbox(outbox);
+      sent(txn.id);
+      outbox = loadSyncOutbox();
     }
     if(!outbox.length) noteSyncError(null);
   }catch(e){ console.error('Sync push failed — will retry', e); noteSyncError(e, null); }
