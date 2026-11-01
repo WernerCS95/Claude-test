@@ -203,3 +203,18 @@ Admin's stock and the tablet both update — needs internet, same as the tablet.
 They show as from the laptop Input's device name (set it under Input → ⚙ More →
 🏷 This Tablet Is, e.g. "Laptop"). app.html now also accepts "show section" from
 Input.
+
+## 17. Counts entered on the laptop not reaching Admin (2.9.2, 2026-11-01)
+
+Full count results entered via Admin → Enter Full Count Results (laptop Input
+side) partly didn't reach Admin: the first 23 arrived, the rest didn't. Input
+keeps unsent changes in a queue and stops at the first one the server rejects,
+retrying every 15 s — with no warning anywhere. Couldn't see the server from
+here to name the exact rejection.
+- Admin → 🖨 Reports ▾ → 🔎 Check counts reached Admin: waiting-to-send count,
+  the last send error (code, message, part), ↻ Try sending now, and every part
+  counted on the laptop Input since a date where Admin differs — ⇢ Use / Bring
+  all across (saved like a laptop correction: Spot Check Log, Override Log,
+  sent to the tablet).
+- Input now records the last send error (leader-stores-sync-last-error-v1).
+If the queue stays stuck, read the error on that screen — it names the part.

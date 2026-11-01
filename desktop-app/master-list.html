@@ -187,6 +187,7 @@ try{
           <button class="btn" id="printSpotCheckListBtn">🖨 Print Spot Check List</button>
           <button class="btn" id="printFullCountAdminBtn">🖨 Print Full Count Sheet</button>
           <button class="btn" id="enterFullCountAdminBtn">📝 Enter Full Count Results</button>
+          <button class="btn" id="checkCountsAdminBtn">🔎 Check counts reached Admin</button>
           <button class="btn" id="overrideLogBtn">📜 Override Log</button>
         </div>
       </div>
@@ -2387,6 +2388,95 @@ function fcInputWindow(){
     return w && typeof w.getFullCountItems === 'function' && typeof w.printCountPages === 'function' ? w : null;
   }catch(e){ return null; }
 }
+/* ---------- 🔎 Check counts reached Admin ----------
+   Counts entered on this laptop's Input side (Full Count, Spot Check) travel
+   to Admin through the internet sync. This compares Input's figures with
+   Admin's for every part counted since a date, shows what's still waiting
+   to send (and why), and brings a figure across in one click — saved like
+   a laptop correction, so it also goes to the tablet. */
+let ccSince = '';
+function ccInputData(inp, since){
+  const get = name=>{ try{ return inp.Function('return ' + name)(); }catch(e){ return null; } };
+  const counts = get('spotChecks') || [], qty = get('qtyOnHand') || {}, items = get('ITEMS') || [];
+  const latest = {};
+  counts.forEach(c=>{
+    if(!c || !c.sku || !c.date || c.date < since) return;
+    const k = (c.date || '') + ' ' + (c.time || '');
+    if(!latest[c.sku] || k >= latest[c.sku].k) latest[c.sku] = { k, c };
+  });
+  return Object.keys(latest).map(sku=>{
+    const it = items.find(i=> i.id === sku) || {};
+    const a = stock.find(s=> s.sku === sku);
+    const adminQty = a ? (a.gasTracking ? (a.fullQty||0)+(a.emptyQty||0)+(a.inUseQty||0) : (Number(a.qty)||0)) : null;
+    return { sku, name: (a && a.name) || it.name || latest[sku].c.name || sku, cat: it.cat || latest[sku].c.cat || 'Misc', counted: Number(latest[sku].c.countedQty), when: latest[sku].k,
+      inputQty: qty[sku] === undefined ? null : Number(qty[sku]), adminQty };
+  }).sort((x,y)=> x.name.localeCompare(y.name));
+}
+function ccApply(row){
+  let item = stock.find(s=> s.sku === row.sku);
+  if(!item){ item = { sku: row.sku, name: row.name, cat: row.cat || 'Misc', qty: 0, min: 0, price: 0 }; stock.push(item); }
+  const before = Number(item.qty) || 0, after = Number(row.inputQty), now = new Date();
+  item.qty = after;
+  spotLedger.push({ sku: item.sku, name: item.name, before, after, diff: after - before,
+    date: now.toISOString().slice(0,10), time: now.toLocaleTimeString('en-ZA', {hour:'2-digit', minute:'2-digit'}),
+    checker: 'Full count (from laptop Input)', _id: 'sc'+Date.now()+Math.random().toString(36).slice(2,7), at: now.toISOString() });
+  logOverride({ at: now.toISOString(), action: 'Count brought across from Input', where: 'Check counts reached Admin', sku: item.sku, item: item.name, field: 'qty', oldValue: before, newValue: after, stockChanged: true });
+  if(typeof queueMasterTransaction === 'function') queueMasterTransaction({ item_id: item.sku, type: 'spot_check', absolute_qty: after, created_at: now.toISOString(), meta: { item_name: item.name, item_cat: item.cat, date: now.toISOString().slice(0,10), checker: 'Full count (from laptop Input)' } });
+}
+function ccRender(){
+  const inp = fcInputWindow();
+  const ov = document.getElementById('ccModal');
+  if(!ov) return;
+  const box = ov.querySelector('#ccBody');
+  if(!inp){ box.innerHTML = '<div class="sub">Open this from the Leader app (Input and Admin together).</div>'; return; }
+  const q = typeof inp.syncQueueInfo === 'function' ? inp.syncQueueInfo() : null;
+  const rows = ccInputData(inp, ccSince);
+  const diff = rows.filter(r=> r.inputQty !== null && r.adminQty !== r.inputQty);
+  const same = rows.length - diff.length;
+  const inpStyle = 'background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:3px 6px;';
+  box.innerHTML = `
+    <div style="padding:8px 10px; border-radius:8px; margin-bottom:10px; border:1px solid ${q && q.waiting ? 'var(--danger)' : 'var(--success)'};">
+      ${!q ? 'Waiting-to-send info not available — update the app.' : q.waiting
+        ? `<b style="color:var(--danger);">${q.waiting} change(s) on this laptop's Input side still waiting to send.</b> ${!q.online ? 'The laptop is offline.' : !q.connected ? 'Sync never connected this session — restart the app.' : ''}
+           ${q.lastError ? `<div style="font-size:12px; margin-top:4px;">Last send problem (${new Date(q.lastError.at).toLocaleString('en-ZA')}): <b>${rqEsc(q.lastError.message)}</b>${q.lastError.code ? ' [' + rqEsc(q.lastError.code) + ']' : ''}${q.lastError.item ? ' — on ' + rqEsc(q.lastError.item) : ''}</div>` : ''}
+           <div style="margin-top:6px;"><button class="btn" id="ccRetry" style="padding:3px 10px;">↻ Try sending now</button></div>`
+        : '<b style="color:var(--success);">✓ Nothing waiting — everything entered on this laptop\'s Input side has been sent.</b>'}
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+      <label>Counts since <input type="date" id="ccSince" value="${ccSince}" style="${inpStyle}"></label>
+      <span class="sub" style="margin:0;">${rows.length} part(s) counted · <b style="color:var(--success);">${same} match Admin</b> · <b style="color:${diff.length ? 'var(--danger)' : 'var(--success)'};">${diff.length} different</b></span>
+      ${diff.length ? `<button class="btn primary" id="ccApplyAll" style="padding:4px 12px;">⇢ Bring all ${diff.length} across to Admin</button>` : ''}
+    </div>
+    ${diff.length ? `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; border-bottom:2px solid var(--panel-line); font-size:11.5px; color:var(--text-faint);"><th style="padding:4px 6px;">Part</th><th>SKU</th><th style="text-align:right;">Counted</th><th style="text-align:right;">Input now</th><th style="text-align:right;">Admin now</th><th></th></tr></thead>
+      <tbody>${diff.map((r,i)=> `<tr style="border-bottom:1px solid var(--panel-line);"><td style="padding:4px 6px;">${rqEsc(r.name)}<div style="font-size:10.5px; color:var(--text-faint);">counted ${rqEsc(r.when)}</div></td><td style="font-size:11.5px; color:var(--text-faint);">${rqEsc(r.sku)}</td>
+        <td style="text-align:right;">${r.counted}</td><td style="text-align:right; font-weight:700;">${r.inputQty}</td><td style="text-align:right; color:var(--danger);">${r.adminQty === null ? 'not in Admin' : r.adminQty}</td>
+        <td style="text-align:right;"><button class="btn" data-cc-apply="${i}" style="padding:2px 8px; font-size:12px;">⇢ Use ${r.inputQty}</button></td></tr>`).join('')}</tbody></table>`
+      : rows.length ? '<div style="color:var(--success); font-weight:700;">✓ Every part counted since then shows the same qty in Admin as on the Input side.</div>' : '<div class="sub">No counts on this laptop\'s Input side since that date.</div>'}
+    <div class="sub" style="margin-top:8px;">"Input now" is the laptop Input side's figure (your count, plus anything issued since). Bringing it across saves it in Admin like a laptop correction — logged in the Spot Check Log and Override Log, and sent to the tablet.</div>`;
+  const r = box.querySelector('#ccRetry'); if(r) r.onclick = async ()=>{ r.disabled = true; r.textContent = 'Sending…'; try{ await inp.flushSyncOutboxNow(); }catch(e){} setTimeout(()=>{ try{ pullMissedStockTransactions(); }catch(e){} ccRender(); }, 1500); };
+  box.querySelector('#ccSince').onchange = function(){ ccSince = this.value || ccSince; ccRender(); };
+  const all = box.querySelector('#ccApplyAll');
+  if(all) all.onclick = ()=>{
+    if(!confirm(`Bring ${diff.length} figure(s) from Input across to Admin?\n\nEach is saved as a laptop correction (Spot Check Log + Override Log) and goes to the tablet.`)) return;
+    diff.forEach(ccApply); saveState(); render(); renderSpotCheckLedger(); ccRender();
+  };
+  box.querySelectorAll('[data-cc-apply]').forEach(b=> b.onclick = ()=>{ ccApply(diff[+b.dataset.ccApply]); saveState(); render(); renderSpotCheckLedger(); ccRender(); });
+}
+document.getElementById('checkCountsAdminBtn').onclick = ()=>{
+  if(!ccSince){ const d = new Date(); d.setDate(d.getDate() - 7); ccSince = d.toISOString().slice(0,10); }
+  let ov = document.getElementById('ccModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'ccModal'; ov.className = 'modal-bg';
+  ov.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:300;';
+  ov.innerHTML = `<div style="background:var(--panel); border-radius:10px; padding:18px; max-width:980px; width:96%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><h3 style="margin:0;">🔎 Check counts reached Admin</h3><button class="btn" id="ccClose">Close</button></div>
+    <div id="ccBody"></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ccClose').onclick = ()=> ov.remove();
+  ccRender();
+};
+
 // Enter Full Count Results — opens Input's own entry screen (same pages as
 // the printed sheets, same save: counts sync to Admin and the tablet).
 document.getElementById('enterFullCountAdminBtn').onclick = ()=>{

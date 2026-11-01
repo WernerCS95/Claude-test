@@ -10181,6 +10181,20 @@ function queueTransaction(txn){
 }
 
 let syncFlushInFlight = false;
+// The last reason a send failed (or null) — shown on the laptop's
+// "Check counts reached Admin" screen, so a stuck queue is never silent.
+const SYNC_LAST_ERROR_KEY = 'leader-stores-sync-last-error-v1';
+function noteSyncError(err, txn){
+  try{
+    if(!err){ localStorage.removeItem(SYNC_LAST_ERROR_KEY); return; }
+    localStorage.setItem(SYNC_LAST_ERROR_KEY, JSON.stringify({ at: new Date().toISOString(), code: err.code || '', message: String(err.message || err), item: txn ? ((txn.meta && txn.meta.item_name) || txn.item_id) : '', type: txn ? txn.type : '' }));
+  }catch(e){}
+}
+window.syncQueueInfo = function(){
+  let last = null; try{ last = JSON.parse(localStorage.getItem(SYNC_LAST_ERROR_KEY)); }catch(e){}
+  return { waiting: loadSyncOutbox().length, online: navigator.onLine, connected: !!supabaseClient, lastError: last };
+};
+window.flushSyncOutboxNow = function(){ return flushSyncOutbox(); };
 async function flushSyncOutbox(){
   if(!supabaseClient || syncFlushInFlight) return;
   syncFlushInFlight = true;
@@ -10202,12 +10216,14 @@ async function flushSyncOutbox(){
           console.error('Sync push permanently rejected by the database (schema mismatch?) — dropping this transaction, not retrying:', txn, error);
           outbox.shift(); saveSyncOutbox(outbox); continue;
         }
+        noteSyncError(error, txn);
         break; // likely offline — stop and retry later, whatever's left stays queued
       }
       outbox.shift();
       saveSyncOutbox(outbox);
     }
-  }catch(e){ console.error('Sync push failed — will retry', e); }
+    if(!outbox.length) noteSyncError(null);
+  }catch(e){ console.error('Sync push failed — will retry', e); noteSyncError(e, null); }
   syncFlushInFlight = false;
 }
 
