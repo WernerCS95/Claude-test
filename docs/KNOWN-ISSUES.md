@@ -194,3 +194,12 @@ next-work-starts, sequencer — hidden since 2.8.1), 6 unused functions, and the
 retired pre-merge apps desktop-terminal-app/ and master-list-android-app/ (in git
 history). BUILD-AND-INSTALL.md rewritten for the two current builds; old install
 notes moved to docs/archive/. No data keys changed.
+
+**2.9.1 (2026-11-01) — Enter Full Count Results from Admin.** Admin → 🖨 Reports ▾ →
+📝 Enter Full Count Results opens Input's own entry screen (same pages as the
+printed sheets, same save). The back button reads "← Back to Admin" and returns
+there. Counts entered on the laptop sync like the tablet's (spot_check records):
+Admin's stock and the tablet both update — needs internet, same as the tablet.
+They show as from the laptop Input's device name (set it under Input → ⚙ More →
+🏷 This Tablet Is, e.g. "Laptop"). app.html now also accepts "show section" from
+Input.

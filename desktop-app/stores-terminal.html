@@ -3366,7 +3366,20 @@ function closeFullCountEntryPage(){
   renderGroupGrid();
   renderLog();
   renderSyncStatus();
+  if(fceReturnTo === 'admin'){
+    fceReturnTo = null;
+    document.getElementById('backToMainFromFCE').textContent = '← Groups';
+    try{ window.parent.postMessage({ type: 'leader-show-section', section: 'admin' }, '*'); }catch(e){}
+  }
 }
+// Opened from Admin (Reports → Enter Full Count Results): same screen, same
+// pages as the printed sheets; the back button returns to Admin.
+let fceReturnTo = null;
+window.openFullCountEntryFromAdmin = function(){
+  fceReturnTo = 'admin';
+  openFullCountEntryPage();
+  document.getElementById('backToMainFromFCE').textContent = '← Back to Admin';
+};
 document.getElementById('enterFullCountBtn').onclick = openFullCountEntryPage;
 document.getElementById('backToMainFromFCE').onclick = closeFullCountEntryPage;
 

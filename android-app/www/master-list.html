@@ -186,6 +186,7 @@ try{
           <button class="btn" id="directorStatementBtn">📊 Director Statement</button>
           <button class="btn" id="printSpotCheckListBtn">🖨 Print Spot Check List</button>
           <button class="btn" id="printFullCountAdminBtn">🖨 Print Full Count Sheet</button>
+          <button class="btn" id="enterFullCountAdminBtn">📝 Enter Full Count Results</button>
           <button class="btn" id="overrideLogBtn">📜 Override Log</button>
         </div>
       </div>
@@ -2386,6 +2387,14 @@ function fcInputWindow(){
     return w && typeof w.getFullCountItems === 'function' && typeof w.printCountPages === 'function' ? w : null;
   }catch(e){ return null; }
 }
+// Enter Full Count Results — opens Input's own entry screen (same pages as
+// the printed sheets, same save: counts sync to Admin and the tablet).
+document.getElementById('enterFullCountAdminBtn').onclick = ()=>{
+  const inp = fcInputWindow();
+  if(!inp || typeof inp.openFullCountEntryFromAdmin !== 'function'){ alert('Open this from the Leader app (Input and Admin together) — results are entered on the Input side so the pages match the printed sheets.'); return; }
+  inp.openFullCountEntryFromAdmin();
+  try{ window.parent.postMessage({ type: 'leader-show-section', section: 'input' }, '*'); }catch(e){}
+};
 document.getElementById('printFullCountAdminBtn').onclick = ()=>{
   const inp = fcInputWindow();
   if(!inp){ alert('Open this from the Leader app (Input and Admin together) — the count sheet comes from the Input side so its pages match "Enter Full Count Results".'); return; }

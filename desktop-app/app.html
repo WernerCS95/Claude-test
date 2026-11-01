@@ -117,7 +117,7 @@
     if(fromInput && m.type === 'leader-open-planner'){
       showSection('admin');
       try{ frames.admin.contentWindow.psOpenPlanner({ returnTo: 'input' }); }catch(err){}
-    } else if(fromAdmin && m.type === 'leader-show-section' && (m.section === 'input' || m.section === 'admin')){
+    } else if((fromAdmin || fromInput) && m.type === 'leader-show-section' && (m.section === 'input' || m.section === 'admin')){
       showSection(m.section);
     }
   });
