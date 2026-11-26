@@ -229,3 +229,25 @@ round re-reads the queue and removes only the record actually sent.
 Recovery: 🔎 Check counts reached Admin → Bring all across (Admin + tablet).
 Older batches from the tablet may also have lost lines on the way to the laptop —
 compare tablet and laptop stock once both run 2.9.3.
+
+## 18. December mode on the order lists (2.10.0, 2026-11-26) — laptop only
+
+Admin → 📋 Order Lists → tick ❄ December mode (cut-off default 15 Dec 2026).
+Overlay only: switched off, the lists and printout are exactly as before.
+- Job (kit) parts: need for jobs on the Kit Scheduler calendar up to the cut-off
+  − on hand − on order; no Min/Max top-up. "Check" when on hand is within 10%
+  of the need.
+- Other parts and ticked Consumables: daily use (issues over 30–60 days, else
+  (Max−Min)/30) × days to the cut-off + 20%, rounded up (pack size, else 1/5/10/100
+  steps), − on hand − on order, never above Max − on hand, never negative.
+- Dec Suggest column next to Order Qty, editable (override saved, ↺ back), On order
+  per part, Consumable tick per part, "＋ Add December needs" (adds lines at Order
+  Qty 0, note "December need"). Printout: qty column "Dec Suggest", lines at 0
+  left off, header note "December order — covers to <date>".
+New keys: leader-master-dec-mode-v1, leader-master-dec-overrides-v1,
+leader-master-dec-onorder-v1 (in the backup). New stock field: consumable
+(filled once per item by name, only where not set — kits never auto-ticked).
+Test data before/after: 577 items, 84,392.75 units, Min/Max totals, 43 issues,
+18 GRNs, 225 spot checks, 190 order lines, 1 history entry — identical; backup
+re-imported identical; no key removed or changed.
+January: untick ❄ December mode — everything is back to normal.

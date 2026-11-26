@@ -926,6 +926,7 @@ function loadState(){
     stock = s ? JSON.parse(s) : cloneOpening();
   }catch(e){ stock = cloneOpening(); isFreshUnseededFile = true; }
   syncMissingCatalogFields();
+  fillConsumableField();
   applySeedV2CorrectionOnce();
   try{
     const l = localStorage.getItem(LEDGER_KEY);
@@ -1354,6 +1355,7 @@ function renderOrderListModal(){
     wireRunningLowAdd(listKey);
     document.getElementById('orderListGenerateBtn').onclick = ()=> generateOrderList(listKey);
     document.getElementById('orderListRefreshAllBtn').onclick = ()=> alert("Nothing on the list yet to refresh.");
+    try{ decEnhance(listKey); }catch(e){ console.error('December mode', e); }
     return;
   }
 
@@ -1461,6 +1463,7 @@ function renderOrderListModal(){
   wireNearMissAdd(listKey);
   wireRunningLowAdd(listKey);
   wireOrderListRows(listKey);
+  try{ decEnhance(listKey); }catch(e){ console.error('December mode', e); }
   document.getElementById('orderListGenerateBtn').onclick = ()=> generateOrderList(listKey);
   document.getElementById('orderListRefreshAllBtn').onclick = ()=>{
     if(!confirm(`Refresh On Hand AND Order Qty for all ${list.length} items on this list?\n\nAny number you've typed in by hand (pack-size specials, after-market splits, etc.) will be replaced with the fresh suggested quantity. This can't be undone — only do this if you haven't made corrections yet, or don't mind redoing them.`)) return;
@@ -1692,6 +1695,7 @@ document.getElementById('orderSheetPrintBtn').onclick = ()=>{
   const listKey = document.getElementById('orderSheetModal').dataset.listKey;
   const list = orderLists[listKey];
   if(!list || list.length === 0){ alert('Nothing on this list yet.'); return; }
+  if(decIsOn()){ decPrint(listKey); return; }
   const bySupplier = {};
   list.forEach(line=>{
     const sup = (line.supplier||'').trim() || 'No Supplier Set';
@@ -1703,6 +1707,194 @@ document.getElementById('orderSheetPrintBtn').onclick = ()=>{
   const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
   openPrintWindow(title, dateStr, suppliers, bySupplier, list);
 };
+
+/* ====================== DECEMBER MODE (order list overlay) ======================
+   For the December shutdown: order only what finishes the current jobs and
+   keeps day-to-day items going until a cut-off date — no Min/Max fill.
+   An overlay on the SAME Month End / New Month lists: switched off, the list
+   and its printout are exactly as before. New keys only:
+     leader-master-dec-mode-v1       { on, cutoff }
+     leader-master-dec-overrides-v1  { "listKey|sku": qty }  — your Dec qty wins
+     leader-master-dec-onorder-v1    { sku: qty }            — already on order
+   New stock field: consumable (true/false), filled once per item by name.
+   Suggested qty:
+     Job (kit) parts:  still needed for jobs on the calendar up to the cut-off
+                       − on hand − on order (never below 0). "Check" when on
+                       hand is within 10% of the need.
+     Everything else / ticked Consumable: daily use (issues over the last
+                       30–60 days, else (Max−Min)/30) × days to the cut-off,
+                       + 20%, rounded up to a sensible number (or pack size),
+                       − on hand − on order; never above Max − on hand. */
+const DEC_KEY = 'leader-master-dec-mode-v1';
+const DEC_OVR_KEY = 'leader-master-dec-overrides-v1';
+const DEC_ONORDER_KEY = 'leader-master-dec-onorder-v1';
+function decRead(k, d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
+function decWrite(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ alert('Could not save: ' + e.message); } }
+function decState(){ return Object.assign({ on: false, cutoff: '2026-12-15' }, decRead(DEC_KEY, {})); }
+function decIsOn(){ return !!decState().on; }
+function decDaysBetween(a, b){ return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+function decToday(){ const d = new Date(); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function decFmt(ymd){ return new Date(ymd + 'T00:00:00').toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' }); }
+// Round up to the pack size, else to a sensible step: 1 / 5 / 10 / 100
+function decRound(n, pack){
+  if(!(n > 0)) return 0;
+  if(pack > 1) return Math.ceil(n / pack) * pack;
+  const step = n < 10 ? 1 : n < 100 ? 5 : n < 1000 ? 10 : 100;
+  return Math.ceil(n / step - 1e-9) * step;
+}
+function decQtyNow(item){ return item.gasTracking ? (item.fullQty||0)+(item.emptyQty||0)+(item.inUseQty||0) : (Number(item.qty)||0); }
+
+// Everything the calculation needs, worked out once per screen/print
+function decContext(){
+  const st = decState(), today = decToday();
+  const kitSkus = (typeof olKitSkus === 'function') ? olKitSkus() : new Set();
+  const kitNeed = {};
+  try{
+    if(psSchedule) psPlan().demand.forEach(d=>{ if(d.sku && d.sku !== 'CYL-NO-SUPPLIER' && d.needBy <= st.cutoff) kitNeed[d.sku] = (kitNeed[d.sku] || 0) + d.qty; });
+  }catch(e){ console.error('December mode: job needs not available', e); }
+  // Issues per part over the last 60 days (30–60: a shorter history counts its real length, at least 30)
+  const from = (()=>{ const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - 60); return psYmd(d.getFullYear(), d.getMonth()+1, d.getDate()); })();
+  const issued = {}; let earliest = null;
+  (ledger || []).forEach(r=>{
+    if(!r || !r.sku || !r.date || r.deleted || r.notApplied) return;
+    if(!earliest || r.date < earliest) earliest = r.date;
+    const q = Number(r.qty) || 0;
+    if(q > 0 && r.date >= from && r.date <= today) issued[r.sku] = (issued[r.sku] || 0) + q;
+  });
+  const span = Math.max(30, Math.min(60, earliest ? decDaysBetween(earliest, today) : 60));
+  return { st, today, days: Math.max(0, decDaysBetween(today, st.cutoff)), kitSkus, kitNeed, issued, span,
+    overrides: decRead(DEC_OVR_KEY, {}), onOrder: decRead(DEC_ONORDER_KEY, {}) };
+}
+function decCalc(ctx, item, listKey){
+  const sku = item.sku, onHand = decQtyNow(item), onOrder = Number(ctx.onOrder[sku]) || 0;
+  const pack = Number(item.packSize) > 1 ? Number(item.packSize) : 1;
+  const min = Number(item.min) || 0, max = Number(item.max) || 0;
+  let sugg = 0, basis = '', check = false, job = false;
+  if(ctx.kitSkus.has(sku) && item.consumable !== true){
+    job = true;
+    const need = ctx.kitNeed[sku] || 0;
+    const net = need - onHand - onOrder;
+    sugg = net > 0 ? (pack > 1 ? Math.ceil(net / pack) * pack : Math.ceil(net)) : 0;
+    check = need > 0 && onHand >= need * 0.9 && onHand <= need * 1.1;
+    basis = `Jobs to ${ctx.st.cutoff.slice(5)}: need ${Math.round(need*100)/100}`;
+  } else {
+    let rate = 0, how;
+    if(ctx.issued[sku] > 0){ rate = ctx.issued[sku] / ctx.span; how = `${Math.round(ctx.issued[sku]*100)/100} issued in ${ctx.span} days`; }
+    else if(max > min){ rate = (max - min) / 30; how = 'no issues — (Max−Min)/30'; }
+    else how = 'no issues, no Max/Min';
+    const need = rate * ctx.days;
+    const target = decRound(need * 1.2, pack);
+    const net = target - onHand - onOrder;
+    sugg = net > 0 ? decRound(net, pack) : 0;
+    if(max > 0) sugg = Math.min(sugg, Math.max(0, max - onHand));
+    basis = `${Math.round(rate*100)/100}/day × ${ctx.days}d = ${Math.round(need*10)/10} +20% → ${target}` + (how ? ` (${how})` : '');
+  }
+  const key = (listKey || '') + '|' + sku;
+  const ovr = ctx.overrides[key];
+  const hasOvr = ovr !== undefined && ovr !== null && ovr !== '';
+  return { sku, onHand, onOrder, sugg, final: hasOvr ? Number(ovr) : sugg, override: hasOvr, basis, check, job };
+}
+
+// Consumable tick: filled once per item from its name (same idea as
+// syncMissingCatalogFields — only fills a field that isn't set yet, so your
+// own tick/untick is never overwritten). "Kit" items stay unticked.
+function fillConsumableField(){
+  const re = /sand ?paper|sanding|abrasive|\bdiscs?\b|flap|cut[- ]?off|grinding|welding wire|mig wire|\bwire\b|glove|\btape\b|\brags?\b|\bpvc\b|air (pipe|hose)|cable tie|rubber|\bnuts?\b|wheel ?nuts?|\bbolts?\b|washer|\bgas\b|argon|oxygen|acetylene|\bco2\b|thinner|silicone|sikaflex|grease|rivet|revit|screw|electrode|drill bit|blade|spray|primer|masking|cleaner|degreaser|lubricant|nozzle|contact tip|mixing clear|hardener/i;
+  (stock || []).forEach(it=>{ if(it && it.consumable === undefined) it.consumable = !/\bkits?\b/i.test(it.name || '') && re.test(it.name || ''); });
+}
+
+// The December bar + Dec Suggest column, laid over the rendered order list
+function decEnhance(listKey){
+  const body = document.getElementById('orderSheetBody');
+  if(!body) return;
+  const st = decState();
+  const list = orderLists[listKey] || [];
+  const ctx = st.on ? decContext() : null;
+  const onList = new Set(list.map(l=> l.sku));
+  let addable = [];
+  if(ctx) addable = stock.filter(it=> it && it.sku && !onList.has(it.sku) && !it.noAutoOrder && decCalc(ctx, it, listKey).sugg > 0);
+  const bar = document.createElement('div');
+  bar.id = 'decBar';
+  bar.style.cssText = `display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; padding:8px 10px; border-radius:8px; border:2px solid ${st.on ? 'var(--steel)' : 'var(--panel-line)'}; background:${st.on ? 'rgba(31,78,120,0.08)' : 'transparent'};`;
+  bar.innerHTML = `
+    <label style="font-weight:700; cursor:pointer;"><input type="checkbox" id="decToggle" ${st.on ? 'checked' : ''}> ❄ December mode</label>
+    <label style="font-size:12.5px;">covers to <input type="date" id="decCutoff" value="${st.cutoff}" style="background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:5px; padding:2px 5px;"></label>
+    ${st.on ? `<span class="sub" style="margin:0;">${ctx.days} day(s) from today · job parts: jobs on the Kit Scheduler calendar up to the cut-off · other parts: daily use × days + 20%. The printout shows <b>Dec Suggest</b>.</span>
+      ${addable.length ? `<button class="btn" id="decAddNeeds" style="padding:3px 10px; border-color:var(--steel); color:var(--steel);" title="Parts not on this list that December mode says to order">＋ Add December needs (${addable.length})</button>` : ''}`
+      : '<span class="sub" style="margin:0;">Off — the list works exactly as normal.</span>'}`;
+  body.insertBefore(bar, body.firstChild);
+  document.getElementById('decToggle').onchange = function(){ decWrite(DEC_KEY, Object.assign(decState(), { on: this.checked })); renderOrderListModal(); };
+  document.getElementById('decCutoff').onchange = function(){ if(this.value){ decWrite(DEC_KEY, Object.assign(decState(), { cutoff: this.value })); renderOrderListModal(); } };
+  const addBtn = document.getElementById('decAddNeeds');
+  if(addBtn) addBtn.onclick = ()=>{
+    if(!confirm(`Add ${addable.length} part(s) December mode says to order?\n\nThey go on this list with Order Qty 0 (normal ordering unchanged) and a note "December need" — the December printout uses their Dec Suggest.`)) return;
+    addable.forEach(it=> orderLists[listKey].push({ id: 'ol'+Date.now()+Math.random().toString(36).slice(2,7), sku: it.sku, name: it.name, supplier: it.supplier || '', onHand: decQtyNow(it), orderQty: 0, notes: 'December need' }));
+    saveOrderList(listKey); renderOrderListModal();
+  };
+  if(!st.on) return;
+  // Column header next to Order Qty
+  body.querySelectorAll('table th').forEach(th=>{
+    if(th.textContent.trim() !== 'Order Qty') return;
+    const nth = document.createElement('th'); nth.className = 'right'; nth.textContent = 'Dec Suggest';
+    nth.style.color = 'var(--steel)';
+    th.after(nth);
+  });
+  body.querySelectorAll('input[data-order-field="orderQty"][data-id]').forEach(inp=>{
+    const line = list.find(l=> l.id === inp.dataset.id);
+    const td = inp.closest('td');
+    if(!line || !td) return;
+    const item = stock.find(s=> s.sku === line.sku);
+    const cell = document.createElement('td');
+    cell.className = 'right'; cell.style.verticalAlign = 'top'; cell.style.minWidth = '150px';
+    if(!item){ cell.innerHTML = '<span class="sub">not in stock list</span>'; td.after(cell); return; }
+    const r = decCalc(ctx, item, listKey);
+    cell.innerHTML = `
+      <input type="number" min="0" step="any" data-dec-qty="${rqEsc(line.sku)}" value="${r.final}" title="${rqEsc(r.basis)}" style="width:80px; text-align:right; font-weight:700; color:var(--steel); background:${r.override ? 'rgba(184,134,46,0.18)' : 'var(--void)'}; border:1px solid var(--steel); border-radius:4px; padding:4px 6px;">
+      ${r.override ? `<a href="#" data-dec-reset="${rqEsc(line.sku)}" title="Back to the suggested ${r.sugg}" style="font-size:11px;">↺ ${r.sugg}</a>` : ''}
+      ${r.check ? `<div><span style="background:var(--danger); color:#fff; border-radius:4px; padding:1px 6px; font-size:11px; font-weight:700;" title="On hand is within 10% of what the jobs need — double-check by hand">Check</span></div>` : ''}
+      <div style="font-size:10.5px; color:var(--text-faint); margin-top:2px; max-width:190px; margin-left:auto;">${rqEsc(r.basis)}</div>
+      <div style="font-size:11px; margin-top:3px;">On order <input type="number" min="0" step="any" data-dec-onorder="${rqEsc(line.sku)}" value="${r.onOrder || ''}" placeholder="0" style="width:56px; text-align:right; background:var(--void); color:var(--text); border:1px solid var(--panel-line); border-radius:4px; padding:2px 4px;"></div>
+      <label style="font-size:11px; cursor:pointer; display:block; margin-top:2px;"><input type="checkbox" data-dec-cons="${rqEsc(line.sku)}" ${item.consumable === true ? 'checked' : ''}> Consumable</label>`;
+    td.after(cell);
+  });
+  body.querySelectorAll('[data-dec-qty]').forEach(inp=> inp.onchange = ()=>{
+    const o = decRead(DEC_OVR_KEY, {}), k = listKey + '|' + inp.dataset.decQty;
+    if(inp.value === '') delete o[k]; else o[k] = Math.max(0, Number(inp.value) || 0);
+    decWrite(DEC_OVR_KEY, o); renderOrderListModal();
+  });
+  body.querySelectorAll('[data-dec-reset]').forEach(a=> a.onclick = (e)=>{ e.preventDefault(); const o = decRead(DEC_OVR_KEY, {}); delete o[listKey + '|' + a.dataset.decReset]; decWrite(DEC_OVR_KEY, o); renderOrderListModal(); });
+  body.querySelectorAll('[data-dec-onorder]').forEach(inp=> inp.onchange = ()=>{
+    const o = decRead(DEC_ONORDER_KEY, {}), v = Number(inp.value) || 0;
+    if(v > 0) o[inp.dataset.decOnorder] = v; else delete o[inp.dataset.decOnorder];
+    decWrite(DEC_ONORDER_KEY, o); renderOrderListModal();
+  });
+  body.querySelectorAll('[data-dec-cons]').forEach(cb=> cb.onchange = ()=>{
+    const it = stock.find(s=> s.sku === cb.dataset.decCons);
+    if(it){ it.consumable = cb.checked; saveState(); }
+    renderOrderListModal();
+  });
+}
+
+// December printout: same layout, the qty column is Dec Suggest, lines at 0 left off
+function decPrint(listKey){
+  const list = orderLists[listKey] || [];
+  const ctx = decContext();
+  const lines = [];
+  list.forEach(l=>{
+    const item = stock.find(s=> s.sku === l.sku);
+    if(!item) return;
+    const r = decCalc(ctx, item, listKey);
+    if(!(r.final > 0)) return;
+    lines.push(Object.assign({}, l, { orderQty: r.final, notes: [r.check ? 'CHECK' : '', r.onOrder ? `+${r.onOrder} on order` : '', l.notes || ''].filter(Boolean).join(' · ') }));
+  });
+  if(!lines.length){ alert('Nothing to order in December mode — every Dec Suggest on this list is 0.'); return; }
+  const bySupplier = {};
+  lines.forEach(line=>{ const sup = (line.supplier||'').trim() || 'No Supplier Set'; (bySupplier[sup] = bySupplier[sup] || []).push(line); });
+  const suppliers = Object.keys(bySupplier).sort((a,b)=> a==='No Supplier Set'?1 : b==='No Supplier Set'?-1 : a.localeCompare(b));
+  const title = document.getElementById('orderSheetTitle').textContent;
+  const dateStr = new Date().toLocaleDateString('en-ZA', { day:'2-digit', month:'long', year:'numeric' });
+  openPrintWindow(title, `${dateStr}   ·   December order — covers to ${decFmt(ctx.st.cutoff)}`, suppliers, bySupplier, lines, { qtyLabel: 'Dec Suggest' });
+}
 
 /* ====================== DIRECTOR STATEMENT ======================
    One clean, printable page pulled straight from live data — total
@@ -1969,7 +2161,7 @@ function openDirectorStatementPrintWindow(dateStr, current, opening, change, cha
 // "get someone to convert this to a PDF" step on Android every single
 // time. A real PDF file needs no conversion — it opens/prints/saves
 // correctly wherever it lands, laptop or tablet, no middleman.
-function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
+function openPrintWindow(title, dateStr, suppliers, bySupplier, list, opts){
   const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const navy = [31, 78, 120];
@@ -2009,7 +2201,7 @@ function openPrintWindow(title, dateStr, suppliers, bySupplier, list){
     doc.autoTable({
       startY: cursorY,
       margin: { left: 14, right: 14 },
-      head: [['Part', 'On Hand', 'Min', 'Max', 'Order Qty', 'Price', 'Line Total', 'Notes']],
+      head: [['Part', 'On Hand', 'Min', 'Max', (opts && opts.qtyLabel) || 'Order Qty', 'Price', 'Line Total', 'Notes']],
       body: rows,
       foot: [['Supplier Total', '', '', '', '', '', fmtR(supplierTotal), '']],
       theme: 'grid',
@@ -4931,7 +5123,7 @@ const MASTER_BACKUP_LOCALSTORAGE_KEYS = [
   // one-time flags matter: they stop old catalog corrections re-running
   // over restored real stock.
   'leader-master-ps-schedule-v1', 'leader-master-ps-schedule-prev-v1', 'leader-master-ps-tweaks-v1', 'leader-master-ps-build-marks-v1', 'leader-master-ps-kit-v1', 'leader-master-ps-cyl-supplier-v1', 'leader-master-ps-lead-days-v1', 'leader-master-ps-behind-v1', 'leader-master-ps-mode-v1', 'leader-master-ps-placed-v1', 'leader-master-ps-capacity-v1', 'leader-master-ps-cutoff-v1', 'leader-master-ps-from-v1', 'leader-master-ps-start-v1', 'leader-master-ps-hold-v1', 'leader-master-ps-noprint-suppliers-v1', 'leader-master-ps-buy-qty-v1', 'leader-master-ps-kitout-v1', 'leader-master-ps-kitplan-sent-v1', 'leader-master-ps-kitout-undone-v1',
-  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1', 'leader-master-ps-day-changes-v1', 'leader-master-ol-supplier-page-v1', 'leader-master-ol-pick-layout-v1',
+  'leader-master-ol-edits-v1', 'leader-master-ol-added-v1', 'leader-master-ol-kit-minmax-v1', 'leader-master-ol-ruben-stoor-v1', 'leader-master-ol-nm-range-v1', 'leader-master-ps-axle-count-v1', 'leader-master-ps-day-changes-v1', 'leader-master-dec-mode-v1', 'leader-master-dec-overrides-v1', 'leader-master-dec-onorder-v1', 'leader-master-ol-supplier-page-v1', 'leader-master-ol-pick-layout-v1',
   'leader-master-scheduler-jobs-v1', 'leader-master-sync-outbox-v1', 'leader-master-sync-applied-v1',
   'leader-master-sync-last-pull-v1', 'leader-master-last-import-at', 'leader-master-seed-v2-applied',
   'leader-master-removed-advance-harnessing-v1', 'leader-master-recovery-seeded-2026-08-26'

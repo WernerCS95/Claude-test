@@ -59,6 +59,7 @@ Order Lists and most Admin/Reports screens live in **`master-list.html`**, not h
 | Check counts reached Admin (laptop Input vs Admin, unsent queue + last error) | `checkCountsAdminBtn`, `ccInputData`, `ccApply`, `ccRender`; terminal `syncQueueInfo`, `noteSyncError` | Reports menu |
 | Print Full Count Sheet / Enter Full Count Results from Admin (uses Input's own screens) | `printFullCountAdminBtn`, `enterFullCountAdminBtn`, `fcInputWindow`, `openFullCountEntryFromAdmin` (terminal) | Reports menu; search `PRINT FULL COUNT SHEET (from Admin)` |
 | Kit Scheduler working days + 📆 Day changes (holidays, working Saturdays, shift / catch up) | `PS_SA_HOLIDAYS`, `psIsWorkday`, `psDays`, `psShiftPlan`, `psRunShift`, `psRunCatchUp`, `psDaysBoxHtml` | search `Working days: weekends, public holidays` |
+| December mode (order list overlay: Dec Suggest, consumable tick, on order) | `DEC_KEY`, `decContext`, `decCalc`, `decEnhance`, `decPrint`, `fillConsumableField` | search `DECEMBER MODE (order list overlay)` |
 | Issued History / tally (filters, totals, print) | `issuedHistoryModal` (HTML), `ihRows`, `ihTotals`, `printIssuedHistory` | search for `ISSUED HISTORY / TALLY` |
 | Override rule (laptop correction wins, exact time) | `isSupersededByOverride` (reads `spotLedger[].at`) | right above `applyRemoteStockTransaction` |
 | Price Compare (supplier prices, preferred supplier) | `SUPPLIER_PRICES_KEY`, `SUPPLIER_SETTINGS_KEY`, `buyFromInfoForSku`, `priceCompareModal` (HTML) | search for `SUPPLIER PRICE COMPARISON` |
